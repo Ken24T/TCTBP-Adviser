@@ -36,6 +36,9 @@ describe('untrusted TCTBP data inspection', () => {
         minor: 0,
         capabilities: ['inspection.local-v1'],
       },
+      adviserVocabulary: {
+        workflowIds: ['status', 'checkpoint', 'publish'],
+      },
     })
     await writeJson(repository, '.tctbp/source.json', {
       sourceRepository: 'Ken24T/TCTBP-Web',
@@ -51,6 +54,7 @@ describe('untrusted TCTBP data inspection', () => {
       compatible: true,
       schemaVersion: 11,
       projectName: 'fixture-project',
+      workflows: ['status', 'checkpoint', 'publish'],
       scaffold: {
         status: 'incomplete',
         sourceRevision: 'abc123',
@@ -182,6 +186,9 @@ function compatibleProfile() {
       major: 1,
       minor: 0,
       capabilities: ['inspection.local-v1'],
+    },
+    adviserVocabulary: {
+      workflowIds: ['status', 'checkpoint', 'publish', 'resume', 'handover'],
     },
   }
 }

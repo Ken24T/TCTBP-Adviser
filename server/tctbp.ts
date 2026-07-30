@@ -40,6 +40,7 @@ export async function inspectTctbp(
       schemaVersion: null,
       projectName: null,
       contract: { major: null, minor: null, capabilities: [] },
+      workflows: [],
       scaffold: unknownScaffold(),
       errors,
     }
@@ -47,6 +48,7 @@ export async function inspectTctbp(
 
   const contract = objectValue(profile.adviserContract)
   const capabilities = stringArray(contract?.capabilities)
+  const vocabulary = objectValue(profile.adviserVocabulary)
   const contractObservation = {
     major: integerValue(contract?.major),
     minor: integerValue(contract?.minor),
@@ -70,6 +72,7 @@ export async function inspectTctbp(
     schemaVersion: integerValue(profile.schemaVersion),
     projectName: stringValue(objectValue(profile.project)?.name),
     contract: contractObservation,
+    workflows: stringArray(vocabulary?.workflowIds),
     scaffold: await inspectScaffold(repositoryRoot, errors),
     errors,
   }

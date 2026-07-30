@@ -11,6 +11,8 @@ The first slice exposes:
 - `GET /api/health`
 - `GET /api/repositories`
 - `POST /api/repositories/:id/inspect`
+- `POST /api/repositories/:id/recommendation`
 
 The browser receives an unguessable per-launch token in the same-origin HTML.
-No endpoint accepts a repository path or command.
+The recommendation endpoint accepts only an optional fixed `intent` enum. No
+endpoint accepts a repository path or command.

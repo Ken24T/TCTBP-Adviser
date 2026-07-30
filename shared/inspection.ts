@@ -54,6 +54,7 @@ export interface TctbpObservation {
   schemaVersion: number | null
   projectName: string | null
   contract: TctbpContractObservation
+  workflows: string[]
   scaffold: ScaffoldHealthObservation
   errors: InspectionIssue[]
 }

@@ -5,7 +5,12 @@ import type { ServiceConfig } from './config'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
 import { LocalGitInspector } from './local-git'
+import { recommend } from './recommendations/engine'
 import { RepositoryRegistry } from './registry'
+import {
+  readRecommendationIntent,
+  requireEmptyBody,
+} from './request-input'
 
 export interface ApiRuntime {
   readonly sessionToken: string
@@ -61,6 +66,22 @@ export function createApiHandler(runtime: ApiRuntime) {
         )
         const observation = await runtime.inspections.inspect(repository)
         sendJson(response, 200, observation)
+        return
+      }
+
+      const recommendationMatch =
+        /^\/api\/repositories\/([^/]+)\/recommendation$/.exec(url.pathname)
+      if (request.method === 'POST' && recommendationMatch) {
+        const intent = await readRecommendationIntent(request)
+        const repository = runtime.registry.require(
+          decodeURIComponent(recommendationMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        sendJson(
+          response,
+          200,
+          recommend(observation, intent, new Date()),
+        )
         return
       }
 
@@ -152,19 +173,6 @@ function tokensMatch(supplied: string, expected: string): boolean {
   )
 }
 
-async function requireEmptyBody(request: IncomingMessage): Promise<void> {
-  let bytes = 0
-  for await (const chunk of request) {
-    bytes += Buffer.byteLength(chunk)
-    if (bytes > 0) {
-      throw new AdviserError(
-        'request-body-rejected',
-        'Inspection requests do not accept a request body.',
-      )
-    }
-  }
-}
-
 function sendJson(
   response: ServerResponse,
   status: number,
@@ -182,9 +190,11 @@ function statusForError(error: unknown): number {
   if (!(error instanceof AdviserError)) return 500
   if (error.code === 'repository-not-found') return 404
   if (
-    error.code.startsWith('request-')
+    error.code === 'request-host-rejected'
+    || error.code === 'request-origin-rejected'
     || error.code === 'session-token-invalid'
   ) return 403
+  if (error.code.startsWith('request-')) return 400
   return 500
 }
 
