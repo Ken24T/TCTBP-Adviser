@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
+import type { ReferenceCatalogue } from '../shared/reference'
 import {
   loadPortfolio,
+  loadReferenceCatalogue,
   loadRepositoryDetail,
 } from './api-client'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
+import { ReferenceExplorer } from './components/ReferenceExplorer'
 import {
   loadPortfolioPreferences,
   savePortfolioPreferences,
@@ -20,6 +23,8 @@ function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [referenceOpen, setReferenceOpen] = useState(false)
+  const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
   const [intent, setIntent] = useState<RecommendationIntent>('none')
   const [preferences, setPreferences] = useState<PortfolioPreferences>(
     loadPortfolioPreferences,
@@ -63,6 +68,20 @@ function App() {
     }
   }
 
+  async function refreshCatalogue(): Promise<void> {
+    const currentRequest = ++requestId.current
+    setBusy(true)
+    setError(null)
+    try {
+      const nextCatalogue = await loadReferenceCatalogue()
+      if (currentRequest === requestId.current) setCatalogue(nextCatalogue)
+    } catch (cause) {
+      captureError(cause, currentRequest)
+    } finally {
+      if (currentRequest === requestId.current) setBusy(false)
+    }
+  }
+
   function captureError(cause: unknown, currentRequest: number): void {
     if (currentRequest !== requestId.current) return
     setError(
@@ -73,6 +92,7 @@ function App() {
   }
 
   function openRepository(repositoryId: string): void {
+    setReferenceOpen(false)
     setSelectedId(repositoryId)
     setDetail(null)
     setIntent('none')
@@ -82,10 +102,22 @@ function App() {
   function showPortfolio(): void {
     requestId.current += 1
     setSelectedId(null)
+    setReferenceOpen(false)
     setDetail(null)
     setIntent('none')
     setBusy(false)
     setError(null)
+  }
+
+  function showReference(): void {
+    requestId.current += 1
+    setSelectedId(null)
+    setDetail(null)
+    setIntent('none')
+    setReferenceOpen(true)
+    setError(null)
+    if (!catalogue) void refreshCatalogue()
+    else setBusy(false)
   }
 
   function changeIntent(nextIntent: RecommendationIntent): void {
@@ -114,7 +146,8 @@ function App() {
   }, [preferences])
 
   const retry = () => {
-    if (selectedId) void refreshDetail(selectedId, intent)
+    if (referenceOpen) void refreshCatalogue()
+    else if (selectedId) void refreshDetail(selectedId, intent)
     else void refreshPortfolio(true)
   }
 
@@ -133,7 +166,10 @@ function App() {
             <small>Adviser</small>
           </span>
         </button>
-        <span className="mode-label">Local-first repository portfolio</span>
+        <div className="topbar-actions">
+          <button type="button" onClick={showReference}>TCTBP reference</button>
+          <span className="mode-label">Local-first repository portfolio</span>
+        </div>
       </nav>
 
       <main>
@@ -150,7 +186,9 @@ function App() {
           </section>
         )}
 
-        {selectedId && detail ? (
+        {referenceOpen && catalogue ? (
+          <ReferenceExplorer catalogue={catalogue} onBack={showPortfolio} />
+        ) : selectedId && detail ? (
           <RepositoryDetail
             detail={detail}
             intent={intent}
@@ -159,7 +197,7 @@ function App() {
             onIntentChange={changeIntent}
             onRefresh={() => void refreshDetail(selectedId, intent)}
           />
-        ) : !selectedId && portfolio ? (
+        ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard
             snapshot={portfolio}
             preferences={preferences}
@@ -172,7 +210,9 @@ function App() {
           <section className="loading-panel" aria-live="polite">
             <span className="loading-ring" aria-hidden="true" />
             <p>
-              {selectedId
+              {referenceOpen
+                ? 'Loading the pinned TCTBP reference…'
+                : selectedId
                 ? 'Inspecting the selected repository…'
                 : 'Discovering local repositories…'}
             </p>

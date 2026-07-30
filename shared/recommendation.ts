@@ -2,7 +2,14 @@ import type { InspectionIssue } from './inspection'
 
 export const RECOMMENDATION_INTENTS = [
   'none',
+  'preserve-locally',
+  'preserve-and-publish',
   'continue-on-another-machine',
+  'resume-after-machine-change',
+  'prepare-pre-production',
+  'deploy-current-environment',
+  'prepare-production-release',
+  'recover-interrupted-workflow',
 ] as const
 
 export type RecommendationIntent =

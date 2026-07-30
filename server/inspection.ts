@@ -4,12 +4,25 @@ import {
 } from '../shared/inspection'
 import type { RegisteredRepository } from './registry'
 import type { LocalGitInspector } from './local-git'
+import type { InspectionAuditLog } from './audit'
 import { inspectTctbp } from './tctbp'
 
 export class RepositoryInspectionService {
-  constructor(readonly gitInspector: LocalGitInspector) {}
+  constructor(
+    readonly gitInspector: LocalGitInspector,
+    readonly audit: InspectionAuditLog | null = null,
+  ) {}
 
   async inspect(
+    repository: RegisteredRepository,
+  ): Promise<RepositoryObservation> {
+    const operation = () => this.inspectRepository(repository)
+    return this.audit
+      ? this.audit.capture(repository.id, operation)
+      : operation()
+  }
+
+  private async inspectRepository(
     repository: RegisteredRepository,
   ): Promise<RepositoryObservation> {
     const [git, tctbp] = await Promise.all([

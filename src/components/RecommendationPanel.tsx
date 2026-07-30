@@ -24,7 +24,8 @@ export function RecommendationPanel({
     >
       <div className="recommendation-heading">
         <div>
-          <p className="eyebrow">
+          <p className="eyebrow">State-driven recommendation</p>
+          <p className="recommendation-disposition">
             {dispositionLabel(recommendation.disposition)}
           </p>
           <h2 id="recommendation-title">{title}</h2>

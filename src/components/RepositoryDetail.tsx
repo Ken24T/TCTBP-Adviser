@@ -4,6 +4,9 @@ import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
 import { GitHubPanel } from './GitHubPanel'
+import { IntentPlanPanel } from './IntentPlanPanel'
+import { INTENT_OPTIONS } from '../intent-options'
+import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
@@ -52,22 +55,22 @@ export function RepositoryDetail({
           <h2 id="intent-title">What are you trying to do?</h2>
         </div>
         <div className="intent-actions">
-          <button
-            className={intent === 'none' ? 'selected' : ''}
-            disabled={busy}
-            onClick={() => onIntentChange('none')}
-            type="button"
-          >
-            Check repository health
-          </button>
-          <button
-            className={intent === 'continue-on-another-machine' ? 'selected' : ''}
-            disabled={busy}
-            onClick={() => onIntentChange('continue-on-another-machine')}
-            type="button"
-          >
-            Continue on another machine
-          </button>
+          <label className="intent-select">
+            <span>Selected outcome</span>
+            <select
+              disabled={busy}
+              value={intent}
+              onChange={(event) => onIntentChange(
+                event.currentTarget.value as RecommendationIntent,
+              )}
+            >
+              {INTENT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             className="refresh-button"
             disabled={busy}
@@ -80,11 +83,13 @@ export function RepositoryDetail({
       </section>
 
       <RecommendationPanel recommendation={recommendation} />
+      <IntentPlanPanel plan={detail.intentPlan} />
       <RepositoryState
         observation={observation}
         recommendation={recommendation}
       />
       <TctbpPanel observation={observation} />
+      <RepositoryReferencePanel reference={detail.reference} />
       <GitHubPanel
         evidence={detail.github}
         localBranch={observation.head.branch}

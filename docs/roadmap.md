@@ -46,12 +46,13 @@
 - Preserve local advice through missing credentials, partial provider failure,
   rate limits and local-only repositories.
 
-## 7. Reference and hardening
+## 7. Reference and hardening — complete
 
 - Generate trigger and guardrail reference views from the pinned contract.
 - Add intent-oriented workflow sequences.
 - Add bounded concurrency, caching, diagnostics, and configuration export.
-- Consider preview-only scaffold upgrade plans.
+- Keep scaffold assessment read-only; preview-only upgrades were considered
+  but remain part of the separately approved mutation design.
 
 ## Deferred product decision
 
