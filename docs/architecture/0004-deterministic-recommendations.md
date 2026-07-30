@@ -58,5 +58,6 @@ rejected.
 
 ## Deferred
 
-The repository-detail UI, broader intent catalogue, portfolio discovery,
-GitHub enrichment and all workflow execution remain outside this phase.
+The broader intent catalogue, portfolio discovery, GitHub enrichment and all
+workflow execution remain outside this phase. The repository-detail UI was
+added in the following vertical slice.

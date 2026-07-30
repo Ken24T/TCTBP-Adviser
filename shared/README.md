@@ -8,3 +8,8 @@ in `.tctbp/source.json`.
 
 Recommendation types keep outcomes distinct from executable workflows:
 `action`, `sequence`, `stop`, `inspect`, and `none`.
+
+The repository-detail response couples one local observation with the
+recommendation evaluated from that exact timestamp. Branch-model and
+quality-gate observations expose policy facts without exposing repository
+command strings.

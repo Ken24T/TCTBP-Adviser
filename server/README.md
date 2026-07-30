@@ -12,7 +12,10 @@ The first slice exposes:
 - `GET /api/repositories`
 - `POST /api/repositories/:id/inspect`
 - `POST /api/repositories/:id/recommendation`
+- `POST /api/repositories/:id/detail`
 
 The browser receives an unguessable per-launch token in the same-origin HTML.
-The recommendation endpoint accepts only an optional fixed `intent` enum. No
-endpoint accepts a repository path or command.
+Recommendation and detail endpoints accept only an optional fixed `intent`
+enum. The detail response contains one observation and the recommendation
+evaluated from that exact observation. No endpoint accepts or returns a
+repository path or command.

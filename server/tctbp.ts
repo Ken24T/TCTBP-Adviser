@@ -1,7 +1,9 @@
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import type {
+  BranchModelObservation,
   InspectionIssue,
+  QualityGateObservation,
   ScaffoldHealthObservation,
   TctbpObservation,
 } from '../shared/inspection'
@@ -39,8 +41,11 @@ export async function inspectTctbp(
       compatible: false,
       schemaVersion: null,
       projectName: null,
+      projectDescription: null,
       contract: { major: null, minor: null, capabilities: [] },
       workflows: [],
+      branchModel: unknownBranchModel(),
+      qualityGates: [],
       scaffold: unknownScaffold(),
       errors,
     }
@@ -49,6 +54,7 @@ export async function inspectTctbp(
   const contract = objectValue(profile.adviserContract)
   const capabilities = stringArray(contract?.capabilities)
   const vocabulary = objectValue(profile.adviserVocabulary)
+  const project = objectValue(profile.project)
   const contractObservation = {
     major: integerValue(contract?.major),
     minor: integerValue(contract?.minor),
@@ -70,11 +76,68 @@ export async function inspectTctbp(
     installed: true,
     compatible,
     schemaVersion: integerValue(profile.schemaVersion),
-    projectName: stringValue(objectValue(profile.project)?.name),
+    projectName: stringValue(project?.name),
+    projectDescription: stringValue(project?.description),
     contract: contractObservation,
     workflows: stringArray(vocabulary?.workflowIds),
+    branchModel: branchModelObservation(profile),
+    qualityGates: qualityGateObservations(profile),
     scaffold: await inspectScaffold(repositoryRoot, errors),
     errors,
+  }
+}
+
+function branchModelObservation(profile: JsonObject): BranchModelObservation {
+  const model = objectValue(profile.branchModel)
+  if (!model) return unknownBranchModel()
+  const workingBranch = stringValue(model.workingBranch)
+  const preProductionBranch = stringValue(
+    model.stagingBranch ?? model.reviewBranch,
+  )
+  const productionBranch = stringValue(model.productionBranch)
+  const promotionTargets = (
+    model.promoteEnabled === true
+      ? [
+        preProductionBranch ? 'staging' : null,
+        productionBranch ? 'production' : null,
+      ]
+      : []
+  ).filter((value): value is string => value !== null)
+
+  return {
+    strategy: stringValue(model.strategy),
+    workingBranch,
+    preProductionBranch,
+    productionBranch,
+    promotionTargets,
+  }
+}
+
+function qualityGateObservations(
+  profile: JsonObject,
+): QualityGateObservation[] {
+  const runtimeProfile = objectValue(profile.profile)
+  const commands = objectValue(runtimeProfile?.commands)
+  const gates = objectValue(runtimeProfile?.qualityGates)
+
+  return [
+    gate('format', commands?.format, false),
+    gate('test', commands?.test, gates?.requireTestsBeforeShip === true),
+    gate('lint', commands?.lint, gates?.requireLintBeforeShip === true),
+    gate('build', commands?.build, gates?.requireBuildBeforeShip === true),
+    gate('release-build', commands?.releaseBuild, false),
+  ]
+}
+
+function gate(
+  id: QualityGateObservation['id'],
+  command: unknown,
+  requiredBeforeShip: boolean,
+): QualityGateObservation {
+  return {
+    id,
+    configured: typeof command === 'string' && command.trim().length > 0,
+    requiredBeforeShip,
   }
 }
 
@@ -251,6 +314,16 @@ function unknownScaffold(): ScaffoldHealthObservation {
     uncertainties: [
       'No scaffold source manifest is available for managed-file comparison.',
     ],
+  }
+}
+
+function unknownBranchModel(): BranchModelObservation {
+  return {
+    strategy: null,
+    workingBranch: null,
+    preProductionBranch: null,
+    productionBranch: null,
+    promotionTargets: [],
   }
 }
 
