@@ -3,7 +3,13 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'server/**/*.test.ts',
+      'shared/**/*.test.ts',
+      'test/**/*.test.ts',
+    ],
     globals: true,
   },
   resolve: {

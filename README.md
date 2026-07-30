@@ -3,15 +3,20 @@
 A local-first, read-only companion for understanding repository state and
 choosing safe TCTBP workflows.
 
-The project is currently at the scaffold/bootstrap stage. It consumes TCTBP-Web
-Adviser contract v1 pinned to commit
+The secure single-repository inspection service is implemented. It consumes
+TCTBP-Web Adviser contract v1 pinned to commit
 `0e99ceaf7436214a40bfcabbc79f57c36c91b035`.
 
 ## Quick Start
 
 1. Install Node.js 18+.
-2. Run `npm install` from the repo root.
-3. Run `npm run dev` to start the Vite dev server. Run `npm run typecheck` to validate TypeScript. Run `npm run test` to run the test suite.
+2. Run `npm ci` from the repository root.
+3. Copy `.env.example` to `.env`.
+4. Set the allowed root and the one repository to inspect using absolute paths.
+5. Run `npm run dev`.
+
+The current slice exposes the read-only local API. The repository-detail UI and
+deterministic recommendation engine are the next planned phases.
 
 ## TCTBP-Web Runtime
 
@@ -50,6 +55,7 @@ development ──promote staging──▶ staging ──promote production─�
 - `npm run typecheck` — TypeScript validation
 - `npm run test` — Run tests (vitest)
 - `npm run test:watch` — Run tests in watch mode
+- `npm run build` — Type-check and create the production client bundle
 
 
 ## Project Structure
@@ -76,4 +82,5 @@ scripts/          # TCTBP-Web runners (managed)
 
 See [Bootstrap architecture](docs/architecture/0001-bootstrap-boundaries.md),
 [scaffold health and upgrades](docs/architecture/0002-scaffold-health-and-upgrades.md),
+[secure local inspection](docs/architecture/0003-secure-local-inspection.md),
 and the [implementation roadmap](docs/roadmap.md).

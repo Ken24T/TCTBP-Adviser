@@ -1,13 +1,13 @@
 # TCTBP-Adviser implementation roadmap
 
-## 1. Bootstrap
+## 1. Bootstrap — complete
 
 - Scaffold from pinned TCTBP-Web contract v1.
 - Establish `development → staging → main`.
 - Confirm tests, build, human status, and JSON status.
 - Record bootstrap, trust, and dogfooding decisions.
 
-## 2. One-repository local inspection
+## 2. One-repository local inspection — complete
 
 - Configure one repository by opaque identifier.
 - Enforce root containment and resolved-path checks.
