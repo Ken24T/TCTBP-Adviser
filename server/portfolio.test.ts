@@ -7,6 +7,7 @@ import type {
   RepositoryRegistry,
 } from './registry'
 import { observationFixture } from '../test/observation-fixture'
+import type { GitHubEnrichmentService } from './github-enrichment'
 
 describe('portfolio snapshot service', () => {
   it('isolates repository failures and preserves healthy summaries', async () => {
@@ -58,6 +59,34 @@ describe('portfolio snapshot service', () => {
     expect(refreshed.cache.status).toBe('refreshed')
     expect(inspect).toHaveBeenCalledTimes(2)
   })
+
+  it('preserves local advice when GitHub enrichment rejects', async () => {
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const github = {
+      forLocal: vi.fn(async () => {
+        throw new Error('provider detail')
+      }),
+      githubOnly: vi.fn(async () => []),
+    } as unknown as GitHubEnrichmentService
+    const service = createService(
+      [registered('one', 'One')],
+      inspect,
+      github,
+    )
+
+    const snapshot = await service.get()
+
+    expect(snapshot.repositories[0]).toMatchObject({
+      available: true,
+      source: 'local',
+      github: { status: 'not-mapped' },
+    })
+    expect(snapshot.repositories[0].recommendation).not.toBeNull()
+    expect(JSON.stringify(snapshot)).not.toContain('provider detail')
+  })
 })
 
 function createService(
@@ -65,6 +94,7 @@ function createService(
   inspect: (repository: RegisteredRepository) => Promise<ReturnType<
     typeof observationFixture
   >>,
+  githubOverride?: GitHubEnrichmentService,
 ): PortfolioService {
   const registry = {
     snapshot: vi.fn(async () => ({
@@ -74,7 +104,15 @@ function createService(
     })),
   } as unknown as RepositoryRegistry
   const inspections = { inspect } as unknown as RepositoryInspectionService
-  return new PortfolioService(config(), registry, inspections)
+  const github = githubOverride ?? {
+    forLocal: vi.fn(async () => ({
+      status: 'disabled',
+      basis: 'github-rest-api',
+      retrievedAt: null,
+    })),
+    githubOnly: vi.fn(async () => []),
+  } as unknown as GitHubEnrichmentService
+  return new PortfolioService(config(), registry, inspections, github)
 }
 
 function registered(id: string, name: string): RegisteredRepository {
@@ -92,5 +130,14 @@ function config(): ServiceConfig {
     inspectionConcurrency: 2,
     commandTimeoutMs: 3_000,
     commandMaxOutputBytes: 1024,
+    github: {
+      enabled: false,
+      token: null,
+      repositories: [],
+      timeoutMs: 5_000,
+      maxResponseBytes: 2_097_152,
+      cacheTtlMs: 60_000,
+      concurrency: 3,
+    },
   }
 }

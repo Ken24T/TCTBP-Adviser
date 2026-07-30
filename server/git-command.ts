@@ -11,7 +11,7 @@ export interface GitExecutor {
 }
 
 export interface GitCommand {
-  readonly id: 'status' | 'top-level' | 'git-dir'
+  readonly id: 'status' | 'top-level' | 'git-dir' | 'origin-url'
   readonly args: readonly string[]
   readonly allowedExitCodes?: readonly number[]
 }
@@ -34,6 +34,11 @@ export const GIT_COMMANDS = {
   gitDir: {
     id: 'git-dir',
     args: ['rev-parse', '--path-format=absolute', '--git-dir'],
+  },
+  originUrl: {
+    id: 'origin-url',
+    args: ['config', '--get', 'remote.origin.url'],
+    allowedExitCodes: [1],
   },
 } as const satisfies Record<string, GitCommand>
 

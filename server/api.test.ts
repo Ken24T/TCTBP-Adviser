@@ -169,6 +169,7 @@ describe('same-origin inspection API', () => {
         observationIds: string[]
         freshness: { observedAt: string }
       }
+      github: { status: string; retrievedAt: string | null }
     }
 
     expect(response.status).toBe(200)
@@ -185,6 +186,11 @@ describe('same-origin inspection API', () => {
       configured: true,
       requiredBeforeShip: true,
     })
+    expect(body.github).toEqual({
+      status: 'disabled',
+      basis: 'github-rest-api',
+      retrievedAt: null,
+    })
   })
 
   it('returns cached portfolio summaries including non-TCTBP repositories', async () => {
@@ -200,6 +206,12 @@ describe('same-origin inspection API', () => {
     const firstBody = await first.json() as {
       cache: { status: string }
       discovery: { repositoryCount: number; rootCount: number }
+      github: {
+        enabled: boolean
+        localMappings: number
+        githubOnly: number
+        unavailable: number
+      }
       repositories: Array<{
         name: string
         tctbp: { installed: boolean } | null
@@ -216,6 +228,12 @@ describe('same-origin inspection API', () => {
     expect(firstBody.discovery).toMatchObject({
       repositoryCount: 2,
       rootCount: 1,
+    })
+    expect(firstBody.github).toEqual({
+      enabled: false,
+      localMappings: 0,
+      githubOnly: 0,
+      unavailable: 0,
     })
     expect(firstBody.repositories).toEqual(expect.arrayContaining([
       expect.objectContaining({

@@ -52,6 +52,12 @@ describe('repository detail client', () => {
         rootCount: 1,
         issues: [],
       },
+      github: {
+        enabled: false,
+        localMappings: 0,
+        githubOnly: 0,
+        unavailable: 0,
+      },
       cache: { status: 'fresh', ageMs: 0, ttlMs: 30_000 },
     } satisfies PortfolioSnapshot
     const fetchMock = vi.fn()

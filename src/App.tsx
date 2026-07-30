@@ -133,7 +133,7 @@ function App() {
             <small>Adviser</small>
           </span>
         </button>
-        <span className="mode-label">Local repository portfolio</span>
+        <span className="mode-label">Local-first repository portfolio</span>
       </nav>
 
       <main>
@@ -181,7 +181,7 @@ function App() {
       </main>
 
       <footer>
-        Local observations only · No fetch · No repository mutation
+        Local evidence remains primary · No Git fetch · No repository mutation
       </footer>
     </div>
   )

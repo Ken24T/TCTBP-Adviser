@@ -5,6 +5,7 @@ import type {
 } from '../shared/portfolio'
 import type { ServiceConfig } from './config'
 import { errorCode } from './errors'
+import type { GitHubEnrichmentService } from './github-enrichment'
 import type { RepositoryInspectionService } from './inspection'
 import { recommend } from './recommendations/engine'
 import type {
@@ -20,6 +21,7 @@ export class PortfolioService {
     readonly config: ServiceConfig,
     readonly registry: RepositoryRegistry,
     readonly inspections: RepositoryInspectionService,
+    readonly github: GitHubEnrichmentService,
   ) {}
 
   async get(force = false): Promise<PortfolioSnapshot> {
@@ -43,8 +45,24 @@ export class PortfolioService {
     const repositories = await mapWithConcurrency(
       registry.repositories,
       this.config.inspectionConcurrency,
-      (repository) => this.summarise(repository),
+      (repository) => this.summarise(repository, forceDiscovery),
     )
+    const mappedNames = new Set(repositories.flatMap((repository) => {
+      const evidence = repository.github
+      if (
+        evidence.status === 'available'
+        || evidence.status === 'unavailable'
+      ) return [evidence.repository.fullName.toLocaleLowerCase()]
+      return []
+    }))
+    const githubOnly = await this.github.githubOnly(
+      mappedNames,
+      forceDiscovery,
+    )
+    const allRepositories = [
+      ...repositories,
+      ...githubOnly.map(githubOnlySummary),
+    ]
     const generatedAt = new Date().toISOString()
     const snapshot: PortfolioSnapshot = {
       generatedAt,
@@ -59,7 +77,18 @@ export class PortfolioService {
         rootCount: this.config.repositoryRoots.length,
         issues: [...registry.issues],
       },
-      repositories,
+      github: {
+        enabled: this.config.github.enabled,
+        localMappings: repositories.filter(
+          (repository) => repository.github.status === 'available'
+            || repository.github.status === 'unavailable',
+        ).length,
+        githubOnly: githubOnly.length,
+        unavailable: allRepositories.filter(
+          (repository) => repository.github.status === 'unavailable',
+        ).length,
+      },
+      repositories: allRepositories,
     }
     this.#cached = snapshot
     return snapshot
@@ -67,14 +96,26 @@ export class PortfolioService {
 
   private async summarise(
     repository: RegisteredRepository,
+    forceGitHub: boolean,
   ): Promise<PortfolioRepository> {
-    try {
-      const observation = await this.inspections.inspect(repository)
-      return availableSummary(observation)
-    } catch (error) {
+    const [inspectionResult, githubResult] = await Promise.allSettled([
+      this.inspections.inspect(repository),
+      this.github.forLocal(repository, forceGitHub),
+    ])
+    const github = githubResult.status === 'fulfilled'
+      ? githubResult.value
+      : {
+        status: 'not-mapped',
+        basis: 'github-rest-api',
+        retrievedAt: null,
+      } as const
+    if (inspectionResult.status === 'fulfilled') {
+      return availableSummary(inspectionResult.value, github)
+    } else {
       return {
         id: repository.id,
         name: repository.name,
+        source: 'local',
         available: false,
         observedAt: null,
         head: null,
@@ -83,9 +124,10 @@ export class PortfolioService {
         tctbp: null,
         recommendation: null,
         error: {
-          code: errorCode(error),
+          code: errorCode(inspectionResult.reason),
           message: 'Local repository inspection failed safely.',
         },
+        github,
       }
     }
   }
@@ -93,11 +135,13 @@ export class PortfolioService {
 
 function availableSummary(
   observation: RepositoryObservation,
+  github: PortfolioRepository['github'],
 ): PortfolioRepository {
   const recommendation = recommend(observation, 'none', new Date())
   return {
     id: observation.repository.id,
     name: observation.repository.name,
+    source: 'local',
     available: true,
     observedAt: observation.observedAt,
     head: {
@@ -125,6 +169,26 @@ function availableSummary(
       severity: recommendation.severity,
     },
     error: null,
+    github,
+  }
+}
+
+function githubOnlySummary(
+  repository: Awaited<ReturnType<GitHubEnrichmentService['githubOnly']>>[number],
+): PortfolioRepository {
+  return {
+    id: repository.id,
+    name: repository.name,
+    source: 'github-only',
+    available: true,
+    observedAt: null,
+    head: null,
+    workingTree: null,
+    localTracking: null,
+    tctbp: null,
+    recommendation: null,
+    error: null,
+    github: repository.evidence,
   }
 }
 

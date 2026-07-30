@@ -6,6 +6,9 @@ import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
 import { LocalGitInspector } from './local-git'
+import { GitHubRestClient } from './github-client'
+import { GitHubProvider } from './github-provider'
+import { GitHubEnrichmentService } from './github-enrichment'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import { PortfolioService } from './portfolio'
 import { recommend } from './recommendations/engine'
@@ -19,6 +22,7 @@ export interface ApiRuntime {
   readonly sessionToken: string
   readonly registry: RepositoryRegistry
   readonly inspections: RepositoryInspectionService
+  readonly github: GitHubEnrichmentService
   readonly portfolio: PortfolioService
 }
 
@@ -34,14 +38,22 @@ export function createApiRuntime(
     new RepositoryDiscovery(config),
     config.portfolioCacheTtlMs,
   )
-  const inspections = new RepositoryInspectionService(
-    new LocalGitInspector(executor),
+  const gitInspector = new LocalGitInspector(executor)
+  const inspections = new RepositoryInspectionService(gitInspector)
+  const github = new GitHubEnrichmentService(
+    config.github,
+    gitInspector,
+    new GitHubProvider(
+      config.github,
+      new GitHubRestClient(config.github),
+    ),
   )
   return {
     sessionToken,
     registry,
     inspections,
-    portfolio: new PortfolioService(config, registry, inspections),
+    github,
+    portfolio: new PortfolioService(config, registry, inspections, github),
   }
 }
 
@@ -116,10 +128,14 @@ export function createApiHandler(runtime: ApiRuntime) {
         const repository = await runtime.registry.require(
           decodeURIComponent(detailMatch[1]),
         )
-        const observation = await runtime.inspections.inspect(repository)
+        const [observation, github] = await Promise.all([
+          runtime.inspections.inspect(repository),
+          runtime.github.forLocal(repository),
+        ])
         const result: RepositoryDetailResult = {
           observation,
           recommendation: recommend(observation, intent, new Date()),
+          github,
         }
         sendJson(response, 200, result)
         return

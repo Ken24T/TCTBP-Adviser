@@ -1,4 +1,5 @@
 import type { LocalSyncState } from './inspection'
+import type { RepositoryGitHubEvidence } from './github'
 import type {
   RecommendationAction,
   RecommendationDisposition,
@@ -8,6 +9,7 @@ import type {
 export interface PortfolioRepository {
   id: string
   name: string
+  source: 'local' | 'github-only'
   available: boolean
   observedAt: string | null
   head: {
@@ -38,6 +40,7 @@ export interface PortfolioRepository {
     code: string
     message: string
   } | null
+  github: RepositoryGitHubEvidence
 }
 
 export interface PortfolioSnapshot {
@@ -52,6 +55,12 @@ export interface PortfolioSnapshot {
     repositoryCount: number
     rootCount: number
     issues: Array<{ code: string; message: string }>
+  }
+  github: {
+    enabled: boolean
+    localMappings: number
+    githubOnly: number
+    unavailable: number
   }
   repositories: PortfolioRepository[]
 }
