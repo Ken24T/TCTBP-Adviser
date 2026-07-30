@@ -30,7 +30,29 @@ describe('untrusted TCTBP data inspection', () => {
     const repository = await temporaryRoot()
     await writeJson(repository, '.github/TCTBP.json', {
       schemaVersion: 11,
-      project: { name: 'fixture-project' },
+      project: {
+        name: 'fixture-project',
+        description: 'Fixture description',
+      },
+      branchModel: {
+        strategy: 'staged',
+        workingBranch: 'development',
+        stagingBranch: 'staging',
+        productionBranch: 'main',
+        promoteEnabled: true,
+      },
+      profile: {
+        commands: {
+          test: 'npm test',
+          lint: null,
+          build: 'npm run build',
+        },
+        qualityGates: {
+          requireTestsBeforeShip: true,
+          requireLintBeforeShip: false,
+          requireBuildBeforeShip: true,
+        },
+      },
       adviserContract: {
         major: 1,
         minor: 0,
@@ -54,13 +76,34 @@ describe('untrusted TCTBP data inspection', () => {
       compatible: true,
       schemaVersion: 11,
       projectName: 'fixture-project',
+      projectDescription: 'Fixture description',
       workflows: ['status', 'checkpoint', 'publish'],
+      branchModel: {
+        strategy: 'staged',
+        workingBranch: 'development',
+        preProductionBranch: 'staging',
+        productionBranch: 'main',
+        promotionTargets: ['staging', 'production'],
+      },
       scaffold: {
         status: 'incomplete',
         sourceRevision: 'abc123',
         missingManagedPatterns: ['scripts/tctbp-*.js'],
       },
     })
+    expect(observation.qualityGates).toEqual(expect.arrayContaining([
+      {
+        id: 'test',
+        configured: true,
+        requiredBeforeShip: true,
+      },
+      {
+        id: 'lint',
+        configured: false,
+        requiredBeforeShip: false,
+      },
+    ]))
+    expect(JSON.stringify(observation)).not.toContain('npm run build')
   })
 
   it('matches managed file-name wildcards without leaving the directory', async () => {

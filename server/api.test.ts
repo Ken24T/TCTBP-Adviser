@@ -156,6 +156,55 @@ describe('same-origin inspection API', () => {
     expect(body.observationIds).toHaveLength(1)
   })
 
+  it('returns one atomic repository-detail observation and recommendation', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const id = list.repositories[0].id
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${id}/detail`,
+      running,
+      {
+        method: 'POST',
+        body: JSON.stringify({ intent: 'none' }),
+      },
+    )
+    const body = await response.json() as {
+      observation: {
+        observedAt: string
+        tctbp: {
+          projectDescription: string
+          branchModel: { strategy: string }
+          qualityGates: Array<{ id: string; configured: boolean }>
+        }
+      }
+      recommendation: {
+        observationIds: string[]
+        freshness: { observedAt: string }
+      }
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.recommendation.freshness.observedAt)
+      .toBe(body.observation.observedAt)
+    expect(body.recommendation.observationIds[0])
+      .toContain(body.observation.observedAt)
+    expect(body.observation.tctbp).toMatchObject({
+      projectDescription: 'A repository under test.',
+      branchModel: { strategy: 'staged' },
+    })
+    expect(body.observation.tctbp.qualityGates).toContainEqual({
+      id: 'test',
+      configured: true,
+      requiredBeforeShip: true,
+    })
+  })
+
   it('rejects arbitrary recommendation fields and unsupported intents', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(
@@ -207,7 +256,29 @@ async function startApi(): Promise<RunningApi> {
     path.join(profileDirectory, 'TCTBP.json'),
     JSON.stringify({
       schemaVersion: 11,
-      project: { name: 'repository' },
+      project: {
+        name: 'repository',
+        description: 'A repository under test.',
+      },
+      branchModel: {
+        strategy: 'staged',
+        workingBranch: 'development',
+        stagingBranch: 'staging',
+        productionBranch: 'main',
+        promoteEnabled: true,
+      },
+      profile: {
+        commands: {
+          test: 'npm test',
+          lint: null,
+          build: 'npm run build',
+        },
+        qualityGates: {
+          requireTestsBeforeShip: true,
+          requireLintBeforeShip: false,
+          requireBuildBeforeShip: true,
+        },
+      },
       adviserContract: {
         major: 1,
         minor: 0,

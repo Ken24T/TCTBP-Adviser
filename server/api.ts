@@ -5,6 +5,7 @@ import type { ServiceConfig } from './config'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
 import { LocalGitInspector } from './local-git'
+import type { RepositoryDetailResult } from '../shared/repository-detail'
 import { recommend } from './recommendations/engine'
 import { RepositoryRegistry } from './registry'
 import {
@@ -82,6 +83,22 @@ export function createApiHandler(runtime: ApiRuntime) {
           200,
           recommend(observation, intent, new Date()),
         )
+        return
+      }
+
+      const detailMatch =
+        /^\/api\/repositories\/([^/]+)\/detail$/.exec(url.pathname)
+      if (request.method === 'POST' && detailMatch) {
+        const intent = await readRecommendationIntent(request)
+        const repository = runtime.registry.require(
+          decodeURIComponent(detailMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const result: RepositoryDetailResult = {
+          observation,
+          recommendation: recommend(observation, intent, new Date()),
+        }
+        sendJson(response, 200, result)
         return
       }
 

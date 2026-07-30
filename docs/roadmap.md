@@ -22,7 +22,7 @@
 - Include prerequisites, blocked actions, reason codes, evidence, and freshness.
 - Do not use an LLM for workflow decisions.
 
-## 4. Repository detail vertical slice
+## 4. Repository detail vertical slice — complete
 
 - Show branch roles, working-tree counts, operations, sync evidence, and age.
 - Explain one primary disposition and why alternatives are blocked.

@@ -65,6 +65,7 @@ export function observationFixture(
       compatible: options.tctbpCompatible ?? true,
       schemaVersion: 11,
       projectName: 'fixture',
+      projectDescription: 'A repository fixture.',
       contract: {
         major: 1,
         minor: 0,
@@ -80,6 +81,20 @@ export function observationFixture(
         'publish',
         'resume',
         'handover',
+      ],
+      branchModel: {
+        strategy: 'staged',
+        workingBranch: 'development',
+        preProductionBranch: 'staging',
+        productionBranch: 'main',
+        promotionTargets: ['staging', 'production'],
+      },
+      qualityGates: [
+        { id: 'format', configured: false, requiredBeforeShip: false },
+        { id: 'test', configured: true, requiredBeforeShip: true },
+        { id: 'lint', configured: false, requiredBeforeShip: false },
+        { id: 'build', configured: true, requiredBeforeShip: true },
+        { id: 'release-build', configured: false, requiredBeforeShip: false },
       ],
       scaffold: {
         status: 'complete',

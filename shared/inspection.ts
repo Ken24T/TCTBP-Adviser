@@ -38,6 +38,27 @@ export interface TctbpContractObservation {
   capabilities: string[]
 }
 
+export interface BranchModelObservation {
+  strategy: string | null
+  workingBranch: string | null
+  preProductionBranch: string | null
+  productionBranch: string | null
+  promotionTargets: string[]
+}
+
+export type QualityGateId =
+  | 'format'
+  | 'test'
+  | 'lint'
+  | 'build'
+  | 'release-build'
+
+export interface QualityGateObservation {
+  id: QualityGateId
+  configured: boolean
+  requiredBeforeShip: boolean
+}
+
 export interface ScaffoldHealthObservation {
   status: 'complete' | 'incomplete' | 'unknown'
   sourceRepository: string | null
@@ -53,8 +74,11 @@ export interface TctbpObservation {
   compatible: boolean
   schemaVersion: number | null
   projectName: string | null
+  projectDescription: string | null
   contract: TctbpContractObservation
   workflows: string[]
+  branchModel: BranchModelObservation
+  qualityGates: QualityGateObservation[]
   scaffold: ScaffoldHealthObservation
   errors: InspectionIssue[]
 }
