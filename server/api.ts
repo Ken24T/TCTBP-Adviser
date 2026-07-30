@@ -2,10 +2,12 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
+import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
 import { LocalGitInspector } from './local-git'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
+import { PortfolioService } from './portfolio'
 import { recommend } from './recommendations/engine'
 import { RepositoryRegistry } from './registry'
 import {
@@ -17,6 +19,7 @@ export interface ApiRuntime {
   readonly sessionToken: string
   readonly registry: RepositoryRegistry
   readonly inspections: RepositoryInspectionService
+  readonly portfolio: PortfolioService
 }
 
 export function createApiRuntime(
@@ -27,12 +30,18 @@ export function createApiRuntime(
     config.commandTimeoutMs,
     config.commandMaxOutputBytes,
   )
+  const registry = new RepositoryRegistry(
+    new RepositoryDiscovery(config),
+    config.portfolioCacheTtlMs,
+  )
+  const inspections = new RepositoryInspectionService(
+    new LocalGitInspector(executor),
+  )
   return {
     sessionToken,
-    registry: new RepositoryRegistry(config),
-    inspections: new RepositoryInspectionService(
-      new LocalGitInspector(executor),
-    ),
+    registry,
+    inspections,
+    portfolio: new PortfolioService(config, registry, inspections),
   }
 }
 
@@ -53,7 +62,21 @@ export function createApiHandler(runtime: ApiRuntime) {
         request.method === 'GET'
         && url.pathname === '/api/repositories'
       ) {
-        sendJson(response, 200, { repositories: runtime.registry.list() })
+        sendJson(response, 200, {
+          repositories: await runtime.registry.list(),
+        })
+        return
+      }
+      if (request.method === 'GET' && url.pathname === '/api/portfolio') {
+        sendJson(response, 200, await runtime.portfolio.get())
+        return
+      }
+      if (
+        request.method === 'POST'
+        && url.pathname === '/api/repositories/refresh'
+      ) {
+        await requireEmptyBody(request)
+        sendJson(response, 200, await runtime.portfolio.get(true))
         return
       }
 
@@ -62,7 +85,7 @@ export function createApiHandler(runtime: ApiRuntime) {
       )
       if (request.method === 'POST' && match) {
         await requireEmptyBody(request)
-        const repository = runtime.registry.require(
+        const repository = await runtime.registry.require(
           decodeURIComponent(match[1]),
         )
         const observation = await runtime.inspections.inspect(repository)
@@ -74,7 +97,7 @@ export function createApiHandler(runtime: ApiRuntime) {
         /^\/api\/repositories\/([^/]+)\/recommendation$/.exec(url.pathname)
       if (request.method === 'POST' && recommendationMatch) {
         const intent = await readRecommendationIntent(request)
-        const repository = runtime.registry.require(
+        const repository = await runtime.registry.require(
           decodeURIComponent(recommendationMatch[1]),
         )
         const observation = await runtime.inspections.inspect(repository)
@@ -90,7 +113,7 @@ export function createApiHandler(runtime: ApiRuntime) {
         /^\/api\/repositories\/([^/]+)\/detail$/.exec(url.pathname)
       if (request.method === 'POST' && detailMatch) {
         const intent = await readRecommendationIntent(request)
-        const repository = runtime.registry.require(
+        const repository = await runtime.registry.require(
           decodeURIComponent(detailMatch[1]),
         )
         const observation = await runtime.inspections.inspect(repository)

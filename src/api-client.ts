@@ -1,27 +1,27 @@
-import type { RepositorySummary } from '../shared/inspection'
+import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 
-interface RepositoryListResponse {
-  repositories: RepositorySummary[]
-}
-
 export async function loadRepositoryDetail(
+  repositoryId: string,
   intent: RecommendationIntent,
 ): Promise<RepositoryDetailResult> {
-  const list = await requestJson<RepositoryListResponse>('/api/repositories')
-  const repository = list.repositories[0]
-  if (!repository) {
-    throw new Error('No local repository is configured for inspection.')
-  }
-
   return requestJson<RepositoryDetailResult>(
-    `/api/repositories/${encodeURIComponent(repository.id)}/detail`,
+    `/api/repositories/${encodeURIComponent(repositoryId)}/detail`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ intent }),
     },
+  )
+}
+
+export async function loadPortfolio(
+  forceRefresh = false,
+): Promise<PortfolioSnapshot> {
+  return requestJson<PortfolioSnapshot>(
+    forceRefresh ? '/api/repositories/refresh' : '/api/portfolio',
+    forceRefresh ? { method: 'POST' } : undefined,
   )
 }
 

@@ -1,15 +1,17 @@
 # Local service
 
-This directory contains the localhost-only inspection service.
+This directory contains the localhost-only discovery and inspection service.
 
 The service owns Git execution, path containment, freshness, timeouts, output
 limits, repository locks, and API trust controls. It must not execute code or
 command strings from inspected repositories.
 
-The first slice exposes:
+The current local portfolio slice exposes:
 
 - `GET /api/health`
 - `GET /api/repositories`
+- `GET /api/portfolio`
+- `POST /api/repositories/refresh`
 - `POST /api/repositories/:id/inspect`
 - `POST /api/repositories/:id/recommendation`
 - `POST /api/repositories/:id/detail`
@@ -19,3 +21,8 @@ Recommendation and detail endpoints accept only an optional fixed `intent`
 enum. The detail response contains one observation and the recommendation
 evaluated from that exact observation. No endpoint accepts or returns a
 repository path or command.
+
+Discovery scans only canonical configured roots, stops at explicit depth,
+directory and repository limits, skips configured directory names, and does
+not follow directory symbolic links. Portfolio inspection uses bounded
+concurrency and isolates individual repository failures.
