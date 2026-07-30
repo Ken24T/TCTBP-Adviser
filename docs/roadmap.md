@@ -29,13 +29,20 @@
 - Add read-only TCTBP scaffold health assessment.
 - Allow explicit self-inspection of TCTBP-Adviser.
 
-## 5. Portfolio and GitHub enrichment
+## 5. Portfolio discovery — complete
 
 - Discover bounded configured roots.
+- Reconcile canonical local paths and skip excluded or symbolic-link trees.
+- Cache discovery and inspection with explicit manual refresh.
+- Present non-TCTBP, unavailable and stale states without collapsing the view.
+- Support browser-only pin, hide and rename preferences.
+
+## 6. GitHub enrichment
+
 - Add GitHub-visible refs, checks, issues, and releases as separate evidence.
 - Support partial failure without collapsing local and provider truth.
 
-## 6. Reference and hardening
+## 7. Reference and hardening
 
 - Generate trigger and guardrail reference views from the pinned contract.
 - Add intent-oriented workflow sequences.

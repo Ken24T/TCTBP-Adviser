@@ -78,7 +78,14 @@ export function formatAge(ageMs: number | null): string {
 }
 
 export function syncSummary(observation: RepositoryObservation): string {
-  const tracking = observation.localTracking
+  return syncSummaryFromState(observation.localTracking)
+}
+
+export function syncSummaryFromState(tracking: {
+  state: RepositoryObservation['localTracking']['state']
+  ahead: number | null
+  behind: number | null
+}): string {
   if (tracking.state === 'unpublished') return 'No upstream branch'
   if (tracking.state === 'unknown') return 'Tracking evidence unavailable'
   if (tracking.state === 'in-sync') return 'In sync'

@@ -1,42 +1,88 @@
-import { createHmac, randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import type { RepositorySummary } from '../shared/inspection'
-import type { ServiceConfig } from './config'
+import type {
+  DiscoveryIssue,
+  DiscoverySnapshot,
+  RepositoryDiscovery,
+} from './discovery'
 import { AdviserError } from './errors'
 
 export interface RegisteredRepository extends RepositorySummary {
   path: string
 }
 
+export interface RegistrySnapshot {
+  scannedAt: string
+  repositories: RegisteredRepository[]
+  issues: DiscoveryIssue[]
+}
+
 export class RepositoryRegistry {
-  readonly #repository: RegisteredRepository
+  #snapshot: RegistrySnapshot | null = null
+  #refreshing: Promise<RegistrySnapshot> | null = null
 
-  constructor(config: ServiceConfig, secret = randomBytes(32)) {
-    const id = createHmac('sha256', secret)
-      .update(config.repositoryPath)
-      .digest('base64url')
-      .slice(0, 24)
+  constructor(
+    readonly discovery: RepositoryDiscovery,
+    readonly cacheTtlMs: number,
+  ) {}
 
-    this.#repository = {
-      id,
-      name: config.repositoryName,
-      path: config.repositoryPath,
+  async list(): Promise<RepositorySummary[]> {
+    const snapshot = await this.snapshot()
+    return snapshot.repositories.map(({ id, name }) => ({ id, name }))
+  }
+
+  async require(id: string): Promise<RegisteredRepository> {
+    const snapshot = await this.snapshot()
+    const repository = snapshot.repositories.find(
+      (candidate) => candidate.id === id,
+    )
+    if (repository) return repository
+    throw new AdviserError(
+      'repository-not-found',
+      'The requested repository is not registered.',
+    )
+  }
+
+  async snapshot(force = false): Promise<RegistrySnapshot> {
+    if (!force && this.#snapshot && this.isFresh(this.#snapshot)) {
+      return this.#snapshot
+    }
+    if (this.#refreshing) return this.#refreshing
+    this.#refreshing = this.refreshNow()
+    try {
+      return await this.#refreshing
+    } finally {
+      this.#refreshing = null
     }
   }
 
-  list(): RepositorySummary[] {
-    return [{
-      id: this.#repository.id,
-      name: this.#repository.name,
-    }]
+  private async refreshNow(): Promise<RegistrySnapshot> {
+    const discovered = await this.discovery.scan()
+    const snapshot = register(discovered)
+    this.#snapshot = snapshot
+    return snapshot
   }
 
-  require(id: string): RegisteredRepository {
-    if (id !== this.#repository.id) {
-      throw new AdviserError(
-        'repository-not-found',
-        'The requested repository is not registered.',
-      )
-    }
-    return this.#repository
+  private isFresh(snapshot: RegistrySnapshot): boolean {
+    const scannedAt = Date.parse(snapshot.scannedAt)
+    return (
+      Number.isFinite(scannedAt)
+      && Date.now() - scannedAt <= this.cacheTtlMs
+    )
+  }
+}
+
+function register(snapshot: DiscoverySnapshot): RegistrySnapshot {
+  return {
+    scannedAt: snapshot.scannedAt,
+    issues: [...snapshot.issues],
+    repositories: snapshot.repositories.map((repository) => ({
+      id: createHash('sha256')
+        .update(repository.path)
+        .digest('base64url')
+        .slice(0, 24),
+      name: repository.name,
+      path: repository.path,
+    })),
   }
 }

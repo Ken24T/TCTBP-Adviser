@@ -50,6 +50,10 @@ button {
   gap: 12px;
   align-items: center;
   color: inherit;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
   text-decoration: none;
 }
 
@@ -100,6 +104,16 @@ main {
   align-items: flex-end;
   justify-content: space-between;
   margin-bottom: 38px;
+}
+
+.back-button {
+  margin: 0 0 22px;
+  padding: 0;
+  color: #8e432f;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
 }
 
 .repository-header h1,

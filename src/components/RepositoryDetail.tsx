@@ -8,6 +8,7 @@ interface RepositoryDetailProps {
   detail: RepositoryDetailResult
   intent: RecommendationIntent
   busy: boolean
+  onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
 }
@@ -16,6 +17,7 @@ export function RepositoryDetail({
   detail,
   intent,
   busy,
+  onBack,
   onIntentChange,
   onRefresh,
 }: RepositoryDetailProps) {
@@ -24,6 +26,11 @@ export function RepositoryDetail({
     <>
       <header className="repository-header">
         <div>
+          {onBack && (
+            <button className="back-button" type="button" onClick={onBack}>
+              ← Portfolio
+            </button>
+          )}
           <p className="eyebrow">Configured local repository</p>
           <h1>{observation.repository.name}</h1>
           <p className="repository-description">

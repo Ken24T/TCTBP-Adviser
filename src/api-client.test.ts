@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
-import { loadRepositoryDetail } from './api-client'
+import { loadPortfolio, loadRepositoryDetail } from './api-client'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -12,17 +13,15 @@ describe('repository detail client', () => {
       observation: {},
       recommendation: {},
     } as RepositoryDetailResult
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({
-        repositories: [{ id: 'opaque-id', name: 'TCTBP-Adviser' }],
-      }))
-      .mockResolvedValueOnce(jsonResponse(detail))
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(detail))
     vi.stubGlobal('fetch', fetchMock)
 
-    await expect(loadRepositoryDetail('continue-on-another-machine'))
+    await expect(loadRepositoryDetail(
+      'opaque-id',
+      'continue-on-another-machine',
+    ))
       .resolves.toStrictEqual(detail)
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    expect(fetchMock).toHaveBeenCalledWith(
       '/api/repositories/opaque-id/detail',
       expect.objectContaining({
         method: 'POST',
@@ -38,8 +37,43 @@ describe('repository detail client', () => {
       }, 500),
     ))
 
-    await expect(loadRepositoryDetail('none')).rejects.toThrow(
+    await expect(loadRepositoryDetail('opaque-id', 'none')).rejects.toThrow(
       'The configured repository is unavailable.',
+    )
+  })
+
+  it('uses distinct cached and force-refresh portfolio endpoints', async () => {
+    const snapshot = {
+      generatedAt: '2026-07-30T05:00:00.000Z',
+      repositories: [],
+      discovery: {
+        scannedAt: '2026-07-30T05:00:00.000Z',
+        repositoryCount: 0,
+        rootCount: 1,
+        issues: [],
+      },
+      cache: { status: 'fresh', ageMs: 0, ttlMs: 30_000 },
+    } satisfies PortfolioSnapshot
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(snapshot))
+      .mockResolvedValueOnce(jsonResponse(snapshot))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await loadPortfolio()
+    await loadPortfolio(true)
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/portfolio',
+      expect.objectContaining({ credentials: 'same-origin' }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/repositories/refresh',
+      expect.objectContaining({
+        credentials: 'same-origin',
+        method: 'POST',
+      }),
     )
   })
 })

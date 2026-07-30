@@ -18,6 +18,24 @@ export function isPathContained(root: string, candidate: string): boolean {
   )
 }
 
+export async function resolveAllowedRoot(root: string): Promise<string> {
+  if (!path.isAbsolute(root)) {
+    throw new AdviserError(
+      'configuration-path-not-absolute',
+      'Configured repository roots must be absolute.',
+    )
+  }
+  const resolvedRoot = await realpath(root)
+  const rootStats = await stat(resolvedRoot)
+  if (!rootStats.isDirectory()) {
+    throw new AdviserError(
+      'repository-root-not-directory',
+      'Configured repository root is not a directory.',
+    )
+  }
+  return resolvedRoot
+}
+
 export async function resolveAllowedRepository(
   allowedRoot: string,
   repositoryPath: string,
@@ -30,7 +48,7 @@ export async function resolveAllowedRepository(
   }
 
   const [resolvedRoot, resolvedRepository] = await Promise.all([
-    realpath(allowedRoot),
+    resolveAllowedRoot(allowedRoot),
     realpath(repositoryPath),
   ])
 
