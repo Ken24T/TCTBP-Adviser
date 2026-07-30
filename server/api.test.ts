@@ -1,5 +1,10 @@
 import { createServer, type Server } from 'node:http'
-import { rm } from 'node:fs/promises'
+import {
+  mkdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApiHandler, createApiRuntime } from './api'
 import type { ServiceConfig } from './config'
@@ -111,9 +116,77 @@ describe('same-origin inspection API', () => {
       },
     )
 
-    expect(response.status).toBe(403)
+    expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({
       error: { code: 'request-body-rejected' },
+    })
+  })
+
+  it('returns a deterministic recommendation with evidence and freshness', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/recommendation`,
+      running,
+      {
+        method: 'POST',
+        body: JSON.stringify({ intent: 'none' }),
+      },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({
+      disposition: 'action',
+      primaryAction: 'checkpoint',
+      trigger: 'checkpoint please',
+      confidence: 'deterministic',
+      freshness: {
+        stale: false,
+        basis: 'local-working-copy-and-local-tracking-refs',
+      },
+    })
+    expect(body.evidence.length).toBeGreaterThan(0)
+    expect(body.observationIds).toHaveLength(1)
+  })
+
+  it('rejects arbitrary recommendation fields and unsupported intents', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const endpoint =
+      `${running.url}/api/repositories/${list.repositories[0].id}/recommendation`
+    const arbitrary = await authorisedFetch(endpoint, running, {
+      method: 'POST',
+      body: JSON.stringify({
+        intent: 'none',
+        path: '/tmp/other',
+        command: 'git fetch',
+      }),
+    })
+    const unsupported = await authorisedFetch(endpoint, running, {
+      method: 'POST',
+      body: JSON.stringify({ intent: 'deploy-production' }),
+    })
+
+    expect(arbitrary.status).toBe(400)
+    expect(await arbitrary.json()).toMatchObject({
+      error: { code: 'request-body-invalid' },
+    })
+    expect(unsupported.status).toBe(400)
+    expect(await unsupported.json()).toMatchObject({
+      error: { code: 'request-intent-invalid' },
     })
   })
 })
@@ -128,6 +201,33 @@ async function startApi(): Promise<RunningApi> {
   const root = await createTemporaryDirectory()
   temporaryDirectories.push(root)
   const repository = await createGitRepository(root)
+  const profileDirectory = path.join(repository, '.github')
+  await mkdir(profileDirectory)
+  await writeFile(
+    path.join(profileDirectory, 'TCTBP.json'),
+    JSON.stringify({
+      schemaVersion: 11,
+      project: { name: 'repository' },
+      adviserContract: {
+        major: 1,
+        minor: 0,
+        capabilities: [
+          'inspection.local-v1',
+          'workflow-catalogue.core-v1',
+          'reason-codes.core-v1',
+        ],
+      },
+      adviserVocabulary: {
+        workflowIds: [
+          'status',
+          'checkpoint',
+          'publish',
+          'resume',
+          'handover',
+        ],
+      },
+    }),
+  )
   const config: ServiceConfig = {
     allowedRoot: root,
     repositoryPath: repository,

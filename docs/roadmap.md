@@ -15,7 +15,7 @@
 - Validate TCTBP profile and contract metadata as untrusted data.
 - Keep local working-copy and local tracking-ref evidence separate.
 
-## 3. Deterministic recommendation engine
+## 3. Deterministic recommendation engine — complete
 
 - Model `action`, `sequence`, `stop`, `inspect`, and `none`.
 - Use table-driven compound-state tests.

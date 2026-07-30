@@ -6,7 +6,8 @@ function App() {
       <p>
         The secure local service can now inspect one explicitly configured
         repository without fetching, mutating, or executing repository-owned
-        code. The recommendation engine and repository-detail view come next.
+        code, then produce deterministic, explainable workflow guidance. The
+        repository-detail view comes next.
       </p>
     </main>
   )
