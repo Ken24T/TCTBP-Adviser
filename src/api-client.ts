@@ -1,6 +1,7 @@
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
+import type { ReferenceCatalogue } from '../shared/reference'
 
 export async function loadRepositoryDetail(
   repositoryId: string,
@@ -23,6 +24,10 @@ export async function loadPortfolio(
     forceRefresh ? '/api/repositories/refresh' : '/api/portfolio',
     forceRefresh ? { method: 'POST' } : undefined,
   )
+}
+
+export async function loadReferenceCatalogue(): Promise<ReferenceCatalogue> {
+  return requestJson<ReferenceCatalogue>('/api/catalogue')
 }
 
 async function requestJson<T>(

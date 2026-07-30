@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
-import { loadPortfolio, loadRepositoryDetail } from './api-client'
+import {
+  loadPortfolio,
+  loadReferenceCatalogue,
+  loadRepositoryDetail,
+} from './api-client'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -80,6 +84,22 @@ describe('repository detail client', () => {
         credentials: 'same-origin',
         method: 'POST',
       }),
+    )
+  })
+
+  it('loads the pinned reference from the same-origin API', async () => {
+    const catalogue = {
+      contract: {},
+      workflows: [],
+      guardrails: [],
+    }
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(catalogue))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(loadReferenceCatalogue()).resolves.toStrictEqual(catalogue)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/catalogue',
+      expect.objectContaining({ credentials: 'same-origin' }),
     )
   })
 })

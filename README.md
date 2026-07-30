@@ -3,9 +3,9 @@
 A local-first, read-only companion for understanding repository state and
 choosing safe TCTBP workflows.
 
-The secure local portfolio service, deterministic recommendation engine,
-optional GitHub enrichment, portfolio dashboard, and repository-detail UI are
-implemented. They consume
+The secure local portfolio service, deterministic recommendation and intent
+engines, pinned trigger/guardrail reference, optional GitHub enrichment,
+portfolio dashboard, and repository-detail UI are implemented. They consume
 TCTBP-Web Adviser contract v1 pinned to commit
 `0e99ceaf7436214a40bfcabbc79f57c36c91b035`.
 
@@ -15,12 +15,17 @@ TCTBP-Web Adviser contract v1 pinned to commit
 2. Run `npm ci` from the repository root.
 3. Copy `.env.example` to `.env`.
 4. Configure one or more absolute repository roots as a JSON array.
-5. Run `npm run dev`.
+5. Run `npm run dev` for development, or build and run the loopback-only
+   production preview with `npm run build && npm start`.
 
 The application discovers bounded local roots and opens the portfolio
 dashboard. Select a repository to see local branch and working-tree state, one
 primary recommendation, blocked alternatives, effects and non-effects,
 quality-gate configuration, TCTBP compatibility, and read-only scaffold health.
+An outcome selector adds a separate conditional intent plan for preservation,
+machine transfer, promotion, deployment, release, and interrupted-workflow
+recovery. The TCTBP reference view explains pinned triggers, aliases, runners,
+effects, non-effects, and guardrails.
 When GitHub enrichment is enabled, the same views add separately timestamped
 GitHub branches, commits, checks, workflows, pull requests, issues, tags and
 releases.
@@ -83,6 +88,7 @@ development ──promote staging──▶ staging ──promote production─�
 - `npm run test` — Run tests (vitest)
 - `npm run test:watch` — Run tests in watch mode
 - `npm run build` — Type-check and create the production client bundle
+- `npm start` — Serve the built application on loopback only
 
 
 ## Project Structure
@@ -117,6 +123,12 @@ scripts/          # TCTBP-Web runners (managed)
   design is implemented.
 - Pin, hide and rename preferences are browser-only Adviser settings. They do
   not modify repositories.
+- Intent plans are clearly separate from state-driven recommendations and
+  never execute their displayed triggers.
+- The bounded in-memory inspection audit contains opaque repository IDs,
+  timestamps, durations and safe error codes only.
+- Configuration export omits repository paths, GitHub repository names and
+  tokens.
 
 See [Bootstrap architecture](docs/architecture/0001-bootstrap-boundaries.md),
 [scaffold health and upgrades](docs/architecture/0002-scaffold-health-and-upgrades.md),
@@ -125,4 +137,5 @@ See [Bootstrap architecture](docs/architecture/0001-bootstrap-boundaries.md),
 [repository detail](docs/architecture/0005-repository-detail.md),
 [portfolio discovery](docs/architecture/0006-portfolio-discovery.md),
 [GitHub enrichment](docs/architecture/0007-github-enrichment.md),
+[intent reference and hardening](docs/architecture/0008-intent-reference-and-hardening.md),
 and the [implementation roadmap](docs/roadmap.md).

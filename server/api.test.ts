@@ -138,7 +138,7 @@ describe('same-origin inspection API', () => {
     expect(body.observationIds).toHaveLength(1)
   })
 
-  it('returns one atomic repository-detail observation and recommendation', async () => {
+  it('separates state advice from an intent plan in one observation', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(
       `${running.url}/api/repositories`,
@@ -153,7 +153,7 @@ describe('same-origin inspection API', () => {
       running,
       {
         method: 'POST',
-        body: JSON.stringify({ intent: 'none' }),
+        body: JSON.stringify({ intent: 'preserve-and-publish' }),
       },
     )
     const body = await response.json() as {
@@ -166,8 +166,18 @@ describe('same-origin inspection API', () => {
         }
       }
       recommendation: {
+        intent: string
         observationIds: string[]
         freshness: { observedAt: string }
+      }
+      intentPlan: {
+        source: string
+        intent: string
+        steps: Array<{ id: string }>
+      }
+      reference: {
+        branchWorkflow: { strategy: string }
+        workflows: Array<{ id: string }>
       }
       github: { status: string; retrievedAt: string | null }
     }
@@ -177,6 +187,18 @@ describe('same-origin inspection API', () => {
       .toBe(body.observation.observedAt)
     expect(body.recommendation.observationIds[0])
       .toContain(body.observation.observedAt)
+    expect(body.recommendation.intent).toBe('none')
+    expect(body.intentPlan).toMatchObject({
+      source: 'user-intent',
+      intent: 'preserve-and-publish',
+    })
+    expect(body.intentPlan.steps.map((step) => step.id)).toEqual([
+      'status',
+      'checkpoint',
+      'publish',
+    ])
+    expect(body.reference.branchWorkflow.strategy).toBe('staged')
+    expect(body.reference.workflows.length).toBeGreaterThan(0)
     expect(body.observation.tctbp).toMatchObject({
       projectDescription: 'A repository under test.',
       branchModel: { strategy: 'staged' },
@@ -191,6 +213,68 @@ describe('same-origin inspection API', () => {
       basis: 'github-rest-api',
       retrievedAt: null,
     })
+  })
+
+  it('exposes pinned reference and path-free operational diagnostics', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const id = list.repositories[0].id
+    await authorisedFetch(
+      `${running.url}/api/repositories/${id}/inspect`,
+      running,
+      { method: 'POST' },
+    )
+
+    const [catalogue, triggers, diagnostics, configuration] = await Promise.all([
+      authorisedFetch(`${running.url}/api/catalogue`, running),
+      authorisedFetch(`${running.url}/api/catalogue/triggers`, running),
+      authorisedFetch(
+        `${running.url}/api/diagnostics/inspections`,
+        running,
+      ),
+      authorisedFetch(`${running.url}/api/configuration/export`, running),
+    ])
+    const catalogueBody = await catalogue.json() as {
+      contract: { capability: string }
+      workflows: unknown[]
+      guardrails: unknown[]
+    }
+    const triggersBody = await triggers.json() as {
+      triggers: Array<{ trigger: string; workflowId: string }>
+    }
+    const diagnosticsBody = await diagnostics.json() as {
+      entries: Array<{ repositoryId: string; outcome: string }>
+    }
+    const configurationBody = await configuration.json()
+    const serialised = JSON.stringify({
+      diagnosticsBody,
+      configurationBody,
+    })
+
+    expect(catalogueBody).toMatchObject({
+      contract: { capability: 'workflow-catalogue.core-v1' },
+    })
+    expect(catalogueBody.workflows.length).toBeGreaterThan(0)
+    expect(catalogueBody.guardrails.length).toBeGreaterThan(0)
+    expect(triggersBody.triggers).toContainEqual({
+      trigger: 'checkpoint please',
+      workflowId: 'checkpoint',
+    })
+    expect(diagnosticsBody.entries).toContainEqual(expect.objectContaining({
+      repositoryId: id,
+      outcome: 'success',
+    }))
+    expect(configurationBody).toMatchObject({
+      discovery: { repositoryRootCount: 1 },
+      omissions: { repositoryPaths: true, githubToken: true },
+    })
+    expect(serialised).not.toContain(running.repository)
   })
 
   it('returns cached portfolio summaries including non-TCTBP repositories', async () => {

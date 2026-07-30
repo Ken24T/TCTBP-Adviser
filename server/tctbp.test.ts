@@ -123,6 +123,30 @@ describe('untrusted TCTBP data inspection', () => {
     expect(observation.errors).toEqual([])
   })
 
+  it('preserves a long-lived review promotion target by name', async () => {
+    const repository = await temporaryRoot()
+    await writeJson(repository, '.github/TCTBP.json', {
+      ...compatibleProfile(),
+      branchModel: {
+        strategy: 'long-lived',
+        workingBranch: 'development',
+        reviewBranch: 'review',
+        productionBranch: 'main',
+        promoteEnabled: true,
+      },
+    })
+
+    const observation = await inspectTctbp(repository)
+
+    expect(observation.branchModel).toEqual({
+      strategy: 'long-lived',
+      workingBranch: 'development',
+      preProductionBranch: 'review',
+      productionBranch: 'main',
+      promotionTargets: ['review', 'production'],
+    })
+  })
+
   it('rejects malformed JSON without throwing target content into code', async () => {
     const repository = await temporaryRoot()
     await writeText(

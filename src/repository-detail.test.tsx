@@ -1,8 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { recommend } from '../server/recommendations/engine'
+import { planIntent } from '../server/intents/planner'
 import { observationFixture } from '../test/observation-fixture'
 import { RepositoryDetail } from './components/RepositoryDetail'
+import { repositoryReference } from '../server/reference/catalogue'
 
 describe('repository detail view', () => {
   it('renders repository state, recommendation, effects and policy evidence', () => {
@@ -14,7 +16,13 @@ describe('repository detail view', () => {
     )
     const markup = renderToStaticMarkup(
       <RepositoryDetail
-        detail={{ observation, recommendation, github: disabledGitHub() }}
+        detail={{
+          observation,
+          recommendation,
+          intentPlan: null,
+          reference: repositoryReference(observation),
+          github: disabledGitHub(),
+        }}
         intent="none"
         busy={false}
         onIntentChange={() => undefined}
@@ -37,12 +45,23 @@ describe('repository detail view', () => {
     const observation = observationFixture()
     const recommendation = recommend(
       observation,
-      'continue-on-another-machine',
+      'none',
       new Date(observation.observedAt),
+    )
+    const intentPlan = planIntent(
+      observation,
+      recommendation,
+      'continue-on-another-machine',
     )
     const markup = renderToStaticMarkup(
       <RepositoryDetail
-        detail={{ observation, recommendation, github: disabledGitHub() }}
+        detail={{
+          observation,
+          recommendation,
+          intentPlan,
+          reference: repositoryReference(observation),
+          github: disabledGitHub(),
+        }}
         intent="continue-on-another-machine"
         busy={false}
         onIntentChange={() => undefined}
@@ -53,6 +72,8 @@ describe('repository detail view', () => {
     expect(markup).toContain('Handover')
     expect(markup).toContain('handover please')
     expect(markup).toContain('Continue on another machine')
+    expect(markup).toContain('State-driven recommendation')
+    expect(markup).toContain('Intent-driven plan')
   })
 })
 

@@ -1,14 +1,22 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { SafeConfigurationExport } from '../shared/diagnostics'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
+import { safeConfigurationExport } from './configuration-export'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
+import { InspectionAuditLog } from './audit'
 import { LocalGitInspector } from './local-git'
 import { GitHubRestClient } from './github-client'
 import { GitHubProvider } from './github-provider'
 import { GitHubEnrichmentService } from './github-enrichment'
+import { planIntent } from './intents/planner'
+import {
+  referenceCatalogue,
+  repositoryReference,
+} from './reference/catalogue'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import { PortfolioService } from './portfolio'
 import { recommend } from './recommendations/engine'
@@ -24,6 +32,8 @@ export interface ApiRuntime {
   readonly inspections: RepositoryInspectionService
   readonly github: GitHubEnrichmentService
   readonly portfolio: PortfolioService
+  readonly audit: InspectionAuditLog
+  readonly configuration: SafeConfigurationExport
 }
 
 export function createApiRuntime(
@@ -39,7 +49,8 @@ export function createApiRuntime(
     config.portfolioCacheTtlMs,
   )
   const gitInspector = new LocalGitInspector(executor)
-  const inspections = new RepositoryInspectionService(gitInspector)
+  const audit = new InspectionAuditLog()
+  const inspections = new RepositoryInspectionService(gitInspector, audit)
   const github = new GitHubEnrichmentService(
     config.github,
     gitInspector,
@@ -53,6 +64,8 @@ export function createApiRuntime(
     registry,
     inspections,
     github,
+    audit,
+    configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(config, registry, inspections, github),
   }
 }
@@ -81,6 +94,56 @@ export function createApiHandler(runtime: ApiRuntime) {
       }
       if (request.method === 'GET' && url.pathname === '/api/portfolio') {
         sendJson(response, 200, await runtime.portfolio.get())
+        return
+      }
+      if (request.method === 'GET' && url.pathname === '/api/catalogue') {
+        sendJson(response, 200, referenceCatalogue())
+        return
+      }
+      if (
+        request.method === 'GET'
+        && url.pathname === '/api/catalogue/triggers'
+      ) {
+        sendJson(response, 200, {
+          triggers: referenceCatalogue().workflows.flatMap(
+            (workflow) => workflow.aliases.map((trigger) => ({
+              trigger,
+              workflowId: workflow.id,
+            })),
+          ),
+        })
+        return
+      }
+      if (
+        request.method === 'GET'
+        && url.pathname === '/api/catalogue/workflows'
+      ) {
+        sendJson(response, 200, {
+          workflows: referenceCatalogue().workflows,
+        })
+        return
+      }
+      if (
+        request.method === 'GET'
+        && url.pathname === '/api/catalogue/guardrails'
+      ) {
+        sendJson(response, 200, {
+          guardrails: referenceCatalogue().guardrails,
+        })
+        return
+      }
+      if (
+        request.method === 'GET'
+        && url.pathname === '/api/diagnostics/inspections'
+      ) {
+        sendJson(response, 200, { entries: runtime.audit.list() })
+        return
+      }
+      if (
+        request.method === 'GET'
+        && url.pathname === '/api/configuration/export'
+      ) {
+        sendJson(response, 200, runtime.configuration)
         return
       }
       if (
@@ -134,9 +197,16 @@ export function createApiHandler(runtime: ApiRuntime) {
         ])
         const result: RepositoryDetailResult = {
           observation,
-          recommendation: recommend(observation, intent, new Date()),
+          recommendation: recommend(observation, 'none', new Date()),
+          intentPlan: null,
+          reference: repositoryReference(observation),
           github,
         }
+        result.intentPlan = planIntent(
+          observation,
+          result.recommendation,
+          intent,
+        )
         sendJson(response, 200, result)
         return
       }

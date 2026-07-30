@@ -98,7 +98,7 @@ function branchModelObservation(profile: JsonObject): BranchModelObservation {
   const promotionTargets = (
     model.promoteEnabled === true
       ? [
-        preProductionBranch ? 'staging' : null,
+        preProductionBranch,
         productionBranch ? 'production' : null,
       ]
       : []
