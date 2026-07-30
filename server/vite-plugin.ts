@@ -8,14 +8,22 @@ import { createApiHandler, createApiRuntime } from './api'
 import { loadServiceConfig } from './config'
 import type { ApiRuntime } from './api'
 
-export function createAdviserPlugin(): Plugin {
+export function createAdviserPlugin(
+  environment: NodeJS.ProcessEnv = process.env,
+): Plugin {
   return {
     name: 'tctbp-adviser-local-api',
     async configureServer(server: ViteDevServer) {
-      installMiddleware(server.middlewares, await createRuntime())
+      installMiddleware(
+        server.middlewares,
+        await createRuntime(environment),
+      )
     },
     async configurePreviewServer(server: PreviewServer) {
-      installMiddleware(server.middlewares, await createRuntime())
+      installMiddleware(
+        server.middlewares,
+        await createRuntime(environment),
+      )
     },
   }
 }
@@ -42,6 +50,8 @@ function installMiddleware(
   })
 }
 
-async function createRuntime(): Promise<ApiRuntime> {
-  return createApiRuntime(await loadServiceConfig())
+async function createRuntime(
+  environment: NodeJS.ProcessEnv,
+): Promise<ApiRuntime> {
+  return createApiRuntime(await loadServiceConfig(environment))
 }
