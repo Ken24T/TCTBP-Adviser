@@ -58,7 +58,7 @@
   },
   "project": {
     "name": "tctbp-adviser",
-    "description": "A web application built with the TCTBP-Web workflow.",
+    "description": "A local-first, read-only adviser that explains repository state and recommends safe TCTBP workflows.",
     "defaultBranch": "main",
     "packageManager": "npm",
     "versionFiles": [
