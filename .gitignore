@@ -4,6 +4,7 @@ coverage/
 *.tsbuildinfo
 .env
 .env.*
+!.env.example
 *.db
 *.sqlite
 *.sqlite3
