@@ -69,6 +69,48 @@ describe('portfolio service configuration', () => {
       TCTBP_ADVISER_MAXIMUM_DEPTH: '99',
     })).rejects.toMatchObject({ code: 'configuration-invalid' })
   })
+
+  it('loads bounded, optional server-side GitHub enrichment settings', async () => {
+    const root = await temporaryRoot()
+
+    const config = await loadServiceConfig({
+      TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_GITHUB_ENABLED: 'true',
+      TCTBP_ADVISER_GITHUB_TOKEN: ' server-secret ',
+      TCTBP_ADVISER_GITHUB_REPOSITORIES:
+        '["Ken24T/TCTBP-Adviser","ken24t/tctbp-adviser","Ken24T/TCTBP-Web"]',
+      TCTBP_ADVISER_GITHUB_TIMEOUT_MS: '4000',
+      TCTBP_ADVISER_GITHUB_MAX_RESPONSE_BYTES: '4096',
+      TCTBP_ADVISER_GITHUB_CACHE_TTL_MS: '45000',
+      TCTBP_ADVISER_GITHUB_CONCURRENCY: '2',
+    })
+
+    expect(config.github).toEqual({
+      enabled: true,
+      token: 'server-secret',
+      repositories: ['ken24t/tctbp-adviser', 'Ken24T/TCTBP-Web'],
+      timeoutMs: 4_000,
+      maxResponseBytes: 4_096,
+      cacheTtlMs: 45_000,
+      concurrency: 2,
+    })
+  })
+
+  it('rejects malformed GitHub repository and boolean configuration', async () => {
+    const root = await temporaryRoot()
+    const base = {
+      TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+    }
+
+    await expect(loadServiceConfig({
+      ...base,
+      TCTBP_ADVISER_GITHUB_ENABLED: 'yes',
+    })).rejects.toMatchObject({ code: 'configuration-invalid' })
+    await expect(loadServiceConfig({
+      ...base,
+      TCTBP_ADVISER_GITHUB_REPOSITORIES: '["not-a-full-name"]',
+    })).rejects.toMatchObject({ code: 'configuration-invalid' })
+  })
 })
 
 async function temporaryRoot(): Promise<string> {

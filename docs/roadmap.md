@@ -37,10 +37,14 @@
 - Present non-TCTBP, unavailable and stale states without collapsing the view.
 - Support browser-only pin, hide and rename preferences.
 
-## 6. GitHub enrichment
+## 6. GitHub enrichment — complete
 
-- Add GitHub-visible refs, checks, issues, and releases as separate evidence.
-- Support partial failure without collapsing local and provider truth.
+- Map supported local GitHub origins without exposing remote URLs or tokens.
+- Show GitHub-visible branches and commits, checks, workflows, issues, pull
+  requests, tags and releases as timestamped provider evidence.
+- Support explicitly configured GitHub-only repositories.
+- Preserve local advice through missing credentials, partial provider failure,
+  rate limits and local-only repositories.
 
 ## 7. Reference and hardening
 

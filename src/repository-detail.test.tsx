@@ -14,7 +14,7 @@ describe('repository detail view', () => {
     )
     const markup = renderToStaticMarkup(
       <RepositoryDetail
-        detail={{ observation, recommendation }}
+        detail={{ observation, recommendation, github: disabledGitHub() }}
         intent="none"
         busy={false}
         onIntentChange={() => undefined}
@@ -42,7 +42,7 @@ describe('repository detail view', () => {
     )
     const markup = renderToStaticMarkup(
       <RepositoryDetail
-        detail={{ observation, recommendation }}
+        detail={{ observation, recommendation, github: disabledGitHub() }}
         intent="continue-on-another-machine"
         busy={false}
         onIntentChange={() => undefined}
@@ -55,3 +55,11 @@ describe('repository detail view', () => {
     expect(markup).toContain('Continue on another machine')
   })
 })
+
+function disabledGitHub() {
+  return {
+    status: 'disabled',
+    basis: 'github-rest-api',
+    retrievedAt: null,
+  } as const
+}

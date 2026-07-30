@@ -13,7 +13,7 @@ import {
   type GitCommandResult,
   type GitExecutor,
 } from './git-command'
-import { LocalGitInspector } from './local-git'
+import { LocalGitInspector, parseGitHubRemote } from './local-git'
 import {
   createGitRepository,
   createTemporaryDirectory,
@@ -122,6 +122,25 @@ describe('local Git inspector', () => {
     await expect(inspector.inspect(nested)).rejects.toMatchObject({
       code: 'configured-path-not-repository-root',
     })
+  })
+})
+
+describe('GitHub origin parser', () => {
+  it.each([
+    ['https://github.com/Ken24T/TCTBP-Adviser.git', 'Ken24T/TCTBP-Adviser'],
+    ['git@github.com:Ken24T/TCTBP-Adviser.git', 'Ken24T/TCTBP-Adviser'],
+    ['ssh://git@github.com/Ken24T/TCTBP-Adviser', 'Ken24T/TCTBP-Adviser'],
+  ])('maps supported GitHub remotes', (remote, fullName) => {
+    expect(parseGitHubRemote(remote)).toMatchObject({ fullName })
+  })
+
+  it.each([
+    'https://gitlab.com/Ken24T/TCTBP-Adviser.git',
+    'https://github.com/Ken24T/nested/TCTBP-Adviser.git',
+    'file:///safe/TCTBP-Adviser',
+    'not-a-url',
+  ])('rejects unsupported or malformed remotes', (remote) => {
+    expect(parseGitHubRemote(remote)).toBeNull()
   })
 })
 

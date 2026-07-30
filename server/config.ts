@@ -14,6 +14,17 @@ export interface ServiceConfig {
   inspectionConcurrency: number
   commandTimeoutMs: number
   commandMaxOutputBytes: number
+  github: GitHubConfig
+}
+
+export interface GitHubConfig {
+  enabled: boolean
+  token: string | null
+  repositories: string[]
+  timeoutMs: number
+  maxResponseBytes: number
+  cacheTtlMs: number
+  concurrency: number
 }
 
 const DEFAULT_EXCLUDES = [
@@ -101,6 +112,49 @@ export async function loadServiceConfig(
       1024 * 1024,
       'TCTBP_ADVISER_GIT_MAX_OUTPUT_BYTES',
     ),
+    github: {
+      enabled: booleanValue(
+        environment.TCTBP_ADVISER_GITHUB_ENABLED,
+        false,
+        'TCTBP_ADVISER_GITHUB_ENABLED',
+      ),
+      token: optionalSecret(environment.TCTBP_ADVISER_GITHUB_TOKEN),
+      repositories: environment.TCTBP_ADVISER_GITHUB_REPOSITORIES
+        ? githubRepositoryNames(jsonArray(
+          environment.TCTBP_ADVISER_GITHUB_REPOSITORIES,
+          'TCTBP_ADVISER_GITHUB_REPOSITORIES',
+          true,
+        ))
+        : [],
+      timeoutMs: boundedInteger(
+        environment.TCTBP_ADVISER_GITHUB_TIMEOUT_MS,
+        5_000,
+        500,
+        30_000,
+        'TCTBP_ADVISER_GITHUB_TIMEOUT_MS',
+      ),
+      maxResponseBytes: boundedInteger(
+        environment.TCTBP_ADVISER_GITHUB_MAX_RESPONSE_BYTES,
+        2 * 1024 * 1024,
+        1024,
+        10 * 1024 * 1024,
+        'TCTBP_ADVISER_GITHUB_MAX_RESPONSE_BYTES',
+      ),
+      cacheTtlMs: boundedInteger(
+        environment.TCTBP_ADVISER_GITHUB_CACHE_TTL_MS,
+        60_000,
+        1_000,
+        600_000,
+        'TCTBP_ADVISER_GITHUB_CACHE_TTL_MS',
+      ),
+      concurrency: boundedInteger(
+        environment.TCTBP_ADVISER_GITHUB_CONCURRENCY,
+        3,
+        1,
+        6,
+        'TCTBP_ADVISER_GITHUB_CONCURRENCY',
+      ),
+    },
   }
 }
 
@@ -127,6 +181,14 @@ async function ensureLegacyRepositoryIsAllowed(
 }
 
 function jsonStringArray(value: string, name: string): string[] {
+  return jsonArray(value, name, false)
+}
+
+function jsonArray(
+  value: string,
+  name: string,
+  allowEmpty: boolean,
+): string[] {
   let parsed: unknown
   try {
     parsed = JSON.parse(value)
@@ -138,7 +200,7 @@ function jsonStringArray(value: string, name: string): string[] {
   }
   if (
     !Array.isArray(parsed)
-    || parsed.length === 0
+    || (!allowEmpty && parsed.length === 0)
     || parsed.some((item) => typeof item !== 'string' || item.trim() === '')
   ) {
     throw new AdviserError(
@@ -147,6 +209,47 @@ function jsonStringArray(value: string, name: string): string[] {
     )
   }
   return parsed.map((item) => (item as string).trim())
+}
+
+function githubRepositoryNames(values: string[]): string[] {
+  const names = new Map<string, string>()
+  for (const value of values) {
+    const parts = value.split('/')
+    if (
+      parts.length !== 2
+      || parts.some((part) => (
+        !/^[A-Za-z0-9_.-]+$/.test(part)
+        || part === '.'
+        || part === '..'
+      ))
+    ) {
+      throw new AdviserError(
+        'configuration-invalid',
+        'GitHub repositories must use the owner/name format.',
+      )
+    }
+    names.set(value.toLocaleLowerCase(), value)
+  }
+  return [...names.values()]
+}
+
+function optionalSecret(value: string | undefined): string | null {
+  const cleaned = value?.trim()
+  return cleaned || null
+}
+
+function booleanValue(
+  value: string | undefined,
+  fallback: boolean,
+  name: string,
+): boolean {
+  if (value === undefined || value.trim() === '') return fallback
+  if (value === 'true') return true
+  if (value === 'false') return false
+  throw new AdviserError(
+    'configuration-invalid',
+    `${name} must be true or false.`,
+  )
 }
 
 function safeDirectoryNames(values: string[]): string[] {

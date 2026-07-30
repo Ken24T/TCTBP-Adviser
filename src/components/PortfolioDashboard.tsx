@@ -63,9 +63,12 @@ export function PortfolioDashboard({
           <p className="eyebrow">Local repository registry</p>
           <h1>Repository portfolio</h1>
           <p>
-            {snapshot.discovery.repositoryCount} repositories discovered across{' '}
+            {snapshot.discovery.repositoryCount} local repositories discovered across{' '}
             {snapshot.discovery.rootCount} configured root
             {snapshot.discovery.rootCount === 1 ? '' : 's'}.
+            {snapshot.github.githubOnly > 0
+              ? ` ${snapshot.github.githubOnly} GitHub-only repositories added.`
+              : ''}
           </p>
         </div>
         <button disabled={busy} type="button" onClick={onRefresh}>
@@ -77,7 +80,7 @@ export function PortfolioDashboard({
         <Metric label="Discovered" value={snapshot.discovery.repositoryCount} />
         <Metric label="Healthy" value={healthyCount} />
         <Metric label="TCTBP compatible" value={compatibleCount} />
-        <Metric label="Discovery issues" value={snapshot.discovery.issues.length} />
+        <Metric label="GitHub mapped" value={snapshot.github.localMappings} />
       </section>
 
       <section className="portfolio-controls" aria-label="Portfolio filters">
@@ -118,7 +121,7 @@ export function PortfolioDashboard({
           : snapshot.cache.status === 'fresh'
             ? 'Cached portfolio'
             : 'Freshly inspected'}
-        {' · '}{formatAge(snapshot.cache.ageMs)} · No fetch performed
+        {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
       </div>
 
       {repositories.length > 0 ? (

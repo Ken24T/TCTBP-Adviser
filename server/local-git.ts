@@ -1,6 +1,7 @@
 import { lstat, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import type { GitOperation } from '../shared/inspection'
+import type { GitHubRepositoryIdentity } from '../shared/github'
 import { AdviserError } from './errors'
 import { isPathContained } from './security'
 import {
@@ -48,6 +49,45 @@ export class LocalGitInspector {
       operations: await detectOperations(gitDir),
     }
   }
+
+  async githubIdentity(
+    repositoryPath: string,
+  ): Promise<GitHubRepositoryIdentity | null> {
+    const result = await this.executor.run(
+      repositoryPath,
+      GIT_COMMANDS.originUrl,
+    )
+    return parseGitHubRemote(result.stdout.trim())
+  }
+}
+
+export function parseGitHubRemote(
+  remote: string,
+): GitHubRepositoryIdentity | null {
+  if (!remote) return null
+  let pathName: string
+  if (/^git@github\.com:/i.test(remote)) {
+    pathName = remote.replace(/^git@github\.com:/i, '')
+  } else {
+    let url: URL
+    try {
+      url = new URL(remote)
+    } catch {
+      return null
+    }
+    if (url.hostname.toLocaleLowerCase() !== 'github.com') return null
+    pathName = url.pathname.replace(/^\/+/, '')
+  }
+  const parts = pathName.replace(/\.git$/i, '').split('/')
+  if (parts.length !== 2 || parts.some((part) => !isSafeGitHubName(part))) {
+    return null
+  }
+  const [owner, name] = parts
+  return { owner, name, fullName: `${owner}/${name}` }
+}
+
+function isSafeGitHubName(value: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(value) && value !== '.' && value !== '..'
 }
 
 const OPERATION_MARKERS: ReadonlyArray<{

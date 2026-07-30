@@ -3,6 +3,7 @@ import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
+import { GitHubPanel } from './GitHubPanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
@@ -84,6 +85,11 @@ export function RepositoryDetail({
         recommendation={recommendation}
       />
       <TctbpPanel observation={observation} />
+      <GitHubPanel
+        evidence={detail.github}
+        localBranch={observation.head.branch}
+        localSha={observation.head.sha}
+      />
 
       <section className="uncertainties" aria-labelledby="uncertainty-title">
         <p className="eyebrow">Known limits</p>

@@ -85,6 +85,15 @@ function serviceConfig(root: string): ServiceConfig {
     inspectionConcurrency: 4,
     commandTimeoutMs: 3_000,
     commandMaxOutputBytes: 1024 * 1024,
+    github: {
+      enabled: false,
+      token: null,
+      repositories: [],
+      timeoutMs: 5_000,
+      maxResponseBytes: 2_097_152,
+      cacheTtlMs: 60_000,
+      concurrency: 3,
+    },
   }
 }
 

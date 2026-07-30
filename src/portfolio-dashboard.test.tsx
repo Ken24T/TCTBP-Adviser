@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
+import { githubObservationFixture } from '../test/github-observation-fixture'
 
 describe('portfolio dashboard', () => {
   it('shows compatible, non-TCTBP and renamed repositories', () => {
@@ -30,7 +31,7 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Plain-Repo')
     expect(markup).toContain('TCTBP not installed')
     expect(markup).toContain('Install TCTBP')
-    expect(markup).toContain('No fetch performed')
+    expect(markup).toContain('No Git fetch performed')
   })
 
   it('omits hidden repositories from the initial view', () => {
@@ -62,6 +63,7 @@ describe('portfolio dashboard', () => {
     snapshot.repositories.push({
       id: 'C'.repeat(24),
       name: 'Unavailable-Repo',
+      source: 'local',
       available: false,
       observedAt: null,
       head: null,
@@ -73,6 +75,7 @@ describe('portfolio dashboard', () => {
         code: 'inspection-failed',
         message: 'Local repository inspection failed safely.',
       },
+      github: disabledGitHub(),
     })
     const markup = renderToStaticMarkup(
       <PortfolioDashboard
@@ -90,6 +93,42 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Inspection unavailable')
     expect(markup).toContain('Partial failure')
   })
+
+  it('presents configured GitHub-only repositories without local advice', () => {
+    const snapshot = portfolioFixture()
+    snapshot.github.enabled = true
+    snapshot.github.githubOnly = 1
+    snapshot.repositories.push({
+      id: 'G'.repeat(24),
+      name: 'TCTBP-Adviser',
+      source: 'github-only',
+      available: true,
+      observedAt: null,
+      head: null,
+      workingTree: null,
+      localTracking: null,
+      tctbp: null,
+      recommendation: null,
+      error: null,
+      github: githubObservationFixture(),
+    })
+
+    const markup = renderToStaticMarkup(
+      <PortfolioDashboard
+        snapshot={snapshot}
+        preferences={{}}
+        busy={false}
+        onOpen={() => undefined}
+        onRefresh={() => undefined}
+        onPreferenceChange={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('1 GitHub-only repositories added')
+    expect(markup).toContain('No local working copy')
+    expect(markup).toContain('Local recommendation unavailable')
+    expect(markup).toContain('View on GitHub')
+  })
 })
 
 function portfolioFixture(): PortfolioSnapshot {
@@ -106,10 +145,17 @@ function portfolioFixture(): PortfolioSnapshot {
       rootCount: 1,
       issues: [],
     },
+    github: {
+      enabled: false,
+      localMappings: 0,
+      githubOnly: 0,
+      unavailable: 0,
+    },
     repositories: [
       {
         id: 'A'.repeat(24),
         name: 'TCTBP-Adviser',
+        source: 'local',
         available: true,
         observedAt: '2026-07-30T05:00:00.000Z',
         head: { branch: 'development', detached: false },
@@ -123,10 +169,12 @@ function portfolioFixture(): PortfolioSnapshot {
           severity: 'healthy',
         },
         error: null,
+        github: disabledGitHub(),
       },
       {
         id: 'B'.repeat(24),
         name: 'Plain-Repo',
+        source: 'local',
         available: true,
         observedAt: '2026-07-30T05:00:00.000Z',
         head: { branch: 'main', detached: false },
@@ -140,7 +188,16 @@ function portfolioFixture(): PortfolioSnapshot {
           severity: 'stop',
         },
         error: null,
+        github: disabledGitHub(),
       },
     ],
   }
+}
+
+function disabledGitHub() {
+  return {
+    status: 'disabled',
+    basis: 'github-rest-api',
+    retrievedAt: null,
+  } as const
 }
