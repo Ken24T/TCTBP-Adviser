@@ -1,17 +1,51 @@
+import { useState } from 'react'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
+import {
+  createTctbpPlanDocument,
+  formatTctbpPlanJson,
+  formatTctbpPlanMarkdown,
+} from '../tctbp-plan-export'
 import { PanelHeading } from './RepositoryState'
 
 interface TctbpUpgradePanelProps {
+  repositoryName: string
   plan: TctbpUpgradePlan | null
   busy: boolean
   onLoad: () => void
 }
 
 export function TctbpUpgradePanel({
+  repositoryName,
   plan,
   busy,
   onLoad,
 }: TctbpUpgradePanelProps) {
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  function exportPlan(format: 'markdown' | 'json'): void {
+    if (!plan) return
+    const planDocument = createTctbpPlanDocument(repositoryName, plan)
+    const content = format === 'markdown'
+      ? formatTctbpPlanMarkdown(planDocument)
+      : formatTctbpPlanJson(planDocument)
+    const extension = format === 'markdown' ? 'md' : 'json'
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${repositoryName}-tctbp-upgrade-plan.${extension}`
+    link.click()
+    URL.revokeObjectURL(url)
+    setFeedback(`Downloaded ${format.toUpperCase()} plan.`)
+  }
+
+  async function copyMarkdown(): Promise<void> {
+    if (!plan) return
+    const planDocument = createTctbpPlanDocument(repositoryName, plan)
+    await navigator.clipboard.writeText(formatTctbpPlanMarkdown(planDocument))
+    setFeedback('Copied Markdown plan.')
+  }
+
   return (
     <section className="panel wide-panel" aria-labelledby="upgrade-plan-title">
       <PanelHeading
@@ -30,6 +64,20 @@ export function TctbpUpgradePanel({
       >
         {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
       </button>
+      {plan && (
+        <div className="plan-export-actions" aria-label="Upgrade plan export">
+          <button type="button" onClick={() => exportPlan('markdown')}>
+            Download Markdown
+          </button>
+          <button type="button" onClick={() => exportPlan('json')}>
+            Download JSON
+          </button>
+          <button type="button" onClick={() => void copyMarkdown()}>
+            Copy Markdown
+          </button>
+        </div>
+      )}
+      {feedback && <p className="empty-state">{feedback}</p>}
       {plan && <PlanDetails plan={plan} />}
     </section>
   )

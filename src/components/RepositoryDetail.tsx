@@ -98,6 +98,7 @@ export function RepositoryDetail({
       />
       <TctbpPanel observation={observation} />
       <TctbpUpgradePanel
+        repositoryName={observation.repository.name}
         plan={upgradePlan}
         busy={upgradeBusy}
         onLoad={onLoadUpgradePlan}

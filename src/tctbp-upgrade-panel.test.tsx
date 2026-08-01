@@ -50,6 +50,7 @@ describe('TCTBP upgrade preview panel', () => {
 
     const markup = renderToStaticMarkup(
       <TctbpUpgradePanel
+        repositoryName="example-repository"
         plan={plan}
         busy={false}
         onLoad={() => undefined}
@@ -60,6 +61,9 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('outdated')
     expect(markup).toContain('Blocked:')
     expect(markup).toContain('Candidate guard is missing.')
+    expect(markup).toContain('Download Markdown')
+    expect(markup).toContain('Download JSON')
+    expect(markup).toContain('Copy Markdown')
     expect(markup).toContain('TCTBP-Web')
     expect(markup).toContain('0.3.0')
     expect(markup).toContain('Drifted')

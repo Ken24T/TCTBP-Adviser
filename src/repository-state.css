@@ -142,6 +142,22 @@ code {
   opacity: 0.55;
 }
 
+.plan-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.plan-export-actions button {
+  padding: 8px 11px;
+  color: #43545c;
+  background: transparent;
+  border: 1px solid #c8d0ce;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
 .evidence-table [role="row"] {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1.8fr;
