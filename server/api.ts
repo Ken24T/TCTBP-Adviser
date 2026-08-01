@@ -73,7 +73,13 @@ export function createApiRuntime(
     tctbpSource,
     audit,
     configuration: safeConfigurationExport(config),
-    portfolio: new PortfolioService(config, registry, inspections, github),
+    portfolio: new PortfolioService(
+      config,
+      registry,
+      inspections,
+      github,
+      tctbpSource,
+    ),
   }
 }
 

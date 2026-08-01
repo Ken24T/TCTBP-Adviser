@@ -6,6 +6,11 @@ import type {
 import type { ServiceConfig } from './config'
 import { errorCode } from './errors'
 import type { GitHubEnrichmentService } from './github-enrichment'
+import type { CanonicalTctbpSourceService } from './tctbp-source'
+import {
+  summarizePortfolioUpgrades,
+  summarizeUpgradePlan,
+} from './tctbp-portfolio'
 import type { RepositoryInspectionService } from './inspection'
 import { recommend } from './recommendations/engine'
 import type {
@@ -22,6 +27,7 @@ export class PortfolioService {
     readonly registry: RepositoryRegistry,
     readonly inspections: RepositoryInspectionService,
     readonly github: GitHubEnrichmentService,
+    readonly tctbpSource: CanonicalTctbpSourceService | null = null,
   ) {}
 
   async get(force = false): Promise<PortfolioSnapshot> {
@@ -88,6 +94,7 @@ export class PortfolioService {
           (repository) => repository.github.status === 'unavailable',
         ).length,
       },
+      upgrade: summarizePortfolioUpgrades(allRepositories),
       repositories: allRepositories,
     }
     this.#cached = snapshot
@@ -110,7 +117,12 @@ export class PortfolioService {
         retrievedAt: null,
       } as const
     if (inspectionResult.status === 'fulfilled') {
-      return availableSummary(inspectionResult.value, github)
+      const upgrade = this.tctbpSource?.sourceRoot
+        ? await this.tctbpSource.plan(repository.path, inspectionResult.value)
+          .then(summarizeUpgradePlan)
+          .catch(() => null)
+        : null
+      return availableSummary(inspectionResult.value, github, upgrade)
     } else {
       return {
         id: repository.id,
@@ -128,6 +140,7 @@ export class PortfolioService {
           message: 'Local repository inspection failed safely.',
         },
         github,
+        upgrade: null,
       }
     }
   }
@@ -136,6 +149,7 @@ export class PortfolioService {
 function availableSummary(
   observation: RepositoryObservation,
   github: PortfolioRepository['github'],
+  upgrade: PortfolioRepository['upgrade'],
 ): PortfolioRepository {
   const recommendation = recommend(observation, 'none', new Date())
   return {
@@ -170,6 +184,7 @@ function availableSummary(
     },
     error: null,
     github,
+    upgrade,
   }
 }
 
@@ -189,6 +204,7 @@ function githubOnlySummary(
     recommendation: null,
     error: null,
     github: repository.evidence,
+    upgrade: null,
   }
 }
 

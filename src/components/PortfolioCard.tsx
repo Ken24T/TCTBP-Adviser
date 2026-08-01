@@ -84,6 +84,9 @@ export function PortfolioCard({
         <span>{repository.source === 'local'
           ? repository.available ? 'Local evidence' : 'Partial failure'
           : 'GitHub evidence'}</span>
+        {repository.upgrade && (
+          <span>{upgradeLabel(repository.upgrade.disposition)}</span>
+        )}
       </div>
 
       <label className="rename-control">
@@ -191,4 +194,10 @@ function tctbpLabel(repository: PortfolioRepository): string {
   if (!repository.tctbp.installed) return 'TCTBP not installed'
   if (!repository.tctbp.compatible) return 'TCTBP incompatible'
   return `TCTBP schema ${repository.tctbp.schemaVersion ?? 'unknown'}`
+}
+
+function upgradeLabel(disposition: NonNullable<PortfolioRepository['upgrade']>['disposition']): string {
+  if (disposition === 'current') return 'TCTBP current'
+  if (disposition === 'source-unavailable') return 'TCTBP source unavailable'
+  return 'TCTBP review required'
 }

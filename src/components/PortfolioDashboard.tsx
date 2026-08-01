@@ -81,6 +81,12 @@ export function PortfolioDashboard({
         <Metric label="Healthy" value={healthyCount} />
         <Metric label="TCTBP compatible" value={compatibleCount} />
         <Metric label="GitHub mapped" value={snapshot.github.localMappings} />
+        {snapshot.upgrade?.enabled && (
+          <Metric
+            label="TCTBP review"
+            value={snapshot.upgrade.reviewRequired}
+          />
+        )}
       </section>
 
       <section className="portfolio-controls" aria-label="Portfolio filters">
