@@ -47,6 +47,13 @@ describe('portfolio TCTBP upgrade summaries', () => {
       actionCounts: { preserve: 2, add: 1, review: 3, unavailable: 0 },
       blockerCount: 1,
       policyDifferenceCount: 1,
+      reasons: [
+        '1 blocker(s)',
+        'canonical source is newer',
+        '1 managed file(s) missing',
+        '3 managed file(s) drifted',
+        '1 policy difference(s)',
+      ],
     })
   })
 
@@ -54,6 +61,7 @@ describe('portfolio TCTBP upgrade summaries', () => {
     const repositories = [
       repository('current', 'current'),
       repository('review', 'review-required'),
+      repository('blocked', 'review-required', 1),
       repository('unavailable', 'source-unavailable'),
       { ...repository('github', 'current'), source: 'github-only' as const },
     ]
@@ -61,7 +69,8 @@ describe('portfolio TCTBP upgrade summaries', () => {
     expect(summarizePortfolioUpgrades(repositories)).toEqual({
       enabled: true,
       current: 1,
-      reviewRequired: 1,
+      reviewRequired: 2,
+      blocked: 1,
       sourceUnavailable: 1,
     })
   })
@@ -70,6 +79,7 @@ describe('portfolio TCTBP upgrade summaries', () => {
 function repository(
   name: string,
   disposition: TctbpUpgradePlan['disposition'],
+  blockerCount = 0,
 ): PortfolioRepository {
   return {
     id: name,
@@ -88,8 +98,11 @@ function repository(
       disposition,
       sourceAlignment: 'current',
       actionCounts: { preserve: 1, add: 0, review: 0, unavailable: 0 },
-      blockerCount: 0,
+      blockerCount,
       policyDifferenceCount: 0,
+      reasons: blockerCount > 0
+        ? [`${blockerCount} blocker(s)`]
+        : ['aligned with canonical TCTBP-Web'],
     },
   }
 }

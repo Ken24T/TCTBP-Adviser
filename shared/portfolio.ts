@@ -55,12 +55,14 @@ export interface PortfolioUpgradeSummary {
   actionCounts: ManagedFileActionCounts
   blockerCount: number
   policyDifferenceCount: number
+  reasons: string[]
 }
 
 export interface PortfolioUpgradeTotals {
   enabled: boolean
   current: number
   reviewRequired: number
+  blocked: number
   sourceUnavailable: number
 }
 

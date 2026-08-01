@@ -88,6 +88,11 @@ export function PortfolioCard({
           <span>{upgradeLabel(repository.upgrade.disposition)}</span>
         )}
       </div>
+      {repository.upgrade && (
+        <small className="portfolio-upgrade-reason">
+          {repository.upgrade.reasons.join(' · ')}
+        </small>
+      )}
 
       <label className="rename-control">
         <span>Custom name</span>

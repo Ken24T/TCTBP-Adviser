@@ -30,6 +30,9 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('TCTBP schema 11')
     expect(markup).toContain('TCTBP review')
     expect(markup).toContain('TCTBP review required')
+    expect(markup).toContain('TCTBP blocked')
+    expect(markup).toContain('Source outdated')
+    expect(markup).toContain('Policy drift')
     expect(markup).toContain('Plain-Repo')
     expect(markup).toContain('TCTBP not installed')
     expect(markup).toContain('Install TCTBP')
@@ -157,6 +160,7 @@ function portfolioFixture(): PortfolioSnapshot {
       enabled: true,
       current: 0,
       reviewRequired: 1,
+      blocked: 0,
       sourceUnavailable: 0,
     },
     repositories: [
@@ -184,6 +188,7 @@ function portfolioFixture(): PortfolioSnapshot {
           actionCounts: { preserve: 1, add: 0, review: 1, unavailable: 0 },
           blockerCount: 0,
           policyDifferenceCount: 1,
+          reasons: ['canonical source is newer', '1 policy difference(s)'],
         },
       },
       {
