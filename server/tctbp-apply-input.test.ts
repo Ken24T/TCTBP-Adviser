@@ -10,6 +10,8 @@ describe('TCTBP apply request validation', () => {
       planFingerprint: 'a'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
     }))
 
     expect(request).toEqual({
@@ -17,6 +19,8 @@ describe('TCTBP apply request validation', () => {
       planFingerprint: 'a'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
     })
   })
 
@@ -26,12 +30,16 @@ describe('TCTBP apply request validation', () => {
       planFingerprint: 'a'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
     }))).rejects.toMatchObject({ code: 'request-confirmation-required' })
     await expect(readTctbpApplyRequest(body({
       confirm: true,
       planFingerprint: 'stale',
       mode: 'additions-only',
       approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
     }))).rejects.toMatchObject({ code: 'request-plan-invalid' })
   })
 })

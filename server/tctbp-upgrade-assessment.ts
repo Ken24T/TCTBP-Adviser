@@ -42,6 +42,7 @@ export function assessTctbpUpgrade(
     || actionCounts.add > 0
     || actionCounts.review > 0
     || actionCounts.unavailable > 0
+    || (input.drift.obsoleteTargets?.length ?? 0) > 0
   )
 
   return {

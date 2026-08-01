@@ -47,8 +47,8 @@ The current apply capability requires:
 
 The updater must not execute commands read from the target policy. It applies
 known migration operations from the trusted Adviser/TCTBP-Web installation.
-Project-specific policy merges and managed-file deletions remain blocked until
-separate ownership and rollback rules are approved.
+Project-specific policy merges and managed-file deletions require explicit
+per-run approval and are never included in additions-only mode.
 
 ## Capability state
 
@@ -56,5 +56,5 @@ separate ownership and rollback rules are approved.
 - Generate an upgrade plan/diff: implemented.
 - Apply canonical additions or explicitly approved managed-file updates: implemented
   without commit or push.
-- Apply project-specific policy merges: disabled.
-- Delete obsolete managed files: disabled.
+- Apply project-specific policy merges: available only with explicit managed-path approval.
+- Delete obsolete managed files: available only with explicit deletion confirmation.

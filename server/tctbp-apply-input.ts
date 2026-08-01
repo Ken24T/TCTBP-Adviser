@@ -49,6 +49,8 @@ export async function readTctbpApplyRequest(
     'planFingerprint',
     'mode',
     'approvedPaths',
+    'approvedDeletionPaths',
+    'confirmDeletions',
   ])
   if (Object.keys(record).some((key) => !allowedKeys.has(key))) {
     throw new AdviserError(
@@ -88,11 +90,27 @@ export async function readTctbpApplyRequest(
       'TCTBP apply approvedPaths must be an array of non-empty strings.',
     )
   }
+  if (
+    !Array.isArray(record.approvedDeletionPaths)
+    || record.approvedDeletionPaths.some(
+      (value) => typeof value !== 'string' || value.length === 0,
+    )
+    || typeof record.confirmDeletions !== 'boolean'
+  ) {
+    throw new AdviserError(
+      'request-deletion-approval-invalid',
+      'TCTBP apply deletion approval is invalid.',
+    )
+  }
 
   return {
     confirm: true,
     planFingerprint: record.planFingerprint,
     mode: record.mode as TctbpApplyMode,
     approvedPaths: Array.from(new Set(record.approvedPaths as string[])),
+    approvedDeletionPaths: Array.from(
+      new Set(record.approvedDeletionPaths as string[]),
+    ),
+    confirmDeletions: record.confirmDeletions,
   }
 }

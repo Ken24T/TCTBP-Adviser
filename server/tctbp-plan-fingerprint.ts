@@ -7,12 +7,15 @@ export function fingerprintTctbpPlan(
   const basis = {
     sourceRevision: plan.source.revision,
     target: plan.target,
-    drift: plan.drift.files.map((file) => ({
-      path: file.path,
-      state: file.state,
-      sourceHash: file.sourceHash,
-      targetHash: file.targetHash,
-    })),
+    drift: {
+      files: plan.drift.files.map((file) => ({
+        path: file.path,
+        state: file.state,
+        sourceHash: file.sourceHash,
+        targetHash: file.targetHash,
+      })),
+      obsoleteTargets: plan.drift.obsoleteTargets ?? [],
+    },
     policy: plan.policy,
   }
   return createHash('sha256')

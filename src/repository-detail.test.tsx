@@ -33,6 +33,8 @@ describe('repository detail view', () => {
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
         onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onDeleteObsolete={() => undefined}
       />,
     )
 
@@ -79,6 +81,8 @@ describe('repository detail view', () => {
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
         onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onDeleteObsolete={() => undefined}
       />,
     )
 

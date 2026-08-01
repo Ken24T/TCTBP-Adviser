@@ -13,6 +13,8 @@ export async function applyTctbpUpgradePlan(
   planFingerprint: string,
   mode: TctbpApplyMode,
   approvedPaths: string[] = [],
+  approvedDeletionPaths: string[] = [],
+  confirmDeletions = false,
 ): Promise<TctbpApplyResult> {
   return requestJson<TctbpApplyResult>(
     `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-apply`,
@@ -24,6 +26,8 @@ export async function applyTctbpUpgradePlan(
         planFingerprint,
         mode,
         approvedPaths,
+        approvedDeletionPaths,
+        confirmDeletions,
       }),
     },
   )

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   compareTctbpPolicy,
+  mergeCanonicalTctbpPolicy,
   parseTctbpPolicy,
 } from './tctbp-policy'
 
@@ -52,6 +53,36 @@ describe('semantic TCTBP policy comparison', () => {
           message: 'candidateGuard is enabled canonically but not enabled in the target policy.',
         },
       ],
+    })
+  })
+
+  it('merges canonical infrastructure while preserving project-owned values', () => {
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        schemaVersion: 11,
+        candidateGuard: { enabled: true },
+        project: { name: 'canonical-name' },
+        profile: { developmentPolicy: { maxFileLines: { softCeiling: 250 } } },
+      }),
+      JSON.stringify({
+        schemaVersion: 10,
+        candidateGuard: { enabled: false },
+        project: { name: 'project-name' },
+        profile: {
+          commands: { test: 'npm test' },
+          developmentPolicy: { maxFileLines: { softCeiling: 999 } },
+        },
+      }),
+    )
+
+    expect(JSON.parse(merged as string)).toMatchObject({
+      schemaVersion: 11,
+      candidateGuard: { enabled: true },
+      project: { name: 'project-name' },
+      profile: {
+        commands: { test: 'npm test' },
+        developmentPolicy: { maxFileLines: { softCeiling: 250 } },
+      },
     })
   })
 

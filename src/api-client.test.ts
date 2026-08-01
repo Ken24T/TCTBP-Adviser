@@ -40,6 +40,8 @@ describe('repository detail client', () => {
           planFingerprint: 'a'.repeat(64),
           mode: 'additions-only',
           approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
         }),
       }),
     )

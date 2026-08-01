@@ -90,11 +90,15 @@ function App() {
     }
   }
 
-  async function applyUpgradeAdditions(): Promise<void> {
+  async function applyUpgrade(
+    mode: Parameters<typeof applyTctbpUpgradePlan>[2],
+    approvedPaths: string[],
+    approvedDeletionPaths: string[],
+    confirmDeletions: boolean,
+    confirmation: string,
+  ): Promise<void> {
     if (!selectedId || !upgradePlan?.fingerprint) return
-    if (!window.confirm(
-      'Apply missing canonical TCTBP files to this repository? No commit or push will be performed.',
-    )) return
+    if (!window.confirm(confirmation)) return
     setApplyBusy(true)
     setUpgradeFeedback(null)
     setError(null)
@@ -102,12 +106,15 @@ function App() {
       const result = await applyTctbpUpgradePlan(
         selectedId,
         upgradePlan.fingerprint,
-        'additions-only',
+        mode,
+        approvedPaths,
+        approvedDeletionPaths,
+        confirmDeletions,
       )
       setUpgradeFeedback(
         result.status === 'applied'
-          ? `Applied ${result.appliedPaths.length} file(s). Review and checkpoint the repository next.`
-          : 'There were no additions to apply.',
+          ? `Applied ${result.appliedPaths.length} change(s). Review and checkpoint the repository next.`
+          : 'There were no approved changes to apply.',
       )
       await refreshDetail(selectedId, intent)
       await refreshUpgradePlan(selectedId)
@@ -116,6 +123,37 @@ function App() {
     } finally {
       setApplyBusy(false)
     }
+  }
+
+  function applyUpgradeAdditions(): Promise<void> {
+    return applyUpgrade(
+      'additions-only',
+      [],
+      [],
+      false,
+      'Apply missing canonical TCTBP files? No commit or push will be performed.',
+    )
+  }
+
+  function applyUpgradePolicy(): Promise<void> {
+    return applyUpgrade(
+      'approved-managed-files',
+      ['.github/TCTBP.json'],
+      [],
+      false,
+      'Merge canonical TCTBP infrastructure policy sections? No commit or push will be performed.',
+    )
+  }
+
+  function deleteObsoleteUpgradeFiles(): Promise<void> {
+    const paths = upgradePlan?.drift.obsoleteTargets?.map((file) => file.path) ?? []
+    return applyUpgrade(
+      'approved-managed-files',
+      [],
+      paths,
+      true,
+      `Delete ${paths.length} obsolete canonical TCTBP file(s)? This cannot be undone by the Adviser.`,
+    )
   }
 
   async function refreshCatalogue(): Promise<void> {
@@ -264,6 +302,8 @@ function App() {
             onRefresh={() => void refreshDetail(selectedId, intent)}
             onLoadUpgradePlan={() => void refreshUpgradePlan(selectedId)}
             onApplyAdditions={() => void applyUpgradeAdditions()}
+            onApplyPolicy={() => void applyUpgradePolicy()}
+            onDeleteObsolete={() => void deleteObsoleteUpgradeFiles()}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

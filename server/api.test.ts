@@ -124,6 +124,8 @@ describe('same-origin inspection API', () => {
           planFingerprint: 'a'.repeat(64),
           mode: 'additions-only',
           approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
         }),
       },
     )

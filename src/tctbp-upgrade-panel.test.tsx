@@ -57,6 +57,8 @@ describe('TCTBP upgrade preview panel', () => {
         upgradeFeedback={null}
         onLoad={() => undefined}
         onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onDeleteObsolete={() => undefined}
       />,
     )
 

@@ -32,7 +32,7 @@ export function planManagedFileDrift(
 }
 
 export function emptyManagedFileDriftPlan(): ManagedFileDriftPlan {
-  return { files: [], counts: emptyCounts() }
+  return { files: [], counts: emptyCounts(), obsoleteTargets: [] }
 }
 
 function classifyFile(

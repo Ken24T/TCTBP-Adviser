@@ -27,6 +27,7 @@ export function formatTctbpPlanJson(document: TctbpPlanDocument): string {
 export function formatTctbpPlanMarkdown(document: TctbpPlanDocument): string {
   const { plan } = document
   const driftFiles = plan.drift.files.filter((file) => file.action !== 'preserve')
+  const obsoleteFiles = plan.drift.obsoleteTargets ?? []
   const lines = [
     `# TCTBP upgrade plan: ${document.repository}`,
     '',
@@ -62,6 +63,12 @@ export function formatTctbpPlanMarkdown(document: TctbpPlanDocument): string {
       ? driftFiles.map((file) => (
         `- ${file.action}: \`${file.path}\` (source ${file.sourceHash ?? 'unavailable'}, target ${file.targetHash ?? 'missing'})`
       ))
+      : ['- None']),
+    '',
+    '## Obsolete managed files',
+    '',
+    ...(obsoleteFiles.length > 0
+      ? obsoleteFiles.map((file) => `- delete only with explicit confirmation: \`${file.path}\` (target ${file.targetHash})`)
       : ['- None']),
     '',
     '## Policy differences',

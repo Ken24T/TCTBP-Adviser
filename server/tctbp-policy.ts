@@ -11,6 +11,15 @@ const HARDENING_AREAS = [
   'codeLossPrevention',
 ] as const
 
+const CANONICAL_POLICY_KEYS = [
+  'schemaVersion',
+  'adviserContract',
+  'adviserVocabulary',
+  'governance',
+  ...HARDENING_AREAS,
+  'tagging',
+] as const
+
 type JsonObject = Record<string, unknown>
 type HardeningArea = typeof HARDENING_AREAS[number]
 
@@ -45,6 +54,36 @@ export function parseTctbpPolicy(content: string | null): TctbpPolicySnapshot | 
   } catch {
     return null
   }
+}
+
+export function mergeCanonicalTctbpPolicy(
+  sourceContent: string | null,
+  targetContent: string | null,
+): string | null {
+  if (!sourceContent || !targetContent) return null
+  let source: JsonObject | null
+  let target: JsonObject | null
+  try {
+    source = objectValue(JSON.parse(sourceContent))
+    target = objectValue(JSON.parse(targetContent))
+  } catch {
+    return null
+  }
+  if (!source || !target) return null
+
+  const merged: JsonObject = { ...target }
+  for (const key of CANONICAL_POLICY_KEYS) {
+    if (key in source) merged[key] = clone(source[key])
+  }
+  const sourceProfile = objectValue(source.profile)
+  const targetProfile = objectValue(target.profile)
+  if (sourceProfile?.developmentPolicy) {
+    merged.profile = {
+      ...(targetProfile ?? {}),
+      developmentPolicy: clone(sourceProfile.developmentPolicy),
+    }
+  }
+  return `${JSON.stringify(merged, null, 2)}\n`
 }
 
 export function compareTctbpPolicy(
@@ -110,6 +149,10 @@ function addMissing(
     area,
     message: `Target is missing canonical ${label}(s): ${missing.join(', ')}.`,
   })
+}
+
+function clone(value: unknown): unknown {
+  return JSON.parse(JSON.stringify(value))
 }
 
 function objectValue(value: unknown): JsonObject | null {

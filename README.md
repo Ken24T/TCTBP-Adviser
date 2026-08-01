@@ -138,8 +138,8 @@ scripts/          # TCTBP-Web runners (managed)
 - Explicitly approved apply requests can create or update canonical managed TCTBP
   files on a dedicated non-environment branch; they never commit, push, deploy,
   execute target commands, or modify application-owned files.
-- Deletions and project-specific policy merges remain review-only until separately
-  implemented and approved.
+- Deletions and project-specific policy merges require explicit per-run approval;
+  they never occur in additions-only mode.
 - Pin, hide and rename preferences are browser-only Adviser settings. They do
   not modify repositories.
 - Intent plans are clearly separate from state-driven recommendations and

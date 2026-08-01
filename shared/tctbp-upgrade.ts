@@ -20,9 +20,15 @@ export interface ManagedFileDrift {
 
 export type ManagedFileDriftCounts = Record<ManagedFileDriftState, number>
 
+export interface ObsoleteManagedFile {
+  path: string
+  targetHash: string
+}
+
 export interface ManagedFileDriftPlan {
   files: ManagedFileDrift[]
   counts: ManagedFileDriftCounts
+  obsoleteTargets?: ObsoleteManagedFile[]
 }
 
 export type CanonicalSourceState =
@@ -93,6 +99,8 @@ export interface TctbpApplyRequest {
   planFingerprint: string
   mode: TctbpApplyMode
   approvedPaths: string[]
+  approvedDeletionPaths: string[]
+  confirmDeletions: boolean
 }
 
 export interface TctbpApplyResult {

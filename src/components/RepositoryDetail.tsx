@@ -23,6 +23,8 @@ interface RepositoryDetailProps {
   onRefresh: () => void
   onLoadUpgradePlan: () => void
   onApplyAdditions: () => void
+  onApplyPolicy: () => void
+  onDeleteObsolete: () => void
 }
 
 export function RepositoryDetail({
@@ -38,6 +40,8 @@ export function RepositoryDetail({
   onRefresh,
   onLoadUpgradePlan,
   onApplyAdditions,
+  onApplyPolicy,
+  onDeleteObsolete,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   return (
@@ -111,6 +115,8 @@ export function RepositoryDetail({
         upgradeFeedback={upgradeFeedback}
         onLoad={onLoadUpgradePlan}
         onApplyAdditions={onApplyAdditions}
+        onApplyPolicy={onApplyPolicy}
+        onDeleteObsolete={onDeleteObsolete}
       />
       <RepositoryReferencePanel reference={detail.reference} />
       <GitHubPanel

@@ -44,6 +44,8 @@ describe('canonical TCTBP-Web source planning', () => {
         schemaVersion: 11,
         adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
         adviserVocabulary: { workflowIds: ['status'] },
+        candidateGuard: { enabled: true },
+        project: { name: 'canonical' },
       }),
     )
     await writeFile(path.join(source, 'scripts', 'tctbp-core.js'), 'same\n')
@@ -57,6 +59,8 @@ describe('canonical TCTBP-Web source planning', () => {
         schemaVersion: 11,
         adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
         adviserVocabulary: { workflowIds: ['status'] },
+        candidateGuard: { enabled: true },
+        project: { name: 'canonical' },
       }),
     )
 
@@ -115,6 +119,8 @@ describe('canonical TCTBP-Web source planning', () => {
       planFingerprint: plan.fingerprint ?? '',
       mode: 'additions-only',
       approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
     }
 
     const result = await service.apply(target, observation, request)
@@ -145,10 +151,96 @@ describe('canonical TCTBP-Web source planning', () => {
       planFingerprint: 'b'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
     })).rejects.toMatchObject({ code: 'upgrade-plan-stale' })
     await expect(readFile(path.join(target, 'schemas', 'contract.json'), 'utf8'))
       .rejects.toMatchObject({ code: 'ENOENT' })
     expect(plan.fingerprint).not.toBe('b'.repeat(64))
+  })
+
+  it('merges canonical policy sections while preserving project fields', async () => {
+    const { source, target } = await fixtureRepositories()
+    await writeFile(
+      path.join(source, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
+        adviserVocabulary: { workflowIds: ['status'] },
+        candidateGuard: { enabled: true },
+        project: { name: 'canonical-name' },
+      }),
+    )
+    await writeFile(
+      path.join(target, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
+        adviserVocabulary: { workflowIds: ['status'] },
+        candidateGuard: { enabled: false },
+        project: { name: 'target-name' },
+      }),
+    )
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: 'old'.repeat(10),
+      sourceVersion: '0.2.0',
+    })
+    const plan = await service.plan(target, observation)
+
+    await service.apply(target, observation, {
+      confirm: true,
+      planFingerprint: plan.fingerprint ?? '',
+      mode: 'approved-managed-files',
+      approvedPaths: ['.github/TCTBP.json'],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+    })
+
+    const merged = JSON.parse(
+      await readFile(path.join(target, '.github', 'TCTBP.json'), 'utf8'),
+    ) as { candidateGuard: { enabled: boolean }; project: { name: string } }
+    expect(merged.candidateGuard.enabled).toBe(true)
+    expect(merged.project.name).toBe('target-name')
+  })
+
+  it('deletes only explicitly approved obsolete managed files', async () => {
+    const { source, target } = await fixtureRepositories()
+    await mkdir(path.join(target, '.tctbp'), { recursive: true })
+    await writeFile(path.join(target, 'scripts', 'tctbp-old.js'), 'old\n')
+    await writeFile(
+      path.join(target, '.tctbp', 'source.json'),
+      JSON.stringify({ managedSurface: ['scripts/tctbp-*.js'] }),
+    )
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation(
+      {
+        sourceRepository: 'Ken24T/TCTBP-Web',
+        sourceRevision: 'old'.repeat(10),
+        sourceVersion: '0.2.0',
+      },
+      'feature/tctbp-upgrade',
+      ['scripts/tctbp-*.js'],
+    )
+    const plan = await service.plan(target, observation)
+
+    expect(plan.drift.obsoleteTargets).toEqual([
+      {
+        path: 'scripts/tctbp-old.js',
+        targetHash: expect.any(String),
+      },
+    ])
+    await service.apply(target, observation, {
+      confirm: true,
+      planFingerprint: plan.fingerprint ?? '',
+      mode: 'approved-managed-files',
+      approvedPaths: [],
+      approvedDeletionPaths: ['scripts/tctbp-old.js'],
+      confirmDeletions: true,
+    })
+    await expect(readFile(path.join(target, 'scripts', 'tctbp-old.js'), 'utf8'))
+      .rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('returns a non-mutating unavailable plan without a source checkout', async () => {
@@ -243,6 +335,7 @@ function targetObservation(
     sourceVersion: string | null
   },
   branch = 'feature/tctbp-upgrade',
+  managedSurface: string[] = [],
 ) {
   return {
     head: { branch, detached: false, unborn: false, sha: revision },
@@ -263,7 +356,7 @@ function targetObservation(
         preProductionBranch: 'review',
         productionBranch: 'main',
       },
-      scaffold,
+      scaffold: { ...scaffold, managedSurface },
     },
   }
 }

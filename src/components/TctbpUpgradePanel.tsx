@@ -15,6 +15,8 @@ interface TctbpUpgradePanelProps {
   upgradeFeedback: string | null
   onLoad: () => void
   onApplyAdditions: () => void
+  onApplyPolicy: () => void
+  onDeleteObsolete: () => void
 }
 
 export function TctbpUpgradePanel({
@@ -25,6 +27,8 @@ export function TctbpUpgradePanel({
   upgradeFeedback,
   onLoad,
   onApplyAdditions,
+  onApplyPolicy,
+  onDeleteObsolete,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -95,6 +99,32 @@ export function TctbpUpgradePanel({
           >
             {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
           </button>
+          <button
+            className="upgrade-apply-button"
+            disabled={
+              applyBusy
+              || !plan.fingerprint
+              || plan.blockers.length > 0
+              || plan.policy.state !== 'drifted'
+            }
+            type="button"
+            onClick={onApplyPolicy}
+          >
+            Apply policy merge
+          </button>
+          <button
+            className="upgrade-apply-button"
+            disabled={
+              applyBusy
+              || !plan.fingerprint
+              || plan.blockers.length > 0
+              || (plan.drift.obsoleteTargets?.length ?? 0) === 0
+            }
+            type="button"
+            onClick={onDeleteObsolete}
+          >
+            Delete obsolete files
+          </button>
         </div>
       )}
       {feedback && <p className="empty-state">{feedback}</p>}
@@ -151,6 +181,15 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
             <li key={file.path}>
               <strong>{driftLabel(file.state)}</strong>{' '}
               <code>{file.path}</code>
+            </li>
+          ))}
+        </ul>
+      )}
+      {(plan.drift.obsoleteTargets?.length ?? 0) > 0 && (
+        <ul className="compact-list">
+          {plan.drift.obsoleteTargets?.map((file) => (
+            <li key={file.path}>
+              <strong>Obsolete:</strong>{' '}<code>{file.path}</code>
             </li>
           ))}
         </ul>
