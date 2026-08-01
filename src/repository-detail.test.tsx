@@ -27,9 +27,12 @@ describe('repository detail view', () => {
         busy={false}
         upgradePlan={null}
         upgradeBusy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
+        onApplyAdditions={() => undefined}
       />,
     )
 
@@ -70,9 +73,12 @@ describe('repository detail view', () => {
         busy={false}
         upgradePlan={null}
         upgradeBusy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
+        onApplyAdditions={() => undefined}
       />,
     )
 

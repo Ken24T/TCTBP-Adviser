@@ -33,6 +33,8 @@ export function formatTctbpPlanMarkdown(document: TctbpPlanDocument): string {
     `Generated: ${document.generatedAt}`,
     `Disposition: ${plan.disposition}`,
     `Source alignment: ${plan.sourceAlignment}`,
+    `Plan fingerprint: ${plan.fingerprint ?? 'unavailable'}`,
+    `Target branch: ${plan.target.branch ?? 'unknown'}`,
     '',
     '## Canonical source',
     '',

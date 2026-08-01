@@ -36,6 +36,7 @@ describe('TCTBP upgrade assessment', () => {
         detached: false,
         operationCount: 0,
         workingTreeClean: true,
+        environmentBranch: false,
       },
     })
 
@@ -62,6 +63,7 @@ describe('TCTBP upgrade assessment', () => {
         detached: true,
         operationCount: 1,
         workingTreeClean: false,
+        environmentBranch: true,
       },
     })
 
@@ -73,6 +75,7 @@ describe('TCTBP upgrade assessment', () => {
       'working-tree-dirty',
       'active-git-operation',
       'detached-head',
+      'environment-branch',
     ])
   })
 })

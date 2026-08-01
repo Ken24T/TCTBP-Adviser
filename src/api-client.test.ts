@@ -3,6 +3,7 @@ import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
+  applyTctbpUpgradePlan,
   loadPortfolio,
   loadReferenceCatalogue,
   loadRepositoryDetail,
@@ -14,6 +15,36 @@ afterEach(() => {
 })
 
 describe('repository detail client', () => {
+  it('requests an explicitly confirmed additions-only apply', async () => {
+    const result = {
+      status: 'applied',
+      appliedPaths: ['scripts/tctbp-core.js'],
+      planFingerprint: 'a'.repeat(64),
+      committed: false,
+      pushed: false,
+    } as const
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(result))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(applyTctbpUpgradePlan(
+      'opaque-id',
+      'a'.repeat(64),
+      'additions-only',
+    )).resolves.toStrictEqual(result)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/repositories/opaque-id/tctbp-apply',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          confirm: true,
+          planFingerprint: 'a'.repeat(64),
+          mode: 'additions-only',
+          approvedPaths: [],
+        }),
+      }),
+    )
+  })
+
   it('requests a read-only canonical TCTBP upgrade plan', async () => {
     const plan = {
       disposition: 'source-unavailable',

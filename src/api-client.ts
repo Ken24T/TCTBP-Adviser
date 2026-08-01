@@ -2,7 +2,32 @@ import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { ReferenceCatalogue } from '../shared/reference'
-import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
+import type {
+  TctbpApplyMode,
+  TctbpApplyResult,
+  TctbpUpgradePlan,
+} from '../shared/tctbp-upgrade'
+
+export async function applyTctbpUpgradePlan(
+  repositoryId: string,
+  planFingerprint: string,
+  mode: TctbpApplyMode,
+  approvedPaths: string[] = [],
+): Promise<TctbpApplyResult> {
+  return requestJson<TctbpApplyResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        confirm: true,
+        planFingerprint,
+        mode,
+        approvedPaths,
+      }),
+    },
+  )
+}
 
 export async function loadTctbpUpgradePlan(
   repositoryId: string,

@@ -76,6 +76,8 @@ export type TctbpUpgradeBlockerCode =
   | 'policy-unavailable'
   | 'managed-source-unavailable'
   | 'different-source'
+  | 'environment-branch'
+  | 'stale-plan'
 
 export interface TctbpUpgradeBlocker {
   code: TctbpUpgradeBlockerCode
@@ -84,11 +86,31 @@ export interface TctbpUpgradeBlocker {
 
 export type ManagedFileActionCounts = Record<ManagedFileAction, number>
 
+export type TctbpApplyMode = 'additions-only' | 'approved-managed-files'
+
+export interface TctbpApplyRequest {
+  confirm: true
+  planFingerprint: string
+  mode: TctbpApplyMode
+  approvedPaths: string[]
+}
+
+export interface TctbpApplyResult {
+  status: 'applied' | 'nothing-to-apply'
+  appliedPaths: string[]
+  planFingerprint: string
+  committed: false
+  pushed: false
+}
+
 export interface TctbpUpgradePlan {
   disposition: TctbpUpgradeDisposition
+  fingerprint?: string
   sourceAlignment: TctbpSourceAlignment
   source: CanonicalSourceSummary
   target: {
+    branch?: string | null
+    headSha?: string | null
     sourceRepository: string | null
     sourceRevision: string | null
     sourceVersion: string | null

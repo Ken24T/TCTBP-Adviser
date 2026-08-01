@@ -7,6 +7,7 @@ import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
+  applyTctbpUpgradePlan,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
 } from './api-client'
@@ -26,6 +27,8 @@ function App() {
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
   const [upgradePlan, setUpgradePlan] = useState<TctbpUpgradePlan | null>(null)
   const [upgradeBusy, setUpgradeBusy] = useState(false)
+  const [applyBusy, setApplyBusy] = useState(false)
+  const [upgradeFeedback, setUpgradeFeedback] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
@@ -75,6 +78,7 @@ function App() {
   async function refreshUpgradePlan(repositoryId: string): Promise<void> {
     const currentRequest = ++requestId.current
     setUpgradeBusy(true)
+    setUpgradeFeedback(null)
     setError(null)
     try {
       const nextPlan = await loadTctbpUpgradePlan(repositoryId)
@@ -83,6 +87,34 @@ function App() {
       captureError(cause, currentRequest)
     } finally {
       if (currentRequest === requestId.current) setUpgradeBusy(false)
+    }
+  }
+
+  async function applyUpgradeAdditions(): Promise<void> {
+    if (!selectedId || !upgradePlan?.fingerprint) return
+    if (!window.confirm(
+      'Apply missing canonical TCTBP files to this repository? No commit or push will be performed.',
+    )) return
+    setApplyBusy(true)
+    setUpgradeFeedback(null)
+    setError(null)
+    try {
+      const result = await applyTctbpUpgradePlan(
+        selectedId,
+        upgradePlan.fingerprint,
+        'additions-only',
+      )
+      setUpgradeFeedback(
+        result.status === 'applied'
+          ? `Applied ${result.appliedPaths.length} file(s). Review and checkpoint the repository next.`
+          : 'There were no additions to apply.',
+      )
+      await refreshDetail(selectedId, intent)
+      await refreshUpgradePlan(selectedId)
+    } catch (cause) {
+      captureError(cause, requestId.current)
+    } finally {
+      setApplyBusy(false)
     }
   }
 
@@ -115,6 +147,8 @@ function App() {
     setDetail(null)
     setUpgradePlan(null)
     setUpgradeBusy(false)
+    setApplyBusy(false)
+    setUpgradeFeedback(null)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -126,6 +160,8 @@ function App() {
     setDetail(null)
     setUpgradePlan(null)
     setUpgradeBusy(false)
+    setApplyBusy(false)
+    setUpgradeFeedback(null)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -137,6 +173,8 @@ function App() {
     setDetail(null)
     setUpgradePlan(null)
     setUpgradeBusy(false)
+    setApplyBusy(false)
+    setUpgradeFeedback(null)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -219,10 +257,13 @@ function App() {
             busy={busy}
             upgradePlan={upgradePlan}
             upgradeBusy={upgradeBusy}
+            applyBusy={applyBusy}
+            upgradeFeedback={upgradeFeedback}
             onBack={showPortfolio}
             onIntentChange={changeIntent}
             onRefresh={() => void refreshDetail(selectedId, intent)}
             onLoadUpgradePlan={() => void refreshUpgradePlan(selectedId)}
+            onApplyAdditions={() => void applyUpgradeAdditions()}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

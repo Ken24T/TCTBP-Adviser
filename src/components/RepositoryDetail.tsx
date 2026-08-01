@@ -16,10 +16,13 @@ interface RepositoryDetailProps {
   busy: boolean
   upgradePlan: TctbpUpgradePlan | null
   upgradeBusy: boolean
+  applyBusy: boolean
+  upgradeFeedback: string | null
   onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
   onLoadUpgradePlan: () => void
+  onApplyAdditions: () => void
 }
 
 export function RepositoryDetail({
@@ -28,10 +31,13 @@ export function RepositoryDetail({
   busy,
   upgradePlan,
   upgradeBusy,
+  applyBusy,
+  upgradeFeedback,
   onBack,
   onIntentChange,
   onRefresh,
   onLoadUpgradePlan,
+  onApplyAdditions,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   return (
@@ -52,8 +58,8 @@ export function RepositoryDetail({
         </div>
         <div className="trust-badges" aria-label="Inspection properties">
           <span>Local evidence</span>
-          <span>Read-only</span>
-          <span>Deterministic</span>
+          <span>Read-only inspection</span>
+          <span>Managed TCTBP apply only</span>
         </div>
       </header>
 
@@ -101,7 +107,10 @@ export function RepositoryDetail({
         repositoryName={observation.repository.name}
         plan={upgradePlan}
         busy={upgradeBusy}
+        applyBusy={applyBusy}
+        upgradeFeedback={upgradeFeedback}
         onLoad={onLoadUpgradePlan}
+        onApplyAdditions={onApplyAdditions}
       />
       <RepositoryReferencePanel reference={detail.reference} />
       <GitHubPanel

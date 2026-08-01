@@ -4,6 +4,7 @@ import type { SafeConfigurationExport } from '../shared/diagnostics'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
+import { readTctbpApplyRequest } from './tctbp-apply-input'
 import { safeConfigurationExport } from './configuration-export'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
@@ -194,6 +195,23 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation,
         )
         sendJson(response, 200, plan)
+        return
+      }
+
+      const applyMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-apply$/.exec(url.pathname)
+      if (request.method === 'POST' && applyMatch) {
+        const applyRequest = await readTctbpApplyRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(applyMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const result = await runtime.tctbpSource.apply(
+          repository.path,
+          observation,
+          applyRequest,
+        )
+        sendJson(response, 200, result)
         return
       }
 

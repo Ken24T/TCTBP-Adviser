@@ -1,7 +1,7 @@
 # tctbp-adviser
 
-A local-first, read-only companion for understanding repository state and
-choosing safe TCTBP workflows.
+A local-first companion for understanding repository state, choosing safe TCTBP
+workflows, and applying explicitly approved canonical TCTBP infrastructure updates.
 
 The secure local portfolio service, deterministic recommendation and intent
 engines, pinned trigger/guardrail reference, optional GitHub enrichment,
@@ -134,13 +134,19 @@ scripts/          # TCTBP-Web runners (managed)
 - GitHub REST requests are read-only, fixed-host, bounded and service-side.
 - GitHub evidence has its own retrieval timestamp and never overrides local
   working-copy evidence or deterministic advice.
-- TCTBP installation health may be reviewed in the MVP.
-- Scaffolding updates remain disabled until a separately approved migration
-  design is implemented.
+- TCTBP installation health and canonical drift may be reviewed in the Adviser.
+- Explicitly approved apply requests can create or update canonical managed TCTBP
+  files on a dedicated non-environment branch; they never commit, push, deploy,
+  execute target commands, or modify application-owned files.
+- Deletions and project-specific policy merges remain review-only until separately
+  implemented and approved.
 - Pin, hide and rename preferences are browser-only Adviser settings. They do
   not modify repositories.
 - Intent plans are clearly separate from state-driven recommendations and
   never execute their displayed triggers.
+- TCTBP apply requests require an explicit plan fingerprint and confirmation;
+  the Adviser leaves checkpointing, commit, publish, and deployment to the
+  operator.
 - The bounded in-memory inspection audit contains opaque repository IDs,
   timestamps, durations and safe error codes only.
 - Configuration export omits repository paths, GitHub repository names and

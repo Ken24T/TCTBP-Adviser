@@ -19,6 +19,7 @@ export interface UpgradeAssessmentInput {
     detached: boolean
     operationCount: number
     workingTreeClean: boolean
+    environmentBranch: boolean
   }
 }
 
@@ -124,6 +125,12 @@ function resolveBlockers(
     blockers.push({
       code: 'detached-head',
       message: 'The target repository is on a detached HEAD.',
+    })
+  }
+  if (input.targetState.environmentBranch) {
+    blockers.push({
+      code: 'environment-branch',
+      message: 'The target is on a configured environment branch; use a dedicated upgrade branch.',
     })
   }
   return blockers

@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted as a staged capability: assessment in the MVP, updates deferred.
+Accepted as a staged capability: assessment and guarded managed-file apply are
+implemented; policy merges and deletions remain deferred.
 
 ## Context
 
@@ -29,24 +30,31 @@ The Adviser may report:
 The assessment never runs target repository scripts and never treats a remote
 GitHub file as proof of the local working-copy state.
 
-### Future update workflow
+### Guarded managed-file update workflow
 
-Updating scaffolding requires a separately enabled capability and all of:
+The current apply capability requires:
 
-1. An explicitly selected repository and per-invocation approval.
-2. A clean target tree with no active Git operation.
-3. A local TCTBP checkpoint before changes.
-4. A pinned, trusted TCTBP-Web source or signed migration bundle.
-5. A preview showing added, replaced, preserved, and conflicted files.
-6. Managed-file ownership rules that preserve project configuration.
-7. Tests and `status --json --no-fetch` after migration.
-8. A recoverable rollback path and audit record.
+1. An explicitly selected repository and per-invocation confirmation.
+2. A plan fingerprint matching a fresh inspection.
+3. A clean target tree with no active Git operation.
+4. A dedicated non-environment target branch.
+5. A pinned, trusted TCTBP-Web source.
+6. A preview showing added, replaced, preserved, and blocked files.
+7. Managed-file ownership rules that preserve project configuration.
+8. Atomic writes only to canonical managed files.
+9. No commit, push, deployment, or target-command execution.
+10. Tests and `status --json --no-fetch` after the operator reviews the changes.
 
 The updater must not execute commands read from the target policy. It applies
 known migration operations from the trusted Adviser/TCTBP-Web installation.
+Project-specific policy merges and managed-file deletions remain blocked until
+separate ownership and rollback rules are approved.
 
-## Initial capability state
+## Capability state
 
-- Review scaffold health: planned for the read-only MVP.
-- Generate an upgrade plan/diff: planned after the first vertical slice.
-- Apply updates: disabled until a new threat-model review approves it.
+- Review scaffold health: implemented.
+- Generate an upgrade plan/diff: implemented.
+- Apply canonical additions or explicitly approved managed-file updates: implemented
+  without commit or push.
+- Apply project-specific policy merges: disabled.
+- Delete obsolete managed files: disabled.

@@ -11,14 +11,20 @@ interface TctbpUpgradePanelProps {
   repositoryName: string
   plan: TctbpUpgradePlan | null
   busy: boolean
+  applyBusy: boolean
+  upgradeFeedback: string | null
   onLoad: () => void
+  onApplyAdditions: () => void
 }
 
 export function TctbpUpgradePanel({
   repositoryName,
   plan,
   busy,
+  applyBusy,
+  upgradeFeedback,
   onLoad,
+  onApplyAdditions,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
 
@@ -54,7 +60,8 @@ export function TctbpUpgradePanel({
         id="upgrade-plan-title"
       />
       <p>
-        Preview managed TCTBP file drift without changing this repository.
+        Preview managed TCTBP drift, or explicitly apply canonical managed files
+        on a dedicated branch without commit or push.
       </p>
       <button
         className="upgrade-plan-button"
@@ -75,9 +82,23 @@ export function TctbpUpgradePanel({
           <button type="button" onClick={() => void copyMarkdown()}>
             Copy Markdown
           </button>
+          <button
+            className="upgrade-apply-button"
+            disabled={
+              applyBusy
+              || !plan.fingerprint
+              || plan.blockers.length > 0
+              || plan.actionCounts.add === 0
+            }
+            type="button"
+            onClick={onApplyAdditions}
+          >
+            {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
+          </button>
         </div>
       )}
       {feedback && <p className="empty-state">{feedback}</p>}
+      {upgradeFeedback && <p className="empty-state">{upgradeFeedback}</p>}
       {plan && <PlanDetails plan={plan} />}
     </section>
   )

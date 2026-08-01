@@ -53,7 +53,10 @@ describe('TCTBP upgrade preview panel', () => {
         repositoryName="example-repository"
         plan={plan}
         busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
         onLoad={() => undefined}
+        onApplyAdditions={() => undefined}
       />,
     )
 
@@ -68,6 +71,6 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('0.3.0')
     expect(markup).toContain('Drifted')
     expect(markup).toContain('scripts/tctbp-core.js')
-    expect(markup).not.toContain('Apply')
+    expect(markup).toContain('Apply additions (no commit/push)')
   })
 })
