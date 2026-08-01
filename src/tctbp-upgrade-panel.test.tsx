@@ -7,6 +7,11 @@ describe('TCTBP upgrade preview panel', () => {
   it('renders canonical source and drift summary without mutation controls', () => {
     const plan: TctbpUpgradePlan = {
       disposition: 'review-required',
+      sourceAlignment: 'outdated',
+      actionCounts: { preserve: 0, add: 0, review: 1, unavailable: 0 },
+      blockers: [
+        { code: 'different-source', message: 'Candidate guard is missing.' },
+      ],
       policy: {
         state: 'drifted',
         differences: [{ area: 'hardening', message: 'Candidate guard is missing.' }],
@@ -29,6 +34,7 @@ describe('TCTBP upgrade preview panel', () => {
           {
             path: 'scripts/tctbp-core.js',
             state: 'drifted',
+            action: 'review',
             sourceHash: 'source',
             targetHash: 'target',
           },
@@ -51,6 +57,8 @@ describe('TCTBP upgrade preview panel', () => {
     )
 
     expect(markup).toContain('Review required')
+    expect(markup).toContain('outdated')
+    expect(markup).toContain('Blocked:')
     expect(markup).toContain('Candidate guard is missing.')
     expect(markup).toContain('TCTBP-Web')
     expect(markup).toContain('0.3.0')

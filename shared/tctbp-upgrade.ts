@@ -4,9 +4,16 @@ export type ManagedFileDriftState =
   | 'drifted'
   | 'source-unavailable'
 
+export type ManagedFileAction =
+  | 'preserve'
+  | 'add'
+  | 'review'
+  | 'unavailable'
+
 export interface ManagedFileDrift {
   path: string
   state: ManagedFileDriftState
+  action: ManagedFileAction
   sourceHash: string | null
   targetHash: string | null
 }
@@ -55,8 +62,31 @@ export type TctbpUpgradeDisposition =
   | 'review-required'
   | 'source-unavailable'
 
+export type TctbpSourceAlignment =
+  | 'current'
+  | 'outdated'
+  | 'unknown'
+  | 'different-source'
+
+export type TctbpUpgradeBlockerCode =
+  | 'working-tree-dirty'
+  | 'active-git-operation'
+  | 'detached-head'
+  | 'source-unavailable'
+  | 'policy-unavailable'
+  | 'managed-source-unavailable'
+  | 'different-source'
+
+export interface TctbpUpgradeBlocker {
+  code: TctbpUpgradeBlockerCode
+  message: string
+}
+
+export type ManagedFileActionCounts = Record<ManagedFileAction, number>
+
 export interface TctbpUpgradePlan {
   disposition: TctbpUpgradeDisposition
+  sourceAlignment: TctbpSourceAlignment
   source: CanonicalSourceSummary
   target: {
     sourceRepository: string | null
@@ -64,5 +94,7 @@ export interface TctbpUpgradePlan {
     sourceVersion: string | null
   }
   drift: ManagedFileDriftPlan
+  actionCounts: ManagedFileActionCounts
+  blockers: TctbpUpgradeBlocker[]
   policy: TctbpPolicyComparison
 }

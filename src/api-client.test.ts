@@ -17,6 +17,9 @@ describe('repository detail client', () => {
   it('requests a read-only canonical TCTBP upgrade plan', async () => {
     const plan = {
       disposition: 'source-unavailable',
+      sourceAlignment: 'unknown',
+      actionCounts: { preserve: 0, add: 0, review: 0, unavailable: 0 },
+      blockers: [],
       policy: {
         state: 'unavailable',
         differences: [],

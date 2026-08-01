@@ -40,6 +40,7 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
     <>
       <dl className="key-value-list">
         <Row label="Disposition" value={dispositionLabel(plan.disposition)} />
+        <Row label="Source alignment" value={plan.sourceAlignment} />
         <Row label="Source" value={plan.source.repository ?? 'Unavailable'} />
         <Row label="Source version" value={plan.source.version ?? 'Unknown'} />
         <Row
@@ -58,8 +59,21 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
           label="Current / drifted / missing"
           value={`${plan.drift.counts.current} / ${plan.drift.counts.drifted} / ${plan.drift.counts['missing-target']}`}
         />
+        <Row
+          label="Preserve / add / review"
+          value={`${plan.actionCounts.preserve} / ${plan.actionCounts.add} / ${plan.actionCounts.review}`}
+        />
       </dl>
       {plan.source.message && <p className="empty-state">{plan.source.message}</p>}
+      {plan.blockers.length > 0 && (
+        <ul className="compact-list">
+          {plan.blockers.map((blocker) => (
+            <li key={blocker.code}>
+              <strong>Blocked:</strong>{' '}{blocker.message}
+            </li>
+          ))}
+        </ul>
+      )}
       {plan.source.state === 'available' && plan.drift.files.some(
         (file) => file.state !== 'current',
       ) && (

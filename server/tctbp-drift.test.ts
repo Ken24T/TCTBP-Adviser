@@ -28,24 +28,28 @@ describe('managed TCTBP file drift planning', () => {
       {
         path: 'scripts/current.js',
         state: 'current',
+        action: 'preserve',
         sourceHash: hashFileContent('same'),
         targetHash: hashFileContent('same'),
       },
       {
         path: 'scripts/drifted.js',
         state: 'drifted',
+        action: 'review',
         sourceHash: hashFileContent('source'),
         targetHash: hashFileContent('target'),
       },
       {
         path: 'scripts/missing.js',
         state: 'missing-target',
+        action: 'add',
         sourceHash: hashFileContent('source'),
         targetHash: null,
       },
       {
         path: 'scripts/unavailable.js',
         state: 'source-unavailable',
+        action: 'unavailable',
         sourceHash: null,
         targetHash: null,
       },

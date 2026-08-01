@@ -50,14 +50,28 @@ function classifyFile(
     : hashFileContent(targetContent)
 
   if (sourceHash === null) {
-    return { path, state: 'source-unavailable', sourceHash, targetHash }
+    return {
+      path,
+      state: 'source-unavailable',
+      action: 'unavailable',
+      sourceHash,
+      targetHash,
+    }
   }
   if (targetHash === null) {
-    return { path, state: 'missing-target', sourceHash, targetHash }
+    return {
+      path,
+      state: 'missing-target',
+      action: 'add',
+      sourceHash,
+      targetHash,
+    }
   }
+  const current = sourceHash === targetHash
   return {
     path,
-    state: sourceHash === targetHash ? 'current' : 'drifted',
+    state: current ? 'current' : 'drifted',
+    action: current ? 'preserve' : 'review',
     sourceHash,
     targetHash,
   }

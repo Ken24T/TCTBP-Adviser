@@ -24,6 +24,7 @@ import {
   parseTctbpPolicy,
   type TctbpPolicySnapshot,
 } from './tctbp-policy'
+import { assessTctbpUpgrade } from './tctbp-upgrade-assessment'
 import { readBoundedRepositoryFile } from './security'
 
 const VERSION_PATH = 'VERSION'
@@ -197,20 +198,20 @@ function createPlan(
   policy: TctbpPolicyComparison,
   targetObservation: UpgradeTargetObservation,
 ): TctbpUpgradePlan {
-  const disposition = source.state !== 'available'
-    ? 'source-unavailable'
-    : targetObservation.head.detached
-      || targetObservation.operations.length > 0
-      || !targetObservation.workingTree.clean
-      || policy.state !== 'aligned'
-      || drift.counts['missing-target'] > 0
-      || drift.counts.drifted > 0
-      || drift.counts['source-unavailable'] > 0
-        ? 'review-required'
-        : 'current'
+  const assessment = assessTctbpUpgrade({
+    source: withoutManagedPaths(source),
+    target,
+    drift,
+    policy,
+    targetState: {
+      detached: targetObservation.head.detached,
+      operationCount: targetObservation.operations.length,
+      workingTreeClean: targetObservation.workingTree.clean,
+    },
+  })
 
   return {
-    disposition,
+    ...assessment,
     source: withoutManagedPaths(source),
     target,
     drift,

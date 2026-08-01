@@ -69,6 +69,14 @@ describe('canonical TCTBP-Web source planning', () => {
     }))
 
     expect(plan.disposition).toBe('review-required')
+    expect(plan.sourceAlignment).toBe('outdated')
+    expect(plan.actionCounts).toEqual({
+      preserve: 1,
+      add: 1,
+      review: 1,
+      unavailable: 0,
+    })
+    expect(plan.blockers).toEqual([])
     expect(plan.policy).toEqual({ state: 'aligned', differences: [] })
     expect(plan.source).toMatchObject({
       state: 'available',
@@ -101,6 +109,23 @@ describe('canonical TCTBP-Web source planning', () => {
     )
 
     expect(plan.disposition).toBe('source-unavailable')
+    expect(plan.sourceAlignment).toBe('unknown')
+    expect(plan.actionCounts).toEqual({
+      preserve: 0,
+      add: 0,
+      review: 0,
+      unavailable: 0,
+    })
+    expect(plan.blockers).toEqual([
+      {
+        code: 'source-unavailable',
+        message: 'A canonical TCTBP-Web checkout is not configured.',
+      },
+      {
+        code: 'policy-unavailable',
+        message: 'Canonical or target TCTBP policy could not be compared.',
+      },
+    ])
     expect(plan.source).toMatchObject({
       state: 'not-configured',
       managedFileCount: 0,
