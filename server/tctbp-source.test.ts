@@ -37,21 +37,39 @@ describe('canonical TCTBP-Web source planning', () => {
       ].join('\n'),
     )
     await writeFile(path.join(source, 'VERSION'), '{"version":"0.3.0"}\n')
+    await writeFile(
+      path.join(source, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
+        adviserVocabulary: { workflowIds: ['status'] },
+      }),
+    )
     await writeFile(path.join(source, 'scripts', 'tctbp-core.js'), 'same\n')
     await writeFile(path.join(source, '.github', 'TCTBP Agent.md'), 'source\n')
     await writeFile(path.join(source, 'schemas', 'contract.json'), '{}\n')
     await writeFile(path.join(target, 'scripts', 'tctbp-core.js'), 'same\n')
     await writeFile(path.join(target, '.github', 'TCTBP Agent.md'), 'target\n')
+    await writeFile(
+      path.join(target, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
+        adviserVocabulary: { workflowIds: ['status'] },
+      }),
+    )
 
     const plan = await new CanonicalTctbpSourceService(
       source,
       executor(),
-    ).plan(target, {
+    ).plan(target, targetObservation({
       sourceRepository: 'Ken24T/TCTBP-Web',
       sourceRevision: 'old'.repeat(10),
       sourceVersion: '0.2.0',
-    })
+    }))
 
+    expect(plan.disposition).toBe('review-required')
+    expect(plan.policy).toEqual({ state: 'aligned', differences: [] })
     expect(plan.source).toMatchObject({
       state: 'available',
       repository: 'TCTBP-Web',
@@ -75,13 +93,14 @@ describe('canonical TCTBP-Web source planning', () => {
   it('returns a non-mutating unavailable plan without a source checkout', async () => {
     const plan = await new CanonicalTctbpSourceService(null, executor()).plan(
       '/target',
-      {
+      targetObservation({
         sourceRepository: null,
         sourceRevision: null,
         sourceVersion: null,
-      },
+      }),
     )
 
+    expect(plan.disposition).toBe('source-unavailable')
     expect(plan.source).toMatchObject({
       state: 'not-configured',
       managedFileCount: 0,
@@ -89,6 +108,28 @@ describe('canonical TCTBP-Web source planning', () => {
     expect(plan.drift.files).toEqual([])
   })
 })
+
+function targetObservation(scaffold: {
+  sourceRepository: string | null
+  sourceRevision: string | null
+  sourceVersion: string | null
+}) {
+  return {
+    head: { branch: 'development', detached: false, unborn: false, sha: revision },
+    operations: [],
+    workingTree: {
+      clean: true,
+      pathCount: 0,
+      counts: {
+        staged: 0,
+        modified: 0,
+        untracked: 0,
+        conflicted: 0,
+      },
+    },
+    tctbp: { scaffold },
+  }
+}
 
 function executor(): GitExecutor {
   return {

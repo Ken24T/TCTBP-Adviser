@@ -1,6 +1,10 @@
-import type { ScaffoldHealthObservation } from '../shared/inspection'
+import type {
+  RepositoryObservation,
+  ScaffoldHealthObservation,
+} from '../shared/inspection'
 import type {
   CanonicalSourceSummary,
+  TctbpPolicyComparison,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
 import {
@@ -15,12 +19,30 @@ import {
   parseCanonicalManagedSurface,
   SCAFFOLD_RUNNER_PATH,
 } from './tctbp-manifest'
+import {
+  compareTctbpPolicy,
+  parseTctbpPolicy,
+  type TctbpPolicySnapshot,
+} from './tctbp-policy'
 import { readBoundedRepositoryFile } from './security'
 
 const VERSION_PATH = 'VERSION'
 
 interface LoadedCanonicalSource extends CanonicalSourceSummary {
   managedPaths: string[]
+  policy: TctbpPolicySnapshot | null
+}
+
+interface UpgradeTargetObservation {
+  head: Pick<RepositoryObservation['head'], 'detached'>
+  operations: RepositoryObservation['operations']
+  workingTree: Pick<RepositoryObservation['workingTree'], 'clean'>
+  tctbp: {
+    scaffold: Pick<
+      ScaffoldHealthObservation,
+      'sourceRepository' | 'sourceRevision' | 'sourceVersion'
+    >
+  }
 }
 
 export class CanonicalTctbpSourceService {
@@ -31,41 +53,48 @@ export class CanonicalTctbpSourceService {
 
   async plan(
     targetRoot: string,
-    targetScaffold: Pick<
-      ScaffoldHealthObservation,
-      'sourceRepository' | 'sourceRevision' | 'sourceVersion'
-    >,
+    targetObservation: UpgradeTargetObservation,
   ): Promise<TctbpUpgradePlan> {
     const sourceRoot = this.sourceRoot
     const source = await this.loadSource()
     const target = {
-      sourceRepository: targetScaffold.sourceRepository,
-      sourceRevision: targetScaffold.sourceRevision,
-      sourceVersion: targetScaffold.sourceVersion,
+      sourceRepository: targetObservation.tctbp.scaffold.sourceRepository,
+      sourceRevision: targetObservation.tctbp.scaffold.sourceRevision,
+      sourceVersion: targetObservation.tctbp.scaffold.sourceVersion,
     }
 
     if (source.state !== 'available' || !sourceRoot) {
-      return {
-        source: withoutManagedPaths(source),
+      return createPlan(
+        source,
         target,
-        drift: emptyManagedFileDriftPlan(),
-      }
+        emptyManagedFileDriftPlan(),
+        { state: 'unavailable', differences: [] },
+        targetObservation,
+      )
     }
 
-    const [sourceFiles, targetFiles] = await Promise.all([
+    const [sourceFiles, targetFiles, targetPolicyContent] = await Promise.all([
       readFiles(sourceRoot, source.managedPaths),
       readFiles(targetRoot, source.managedPaths),
+      readBoundedRepositoryFile(targetRoot, '.github/TCTBP.json'),
     ])
+    const policy = compareTctbpPolicy(
+      source.policy,
+      parseTctbpPolicy(targetPolicyContent),
+    )
+    const drift = planManagedFileDrift(
+      source.managedPaths,
+      sourceFiles,
+      targetFiles,
+    )
 
-    return {
-      source: withoutManagedPaths(source),
+    return createPlan(
+      source,
       target,
-      drift: planManagedFileDrift(
-        source.managedPaths,
-        sourceFiles,
-        targetFiles,
-      ),
-    }
+      drift,
+      policy,
+      targetObservation,
+    )
   }
 
   private async loadSource(): Promise<LoadedCanonicalSource> {
@@ -79,20 +108,26 @@ export class CanonicalTctbpSourceService {
         managedFileCount: 0,
         message: 'A canonical TCTBP-Web checkout is not configured.',
         managedPaths: [],
+        policy: null,
       }
     }
 
     try {
-      const [head, runner, version] = await Promise.all([
+      const [head, runner, version, policyContent] = await Promise.all([
         this.executor.run(sourceRoot, GIT_COMMANDS.head),
         readBoundedRepositoryFile(sourceRoot, SCAFFOLD_RUNNER_PATH),
         readBoundedRepositoryFile(sourceRoot, VERSION_PATH),
+        readBoundedRepositoryFile(sourceRoot, '.github/TCTBP.json'),
       ])
-      if (runner === null) {
-        return unavailableSource('The canonical scaffold runner is unavailable.')
+      if (runner === null || policyContent === null) {
+        return unavailableSource('The canonical TCTBP-Web policy surface is unavailable.')
       }
 
       const managedPaths = parseCanonicalManagedSurface(runner)
+      const policy = parseTctbpPolicy(policyContent)
+      if (!policy) {
+        return unavailableSource('The canonical TCTBP-Web policy is invalid.')
+      }
       const revision = head.stdout.trim()
       if (!/^[0-9a-f]{40,64}$/i.test(revision)) {
         return unavailableSource('The canonical source revision is unavailable.')
@@ -106,6 +141,7 @@ export class CanonicalTctbpSourceService {
         managedFileCount: managedPaths.length,
         message: null,
         managedPaths,
+        policy,
       }
     } catch {
       return unavailableSource('The canonical TCTBP-Web source could not be inspected.')
@@ -150,6 +186,35 @@ function unavailableSource(message: string): LoadedCanonicalSource {
     managedFileCount: 0,
     message,
     managedPaths: [],
+    policy: null,
+  }
+}
+
+function createPlan(
+  source: LoadedCanonicalSource,
+  target: TctbpUpgradePlan['target'],
+  drift: TctbpUpgradePlan['drift'],
+  policy: TctbpPolicyComparison,
+  targetObservation: UpgradeTargetObservation,
+): TctbpUpgradePlan {
+  const disposition = source.state !== 'available'
+    ? 'source-unavailable'
+    : targetObservation.head.detached
+      || targetObservation.operations.length > 0
+      || !targetObservation.workingTree.clean
+      || policy.state !== 'aligned'
+      || drift.counts['missing-target'] > 0
+      || drift.counts.drifted > 0
+      || drift.counts['source-unavailable'] > 0
+        ? 'review-required'
+        : 'current'
+
+  return {
+    disposition,
+    source: withoutManagedPaths(source),
+    target,
+    drift,
+    policy,
   }
 }
 
@@ -158,6 +223,7 @@ function withoutManagedPaths(
 ): CanonicalSourceSummary {
   const {
     managedPaths: _managedPaths,
+    policy: _policy,
     ...summary
   } = source
   return summary

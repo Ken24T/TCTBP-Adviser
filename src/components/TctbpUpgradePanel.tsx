@@ -16,7 +16,7 @@ export function TctbpUpgradePanel({
     <section className="panel wide-panel" aria-labelledby="upgrade-plan-title">
       <PanelHeading
         eyebrow="Canonical TCTBP-Web"
-        title={plan ? sourceTitle(plan.source.state) : 'Upgrade planner'}
+        title={plan ? dispositionTitle(plan.disposition) : 'Upgrade planner'}
         id="upgrade-plan-title"
       />
       <p>
@@ -39,6 +39,7 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
   return (
     <>
       <dl className="key-value-list">
+        <Row label="Disposition" value={dispositionLabel(plan.disposition)} />
         <Row label="Source" value={plan.source.repository ?? 'Unavailable'} />
         <Row label="Source version" value={plan.source.version ?? 'Unknown'} />
         <Row
@@ -71,6 +72,15 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
           ))}
         </ul>
       )}
+      {plan.policy.differences.length > 0 && (
+        <ul className="compact-list">
+          {plan.policy.differences.map((difference) => (
+            <li key={`${difference.area}-${difference.message}`}>
+              <strong>{difference.area}</strong>{': '}{difference.message}
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   )
 }
@@ -84,9 +94,19 @@ function Row({ label, value }: { label: string; value: string }) {
   )
 }
 
-function sourceTitle(state: TctbpUpgradePlan['source']['state']): string {
-  if (state === 'available') return 'Source comparison ready'
-  if (state === 'not-configured') return 'Source not configured'
+function dispositionTitle(
+  disposition: TctbpUpgradePlan['disposition'],
+): string {
+  if (disposition === 'current') return 'Current'
+  if (disposition === 'review-required') return 'Review required'
+  return 'Source unavailable'
+}
+
+function dispositionLabel(
+  disposition: TctbpUpgradePlan['disposition'],
+): string {
+  if (disposition === 'current') return 'Current'
+  if (disposition === 'review-required') return 'Review required'
   return 'Source unavailable'
 }
 

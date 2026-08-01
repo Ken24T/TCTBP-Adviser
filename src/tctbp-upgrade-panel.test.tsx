@@ -6,6 +6,11 @@ import { TctbpUpgradePanel } from './components/TctbpUpgradePanel'
 describe('TCTBP upgrade preview panel', () => {
   it('renders canonical source and drift summary without mutation controls', () => {
     const plan: TctbpUpgradePlan = {
+      disposition: 'review-required',
+      policy: {
+        state: 'drifted',
+        differences: [{ area: 'hardening', message: 'Candidate guard is missing.' }],
+      },
       source: {
         state: 'available',
         repository: 'TCTBP-Web',
@@ -45,7 +50,8 @@ describe('TCTBP upgrade preview panel', () => {
       />,
     )
 
-    expect(markup).toContain('Source comparison ready')
+    expect(markup).toContain('Review required')
+    expect(markup).toContain('Candidate guard is missing.')
     expect(markup).toContain('TCTBP-Web')
     expect(markup).toContain('0.3.0')
     expect(markup).toContain('Drifted')

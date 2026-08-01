@@ -32,7 +32,31 @@ export interface CanonicalSourceSummary {
   message: string | null
 }
 
+export type TctbpPolicyDifferenceArea =
+  | 'schema'
+  | 'contract'
+  | 'capabilities'
+  | 'workflows'
+  | 'hardening'
+  | 'policy'
+
+export interface TctbpPolicyDifference {
+  area: TctbpPolicyDifferenceArea
+  message: string
+}
+
+export interface TctbpPolicyComparison {
+  state: 'aligned' | 'drifted' | 'unavailable'
+  differences: TctbpPolicyDifference[]
+}
+
+export type TctbpUpgradeDisposition =
+  | 'current'
+  | 'review-required'
+  | 'source-unavailable'
+
 export interface TctbpUpgradePlan {
+  disposition: TctbpUpgradeDisposition
   source: CanonicalSourceSummary
   target: {
     sourceRepository: string | null
@@ -40,4 +64,5 @@ export interface TctbpUpgradePlan {
     sourceVersion: string | null
   }
   drift: ManagedFileDriftPlan
+  policy: TctbpPolicyComparison
 }

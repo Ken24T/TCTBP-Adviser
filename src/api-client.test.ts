@@ -16,6 +16,11 @@ afterEach(() => {
 describe('repository detail client', () => {
   it('requests a read-only canonical TCTBP upgrade plan', async () => {
     const plan = {
+      disposition: 'source-unavailable',
+      policy: {
+        state: 'unavailable',
+        differences: [],
+      },
       source: {
         state: 'not-configured',
         repository: null,

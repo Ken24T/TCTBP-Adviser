@@ -185,7 +185,7 @@ export function createApiHandler(runtime: ApiRuntime) {
         const observation = await runtime.inspections.inspect(repository)
         const plan = await runtime.tctbpSource.plan(
           repository.path,
-          observation.tctbp.scaffold,
+          observation,
         )
         sendJson(response, 200, plan)
         return
