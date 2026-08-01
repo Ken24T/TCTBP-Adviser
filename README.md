@@ -15,8 +15,12 @@ TCTBP-Web Adviser contract v1 pinned to commit
 2. Run `npm ci` from the repository root.
 3. Copy `.env.example` to `.env`.
 4. Configure one or more absolute repository roots as a JSON array.
-5. Run `npm run dev` for development, or build and run the loopback-only
-   production preview with `npm run build && npm start`.
+5. Run `npm run dev` for development, `npm run review` for the review
+   environment, or `npm run production` for the loopback-only production
+   preview.
+
+The local environment ports are development `3037`, review `4037`, and
+production preview `5037`.
 
 The application discovers bounded local roots and opens the portfolio
 dashboard. Select a repository to see local branch and working-tree state, one
@@ -60,7 +64,7 @@ checkpoint please
 publish please
 handover please
 ship please
-promote staging please
+promote review please
 deploy dev please
 run tests
 ```
@@ -73,22 +77,29 @@ never required to build, test, checkpoint, promote, or ship itself.
 
 ## Branch Model
 
-This project uses the staged branch model:
+This project uses the long-lived environment branch model:
 
 ```
-development ──promote staging──▶ staging ──promote production──▶ main
-     │                                  │                                  │
-     ▼                                  ▼                                  ▼
- deploy dev                      deploy staging                    ship → deploy prod
+development ──promote review──▶ review ──promote production──▶ main
+     │                              │                              │
+     ▼                              ▼                              ▼
+ deploy dev                    deploy review                 ship → deploy prod
 ```
+
+The TCTBP contract also retains `staging` as a compatibility name for the
+pre-production deployment trigger where required by the pinned workflow
+reference.
 
 ## Scripts
 
+- `npm run dev` — Development Vite server on port 3037
+- `npm run review` — Review Vite server on port 4037
 - `npm run typecheck` — TypeScript validation
 - `npm run test` — Run tests (vitest)
 - `npm run test:watch` — Run tests in watch mode
 - `npm run build` — Type-check and create the production client bundle
-- `npm start` — Serve the built application on loopback only
+- `npm run production` — Build and serve the production preview on port 5037
+- `npm start` — Serve the existing production build on port 5037
 
 
 ## Project Structure

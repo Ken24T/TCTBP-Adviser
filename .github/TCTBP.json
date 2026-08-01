@@ -68,9 +68,9 @@
     "locale": "en-US"
   },
   "branchModel": {
-    "strategy": "staged",
+    "strategy": "long-lived-environment-branches",
     "workingBranch": "development",
-    "stagingBranch": "staging",
+    "reviewBranch": "review",
     "productionBranch": "main",
     "promoteEnabled": true,
     "deployEnabled": true
@@ -96,8 +96,8 @@
       "formatAfterBump": false
     },
     "devServer": {
-      "port": 5173,
-      "label": "Vite dev server"
+      "port": 3037,
+      "label": "Vite development server"
     },
     "developmentPolicy": {
       "maxFileLines": {
@@ -145,6 +145,8 @@
       "deploy development please",
       "deploy staging",
       "deploy staging please",
+      "deploy review",
+      "deploy review please",
       "deploy prod",
       "deploy prod please",
       "deploy production",

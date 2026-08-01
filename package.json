@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "description": "A web application built with the TCTBP-Web workflow.",
   "scripts": {
-    "dev": "vite",
-    "start": "vite preview --host 127.0.0.1",
+    "dev": "vite --mode development --host 127.0.0.1 --port 3037 --strictPort",
+    "review": "vite --mode review --host 127.0.0.1 --port 4037 --strictPort",
+    "start": "npm run preview",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --mode production --host 127.0.0.1 --port 5037 --strictPort",
+    "production": "npm run build && npm run preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

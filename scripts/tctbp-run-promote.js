@@ -615,7 +615,7 @@ function getPromotionStatusActions(config, targetKey) {
 }
 
 function getPromotionNextSteps(targetKey) {
-  if (targetKey === "staging") {
+  if (targetKey === "staging" || targetKey === "review") {
     return [
       "Run deploy review when you want the review local platform target to pick up origin/review.",
       "Continue development work from the development branch."

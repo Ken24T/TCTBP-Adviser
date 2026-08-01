@@ -3,7 +3,7 @@
 ## 1. Bootstrap — complete
 
 - Scaffold from pinned TCTBP-Web contract v1.
-- Establish `development → staging → main`.
+- Establish `development → review → main`.
 - Confirm tests, build, human status, and JSON status.
 - Record bootstrap, trust, and dogfooding decisions.
 

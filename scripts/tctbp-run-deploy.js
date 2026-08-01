@@ -411,7 +411,7 @@ function getDeployNextSteps(expectedBranch) {
     return ["Confirm the development local platform target has picked up origin/development."];
   }
 
-  if (expectedBranch === "staging") {
+  if (expectedBranch === "staging" || expectedBranch === "review") {
     return [
       "Confirm the review URL or endpoint is serving the expected candidate.",
       "Collect review feedback or return to development for the next slice."

@@ -4,7 +4,7 @@
  * tctbp-run-release.js — Full release pipeline orchestrator.
  *
  * Composes the existing TCTBP primitives (deploy, promote, ship) into a single
- * deterministic release pipeline: dev → staging → production.
+ * deterministic release pipeline: dev → pre-production → production.
  *
  * Usage:
  *   node scripts/tctbp-run-release.js --no-docs-impact "<reason>" [options]
@@ -15,7 +15,7 @@
  *   --version X.Y.Z                Explicit version (default: from version source)
  *   --dry-run                      Print the plan without executing
  *   --yes                          Skip all interactive prompts
- *   --stop-at dev|staging|production Stop at a specific stage
+ *   --stop-at dev|review|staging|production Stop at a specific stage
  *   --list                         Show this help
  */
 
@@ -86,8 +86,8 @@ function parseArgs(argv) {
         break;
       case "--stop-at":
         opts.stopAt = argv[++i] || "production";
-        if (!["dev", "staging", "production"].includes(opts.stopAt)) {
-          console.error(`Invalid --stop-at '${opts.stopAt}'. Expected dev, staging, or production.`);
+        if (!["dev", "review", "staging", "production"].includes(opts.stopAt)) {
+          console.error(`Invalid --stop-at '${opts.stopAt}'. Expected dev, review, staging, or production.`);
           printUsage(1);
         }
         break;
@@ -111,7 +111,7 @@ function printUsage(exitCode) {
   console.log("  --version X.Y.Z                Explicit version");
   console.log("  --dry-run                      Print the plan without executing");
   console.log("  --yes                          Skip all interactive prompts");
-  console.log("  --stop-at dev|staging|production Stop at a specific stage");
+  console.log("  --stop-at dev|review|staging|production Stop at a specific stage");
   console.log("  --list                         Show this help");
   process.exit(exitCode);
 }
@@ -197,15 +197,17 @@ async function main() {
   const versionSource = readVersionSource(config);
   const version = options.version || versionSource.version;
   const stopAfterDev = options.stopAt === "dev";
-  const stopAfterStaging = options.stopAt === "staging";
 
   // Determine branch names from the configured strategy
   const branchModel = resolveBranchModel(config);
   const strategy = branchModel.strategy;
   const devBranch = branchModel.workingBranch || "development";
-  const stagingBranch = branchModel.preProductionBranch || "staging";
+  const preProductionBranch = branchModel.preProductionBranch || "staging";
   const prodBranch = branchModel.productionBranch;
   const useReviewAlias = Boolean(branchModel.reviewBranch);
+  const preProductionLabel = useReviewAlias ? "review" : "staging";
+  const preProductionTitle = useReviewAlias ? "Review" : "Staging";
+  const stopAfterPreProduction = ["review", "staging"].includes(options.stopAt);
 
   logSection("Release");
   logItem("Version", version);
@@ -237,31 +239,31 @@ async function main() {
     return;
   }
 
-  if (!(await prompt("Development deployed. Continue to staging?"))) {
+  if (!(await prompt(`Development deployed. Continue to ${preProductionLabel}?`))) {
     console.log("Release cancelled.");
     restoreBranch(startBranch);
     return;
   }
 
-  // ── Stage 2: Staging ─────────────────────────────────────────────────────
-  logSection("Stage 2: Staging");
+  // ── Stage 2: Pre-production ───────────────────────────────────────────────
+  logSection(`Stage 2: ${preProductionTitle}`);
 
-  const promoteStagingTarget = useReviewAlias ? "review" : "staging";
+  const promotePreProductionTarget = useReviewAlias ? "review" : "staging";
 
-  console.log(`\n--- Promote to ${stagingBranch} ---`);
-  runStep("promote", promoteStagingTarget, devBranch);
+  console.log(`\n--- Promote to ${preProductionBranch} ---`);
+  runStep("promote", promotePreProductionTarget, devBranch);
 
-  console.log(`\n--- Deploy ${stagingBranch} ---`);
-  const deployStagingTarget = useReviewAlias ? "review" : "staging";
-  runStep("deploy", deployStagingTarget, stagingBranch);
+  console.log(`\n--- Deploy ${preProductionBranch} ---`);
+  const deployPreProductionTarget = useReviewAlias ? "review" : "staging";
+  runStep("deploy", deployPreProductionTarget, preProductionBranch);
 
-  if (stopAfterStaging) {
-    console.log(`\nStopped at staging (--stop-at ${options.stopAt}).`);
+  if (stopAfterPreProduction) {
+    console.log(`\nStopped at ${preProductionLabel} (--stop-at ${options.stopAt}).`);
     restoreBranch(startBranch);
     return;
   }
 
-  if (!(await prompt("Staging deployed. Continue to production?"))) {
+  if (!(await prompt(`${preProductionTitle} deployed. Continue to production?`))) {
     console.log("Release cancelled.");
     restoreBranch(startBranch);
     return;
@@ -271,7 +273,7 @@ async function main() {
   logSection("Stage 3: Production");
 
   console.log(`\n--- Promote to production ---`);
-  runStep("promote", "production", stagingBranch);
+  runStep("promote", "production", preProductionBranch);
 
   const shipArgs = options.yes ? ["--yes"] : [];
   console.log(`\n--- Ship ---`);
@@ -288,7 +290,7 @@ async function main() {
 
   printSummaryTable([
     { origin: "n/a", local: devBranch, status: "Development", actions: `Version: ${finalVersion}` },
-    { origin: "n/a", local: stagingBranch, status: "Staging", actions: `Version: ${version}` },
+    { origin: "n/a", local: preProductionBranch, status: preProductionTitle, actions: `Version: ${version}` },
     { origin: "n/a", local: prodBranch, status: "Production", actions: `Version: ${version}` },
   ]);
 
