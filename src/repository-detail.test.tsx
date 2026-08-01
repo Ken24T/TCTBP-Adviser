@@ -25,8 +25,11 @@ describe('repository detail view', () => {
         }}
         intent="none"
         busy={false}
+        upgradePlan={null}
+        upgradeBusy={false}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
+        onLoadUpgradePlan={() => undefined}
       />,
     )
 
@@ -39,6 +42,7 @@ describe('repository detail view', () => {
     expect(markup).toContain('What this action does')
     expect(markup).toContain('What this action does not do')
     expect(markup).toContain('No fetch was performed')
+    expect(markup).toContain('Preview upgrade plan')
   })
 
   it('renders the explicit machine-transfer intent path', () => {
@@ -64,8 +68,11 @@ describe('repository detail view', () => {
         }}
         intent="continue-on-another-machine"
         busy={false}
+        upgradePlan={null}
+        upgradeBusy={false}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
+        onLoadUpgradePlan={() => undefined}
       />,
     )
 

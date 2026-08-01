@@ -3,10 +3,12 @@ import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { ReferenceCatalogue } from '../shared/reference'
+import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
   loadRepositoryDetail,
+  loadTctbpUpgradePlan,
 } from './api-client'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
@@ -22,6 +24,8 @@ import {
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
+  const [upgradePlan, setUpgradePlan] = useState<TctbpUpgradePlan | null>(null)
+  const [upgradeBusy, setUpgradeBusy] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
@@ -68,6 +72,20 @@ function App() {
     }
   }
 
+  async function refreshUpgradePlan(repositoryId: string): Promise<void> {
+    const currentRequest = ++requestId.current
+    setUpgradeBusy(true)
+    setError(null)
+    try {
+      const nextPlan = await loadTctbpUpgradePlan(repositoryId)
+      if (currentRequest === requestId.current) setUpgradePlan(nextPlan)
+    } catch (cause) {
+      captureError(cause, currentRequest)
+    } finally {
+      if (currentRequest === requestId.current) setUpgradeBusy(false)
+    }
+  }
+
   async function refreshCatalogue(): Promise<void> {
     const currentRequest = ++requestId.current
     setBusy(true)
@@ -95,6 +113,8 @@ function App() {
     setReferenceOpen(false)
     setSelectedId(repositoryId)
     setDetail(null)
+    setUpgradePlan(null)
+    setUpgradeBusy(false)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -104,6 +124,8 @@ function App() {
     setSelectedId(null)
     setReferenceOpen(false)
     setDetail(null)
+    setUpgradePlan(null)
+    setUpgradeBusy(false)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -113,6 +135,8 @@ function App() {
     requestId.current += 1
     setSelectedId(null)
     setDetail(null)
+    setUpgradePlan(null)
+    setUpgradeBusy(false)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -193,9 +217,12 @@ function App() {
             detail={detail}
             intent={intent}
             busy={busy}
+            upgradePlan={upgradePlan}
+            upgradeBusy={upgradeBusy}
             onBack={showPortfolio}
             onIntentChange={changeIntent}
             onRefresh={() => void refreshDetail(selectedId, intent)}
+            onLoadUpgradePlan={() => void refreshUpgradePlan(selectedId)}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

@@ -65,6 +65,7 @@ describe('bounded Git command construction', () => {
     expect(commandArguments).not.toContain('fetch')
     expect(Object.keys(GIT_COMMANDS).sort()).toEqual([
       'gitDir',
+      'head',
       'originUrl',
       'status',
       'topLevel',

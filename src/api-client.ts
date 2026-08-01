@@ -2,6 +2,16 @@ import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { ReferenceCatalogue } from '../shared/reference'
+import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
+
+export async function loadTctbpUpgradePlan(
+  repositoryId: string,
+): Promise<TctbpUpgradePlan> {
+  return requestJson<TctbpUpgradePlan>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-upgrade-plan`,
+    { method: 'POST' },
+  )
+}
 
 export async function loadRepositoryDetail(
   repositoryId: string,

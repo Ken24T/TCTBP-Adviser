@@ -1,24 +1,17 @@
 import { createHash } from 'node:crypto'
+import type {
+  ManagedFileDrift,
+  ManagedFileDriftCounts,
+  ManagedFileDriftPlan,
+  ManagedFileDriftState,
+} from '../shared/tctbp-upgrade'
 
-export type ManagedFileDriftState =
-  | 'current'
-  | 'missing-target'
-  | 'drifted'
-  | 'source-unavailable'
-
-export interface ManagedFileDrift {
-  path: string
-  state: ManagedFileDriftState
-  sourceHash: string | null
-  targetHash: string | null
-}
-
-export type ManagedFileDriftCounts = Record<ManagedFileDriftState, number>
-
-export interface ManagedFileDriftPlan {
-  files: ManagedFileDrift[]
-  counts: ManagedFileDriftCounts
-}
+export type {
+  ManagedFileDrift,
+  ManagedFileDriftCounts,
+  ManagedFileDriftPlan,
+  ManagedFileDriftState,
+} from '../shared/tctbp-upgrade'
 
 export function hashFileContent(content: string): string {
   return createHash('sha256').update(content).digest('hex')
@@ -36,6 +29,10 @@ export function planManagedFileDrift(
   for (const file of files) counts[file.state] += 1
 
   return { files, counts }
+}
+
+export function emptyManagedFileDriftPlan(): ManagedFileDriftPlan {
+  return { files: [], counts: emptyCounts() }
 }
 
 function classifyFile(

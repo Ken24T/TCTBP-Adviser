@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SafeConfigurationExport } from '../shared/diagnostics'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
+import { CanonicalTctbpSourceService } from './tctbp-source'
 import { safeConfigurationExport } from './configuration-export'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
@@ -31,6 +32,7 @@ export interface ApiRuntime {
   readonly registry: RepositoryRegistry
   readonly inspections: RepositoryInspectionService
   readonly github: GitHubEnrichmentService
+  readonly tctbpSource: CanonicalTctbpSourceService
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -59,11 +61,16 @@ export function createApiRuntime(
       new GitHubRestClient(config.github),
     ),
   )
+  const tctbpSource = new CanonicalTctbpSourceService(
+    config.canonicalTctbpWebRoot ?? null,
+    executor,
+  )
   return {
     sessionToken,
     registry,
     inspections,
     github,
+    tctbpSource,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(config, registry, inspections, github),
@@ -165,6 +172,22 @@ export function createApiHandler(runtime: ApiRuntime) {
         )
         const observation = await runtime.inspections.inspect(repository)
         sendJson(response, 200, observation)
+        return
+      }
+
+      const upgradePlanMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-upgrade-plan$/.exec(url.pathname)
+      if (request.method === 'POST' && upgradePlanMatch) {
+        await requireEmptyBody(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(upgradePlanMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const plan = await runtime.tctbpSource.plan(
+          repository.path,
+          observation.tctbp.scaffold,
+        )
+        sendJson(response, 200, plan)
         return
       }
 

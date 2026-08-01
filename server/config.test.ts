@@ -44,6 +44,31 @@ describe('portfolio service configuration', () => {
     })
   })
 
+  it('resolves the optional canonical TCTBP-Web checkout inside trusted roots', async () => {
+    const root = await temporaryRoot()
+    const canonical = path.join(root, 'TCTBP-Web')
+    await mkdir(canonical)
+
+    const config = await loadServiceConfig({
+      TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_TCTBP_WEB_ROOT: canonical,
+    })
+
+    expect(config.canonicalTctbpWebRoot).toBe(canonical)
+  })
+
+  it('rejects a canonical TCTBP-Web checkout outside trusted roots', async () => {
+    const root = await temporaryRoot()
+    const outsideRoot = await temporaryRoot()
+    const canonical = path.join(outsideRoot, 'TCTBP-Web')
+    await mkdir(canonical)
+
+    await expect(loadServiceConfig({
+      TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_TCTBP_WEB_ROOT: canonical,
+    })).rejects.toMatchObject({ code: 'repository-outside-allowed-root' })
+  })
+
   it('supports and validates the previous single-repository environment', async () => {
     const root = await temporaryRoot()
     const repository = path.join(root, 'repository')

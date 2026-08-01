@@ -1,5 +1,6 @@
 import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
+import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
@@ -7,23 +8,30 @@ import { GitHubPanel } from './GitHubPanel'
 import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
+import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
   intent: RecommendationIntent
   busy: boolean
+  upgradePlan: TctbpUpgradePlan | null
+  upgradeBusy: boolean
   onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
+  onLoadUpgradePlan: () => void
 }
 
 export function RepositoryDetail({
   detail,
   intent,
   busy,
+  upgradePlan,
+  upgradeBusy,
   onBack,
   onIntentChange,
   onRefresh,
+  onLoadUpgradePlan,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   return (
@@ -89,6 +97,11 @@ export function RepositoryDetail({
         recommendation={recommendation}
       />
       <TctbpPanel observation={observation} />
+      <TctbpUpgradePanel
+        plan={upgradePlan}
+        busy={upgradeBusy}
+        onLoad={onLoadUpgradePlan}
+      />
       <RepositoryReferencePanel reference={detail.reference} />
       <GitHubPanel
         evidence={detail.github}

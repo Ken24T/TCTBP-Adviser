@@ -22,6 +22,11 @@ TCTBP-Web Adviser contract v1 pinned to commit
 The local environment ports are development `3037`, review `4037`, and
 production preview `5037`.
 
+To enable read-only canonical TCTBP upgrade plans, set
+`TCTBP_ADVISER_TCTBP_WEB_ROOT` to a local TCTBP-Web checkout beneath one of the
+configured repository roots. The Adviser reads its managed-file inventory and
+source revision but does not modify or execute the canonical checkout.
+
 The application discovers bounded local roots and opens the portfolio
 dashboard. Select a repository to see local branch and working-tree state, one
 primary recommendation, blocked alternatives, effects and non-effects,

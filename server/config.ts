@@ -6,6 +6,7 @@ import {
 
 export interface ServiceConfig {
   repositoryRoots: string[]
+  canonicalTctbpWebRoot?: string | null
   excludeDirectories: string[]
   maximumDepth: number
   maximumDirectories: number
@@ -59,8 +60,16 @@ export async function loadServiceConfig(
     )
   }
 
+  const canonicalTctbpWebRoot = environment.TCTBP_ADVISER_TCTBP_WEB_ROOT
+    ? await resolveConfiguredRepository(
+      repositoryRoots,
+      environment.TCTBP_ADVISER_TCTBP_WEB_ROOT,
+    )
+    : null
+
   return {
     repositoryRoots,
+    canonicalTctbpWebRoot,
     excludeDirectories: environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES
       ? safeDirectoryNames(jsonStringArray(
         environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES,
@@ -162,10 +171,16 @@ async function ensureLegacyRepositoryIsAllowed(
   roots: string[],
   repositoryPath: string,
 ): Promise<void> {
+  await resolveConfiguredRepository(roots, repositoryPath)
+}
+
+async function resolveConfiguredRepository(
+  roots: string[],
+  repositoryPath: string,
+): Promise<string> {
   for (const root of roots) {
     try {
-      await resolveAllowedRepository(root, repositoryPath)
-      return
+      return (await resolveAllowedRepository(root, repositoryPath)).repositoryPath
     } catch (error) {
       if (
         error instanceof AdviserError

@@ -77,6 +77,34 @@ describe('same-origin inspection API', () => {
     })
   })
 
+  it('returns a read-only upgrade plan without configured canonical source', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-upgrade-plan`,
+      running,
+      { method: 'POST' },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({
+      source: {
+        state: 'not-configured',
+        managedFileCount: 0,
+      },
+      drift: {
+        files: [],
+      },
+    })
+  })
+
   it('rejects browser-supplied inspection input', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(
