@@ -31,6 +31,7 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('TCTBP review')
     expect(markup).toContain('TCTBP review required')
     expect(markup).toContain('TCTBP blocked')
+    expect(markup).toContain('Bootstrap required')
     expect(markup).toContain('Source outdated')
     expect(markup).toContain('Policy drift')
     expect(markup).toContain('Plain-Repo')
@@ -160,6 +161,7 @@ function portfolioFixture(): PortfolioSnapshot {
       enabled: true,
       current: 0,
       reviewRequired: 1,
+      bootstrapRequired: 0,
       blocked: 0,
       sourceUnavailable: 0,
     },

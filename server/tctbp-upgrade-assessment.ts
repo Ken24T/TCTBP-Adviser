@@ -20,6 +20,8 @@ export interface UpgradeAssessmentInput {
     operationCount: number
     workingTreeClean: boolean
     environmentBranch: boolean
+    tctbpInstalled: boolean
+    targetPolicyAvailable: boolean
   }
 }
 
@@ -48,9 +50,11 @@ export function assessTctbpUpgrade(
   return {
     disposition: input.source.state !== 'available'
       ? 'source-unavailable'
-      : blockers.length > 0 || hasReviewWork
-        ? 'review-required'
-        : 'current',
+      : !input.targetState.tctbpInstalled || !input.targetState.targetPolicyAvailable
+        ? 'bootstrap-required'
+        : blockers.length > 0 || hasReviewWork
+          ? 'review-required'
+          : 'current',
     sourceAlignment,
     actionCounts,
     blockers,

@@ -37,6 +37,8 @@ describe('TCTBP upgrade assessment', () => {
         operationCount: 0,
         workingTreeClean: true,
         environmentBranch: false,
+        tctbpInstalled: true,
+        targetPolicyAvailable: true,
       },
     })
 
@@ -53,6 +55,25 @@ describe('TCTBP upgrade assessment', () => {
     })
   })
 
+  it('classifies a repository without usable TCTBP as bootstrap-required', () => {
+    const assessment = assessTctbpUpgrade({
+      source,
+      target,
+      drift: drift({ add: 1 }),
+      policy: { state: 'unavailable', differences: [] },
+      targetState: {
+        detached: false,
+        operationCount: 0,
+        workingTreeClean: true,
+        environmentBranch: false,
+        tctbpInstalled: false,
+        targetPolicyAvailable: false,
+      },
+    })
+
+    expect(assessment.disposition).toBe('bootstrap-required')
+  })
+
   it('reports safety blockers separately from review work', () => {
     const assessment = assessTctbpUpgrade({
       source,
@@ -64,6 +85,8 @@ describe('TCTBP upgrade assessment', () => {
         operationCount: 1,
         workingTreeClean: false,
         environmentBranch: true,
+        tctbpInstalled: true,
+        targetPolicyAvailable: true,
       },
     })
 
@@ -80,13 +103,22 @@ describe('TCTBP upgrade assessment', () => {
   })
 })
 
-function drift(overrides: Partial<Record<'current' | 'review', number>>) {
+function drift(overrides: Partial<Record<'current' | 'review' | 'add', number>>) {
   const files = []
   for (let index = 0; index < (overrides.current ?? 0); index += 1) {
     files.push({
       path: `current-${index}.js`,
       state: 'current' as const,
       action: 'preserve' as const,
+      sourceHash: null,
+      targetHash: null,
+    })
+  }
+  for (let index = 0; index < (overrides.add ?? 0); index += 1) {
+    files.push({
+      path: `add-${index}.js`,
+      state: 'missing-target' as const,
+      action: 'add' as const,
       sourceHash: null,
       targetHash: null,
     })
@@ -104,7 +136,7 @@ function drift(overrides: Partial<Record<'current' | 'review', number>>) {
     files,
     counts: {
       current: overrides.current ?? 0,
-      'missing-target': 0,
+      'missing-target': overrides.add ?? 0,
       drifted: overrides.review ?? 0,
       'source-unavailable': 0,
     },

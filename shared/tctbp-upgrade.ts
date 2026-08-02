@@ -66,6 +66,7 @@ export interface TctbpPolicyComparison {
 export type TctbpUpgradeDisposition =
   | 'current'
   | 'review-required'
+  | 'bootstrap-required'
   | 'source-unavailable'
 
 export type TctbpSourceAlignment =

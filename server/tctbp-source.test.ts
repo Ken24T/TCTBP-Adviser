@@ -243,6 +243,24 @@ describe('canonical TCTBP-Web source planning', () => {
       .rejects.toMatchObject({ code: 'ENOENT' })
   })
 
+  it('classifies a non-TCTBP target as bootstrap-required', async () => {
+    const { source, target } = await fixtureRepositories()
+    const plan = await new CanonicalTctbpSourceService(source, executor()).plan(
+      target,
+      targetObservation({
+        sourceRepository: null,
+        sourceRevision: null,
+        sourceVersion: null,
+      }, 'main', [], false),
+    )
+
+    expect(plan.disposition).toBe('bootstrap-required')
+    expect(plan.blockers).toContainEqual({
+      code: 'environment-branch',
+      message: 'The target is on a configured environment branch; use a dedicated upgrade branch.',
+    })
+  })
+
   it('returns a non-mutating unavailable plan without a source checkout', async () => {
     const plan = await new CanonicalTctbpSourceService(null, executor()).plan(
       '/target',
@@ -336,6 +354,7 @@ function targetObservation(
   },
   branch = 'feature/tctbp-upgrade',
   managedSurface: string[] = [],
+  installed = true,
 ) {
   return {
     head: { branch, detached: false, unborn: false, sha: revision },
@@ -351,6 +370,7 @@ function targetObservation(
       },
     },
     tctbp: {
+      installed,
       branchModel: {
         workingBranch: 'development',
         preProductionBranch: 'review',

@@ -17,6 +17,7 @@ type PortfolioFilter =
   | 'non-tctbp'
   | 'tctbp-current'
   | 'tctbp-review'
+  | 'tctbp-bootstrap'
   | 'tctbp-blocked'
   | 'tctbp-outdated'
   | 'tctbp-files'
@@ -95,6 +96,7 @@ export function PortfolioDashboard({
           <>
             <Metric label="TCTBP current" value={snapshot.upgrade.current} />
             <Metric label="TCTBP review" value={snapshot.upgrade.reviewRequired} />
+            <Metric label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} />
             <Metric label="TCTBP blocked" value={snapshot.upgrade.blocked} />
           </>
         )}
@@ -222,6 +224,9 @@ function matchesFilter(
   if (filter === 'tctbp-review') {
     return repository.upgrade.disposition === 'review-required'
   }
+  if (filter === 'tctbp-bootstrap') {
+    return repository.upgrade.disposition === 'bootstrap-required'
+  }
   if (filter === 'tctbp-blocked') {
     return repository.upgrade.blockerCount > 0
   }
@@ -241,6 +246,7 @@ function filterOptions(snapshot: PortfolioSnapshot): PortfolioFilter[] {
     options.push(
       'tctbp-current',
       'tctbp-review',
+      'tctbp-bootstrap',
       'tctbp-blocked',
       'tctbp-outdated',
       'tctbp-files',
@@ -269,6 +275,7 @@ function filterLabel(filter: PortfolioFilter): string {
     'non-tctbp': 'Without TCTBP',
     'tctbp-current': 'TCTBP current',
     'tctbp-review': 'TCTBP review',
+    'tctbp-bootstrap': 'Bootstrap required',
     'tctbp-blocked': 'TCTBP blocked',
     'tctbp-outdated': 'Source outdated',
     'tctbp-files': 'File changes',

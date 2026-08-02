@@ -70,6 +70,7 @@ describe('portfolio TCTBP upgrade summaries', () => {
       enabled: true,
       current: 1,
       reviewRequired: 2,
+      bootstrapRequired: 0,
       blocked: 1,
       sourceUnavailable: 1,
     })

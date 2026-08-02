@@ -147,6 +147,12 @@ export function TctbpUpgradePanel({
       )}
       {feedback && <p className="empty-state">{feedback}</p>}
       {upgradeFeedback && <p className="empty-state">{upgradeFeedback}</p>}
+      {plan?.disposition === 'bootstrap-required' && (
+        <p className="empty-state">
+          TCTBP infrastructure is not installed. Review this canonical bootstrap
+          plan on a dedicated branch before applying anything.
+        </p>
+      )}
       {plan && <PlanDetails plan={plan} />}
     </section>
   )
@@ -263,6 +269,7 @@ function dispositionTitle(
   disposition: TctbpUpgradePlan['disposition'],
 ): string {
   if (disposition === 'current') return 'Current'
+  if (disposition === 'bootstrap-required') return 'Bootstrap required'
   if (disposition === 'review-required') return 'Review required'
   return 'Source unavailable'
 }
@@ -271,6 +278,7 @@ function dispositionLabel(
   disposition: TctbpUpgradePlan['disposition'],
 ): string {
   if (disposition === 'current') return 'Current'
+  if (disposition === 'bootstrap-required') return 'Bootstrap required'
   if (disposition === 'review-required') return 'Review required'
   return 'Source unavailable'
 }

@@ -203,6 +203,7 @@ function tctbpLabel(repository: PortfolioRepository): string {
 
 function upgradeLabel(disposition: NonNullable<PortfolioRepository['upgrade']>['disposition']): string {
   if (disposition === 'current') return 'TCTBP current'
+  if (disposition === 'bootstrap-required') return 'TCTBP bootstrap required'
   if (disposition === 'source-unavailable') return 'TCTBP source unavailable'
   return 'TCTBP review required'
 }

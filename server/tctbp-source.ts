@@ -53,6 +53,7 @@ interface UpgradeTargetObservation {
   operations: RepositoryObservation['operations']
   workingTree: Pick<RepositoryObservation['workingTree'], 'clean'>
   tctbp: {
+    installed: RepositoryObservation['tctbp']['installed']
     branchModel: Pick<
       RepositoryObservation['tctbp']['branchModel'],
       'workingBranch' | 'preProductionBranch' | 'productionBranch'
@@ -461,6 +462,8 @@ function createPlan(
       operationCount: targetObservation.operations.length,
       workingTreeClean: targetObservation.workingTree.clean,
       environmentBranch: isEnvironmentBranch(targetObservation),
+      tctbpInstalled: targetObservation.tctbp.installed,
+      targetPolicyAvailable: policy.state !== 'unavailable',
     },
   })
 

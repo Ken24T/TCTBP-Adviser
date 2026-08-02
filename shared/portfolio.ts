@@ -62,6 +62,7 @@ export interface PortfolioUpgradeTotals {
   enabled: boolean
   current: number
   reviewRequired: number
+  bootstrapRequired: number
   blocked: number
   sourceUnavailable: number
 }

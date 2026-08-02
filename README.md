@@ -141,6 +141,8 @@ scripts/          # TCTBP-Web runners (managed)
 - GitHub evidence has its own retrieval timestamp and never overrides local
   working-copy evidence or deterministic advice.
 - TCTBP installation health and canonical drift may be reviewed in the Adviser.
+- Repositories without usable TCTBP infrastructure are classified as
+  `bootstrap-required`, not treated as ordinary upgrades.
 - Explicitly approved apply requests can create or update canonical managed TCTBP
   files on a dedicated non-environment branch; they never commit, push, deploy,
   execute target commands, or modify application-owned files.
