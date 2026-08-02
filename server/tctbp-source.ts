@@ -47,6 +47,7 @@ import {
   buildBootstrapPlan,
   generateBootstrapPolicy,
 } from './tctbp-bootstrap'
+import type { BootstrapJobProgress } from './tctbp-bootstrap-jobs'
 import {
   isPathContained,
   readBoundedRepositoryFile,
@@ -105,6 +106,7 @@ export class CanonicalTctbpSourceService {
     targetRoot: string,
     targetObservation: UpgradeTargetObservation,
     request: TctbpBootstrapApplyRequest,
+    progress?: BootstrapJobProgress,
   ): Promise<TctbpBootstrapApplyResult> {
     const source = await this.loadSource()
     const plan = buildBootstrapPlan(
@@ -136,10 +138,13 @@ export class CanonicalTctbpSourceService {
         'Bootstrap is blocked by source or target repository state.',
       )
     }
+    progress?.('validate', 'Plan and target state verified.')
     const branch = plan.recommendedBranch
     if (!branch) throw new AdviserError('bootstrap-branch-invalid', 'Bootstrap branch could not be generated.')
+    progress?.('create-branch', `Creating ${branch}.`)
     await execFileAsync('git', ['switch', '-c', branch], { cwd: targetRoot })
 
+    progress?.('read-source', 'Reading the canonical managed surface.')
     const sourceFiles = await readFiles(this.sourceRoot, source.managedPaths)
     const policy = generateBootstrapPolicy(source.policyContent, request.request)
     if (!policy) throw new AdviserError('bootstrap-policy-invalid', 'Bootstrap policy could not be generated.')
@@ -159,14 +164,24 @@ export class CanonicalTctbpSourceService {
       )),
     }, null, 2) + '\n'
     const appliedPaths: string[] = []
-    for (const [filePath, content] of sourceFiles) {
-      if (!request.request.includeHookLayer && filePath.startsWith('.github/hooks/')) continue
+    const writableFiles = Array.from(sourceFiles.entries()).filter(([filePath]) => (
+      request.request.includeHookLayer || !filePath.startsWith('.github/hooks/')
+    ))
+    progress?.('write-managed-files', `Writing 0/${writableFiles.length} managed files.`)
+    for (const [index, [filePath, content]] of writableFiles.entries()) {
       await writeManagedFile(targetRoot, filePath, content)
       appliedPaths.push(filePath)
+      progress?.(
+        'write-managed-files',
+        `Writing ${index + 1}/${writableFiles.length}: ${filePath}`,
+      )
     }
+    progress?.('write-policy', 'Writing generated .github/TCTBP.json.')
     await writeManagedFile(targetRoot, '.github/TCTBP.json', policy)
+    progress?.('write-source-metadata', 'Writing .tctbp/source.json.')
     await writeManagedFile(targetRoot, '.tctbp/source.json', sourceJson)
     appliedPaths.push('.github/TCTBP.json', '.tctbp/source.json')
+    progress?.('complete', `Applied ${appliedPaths.length} file(s) without commit or push.`)
     return {
       status: 'applied',
       branch,

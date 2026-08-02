@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { AiReviewResult } from '../../shared/ai-review'
-import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../../shared/tctbp-bootstrap'
+import type {
+  TctbpBootstrapJob,
+  TctbpBootstrapPlan,
+  TctbpBootstrapRequest,
+} from '../../shared/tctbp-bootstrap'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import {
   createTctbpPlanDocument,
@@ -22,6 +26,7 @@ interface TctbpUpgradePanelProps {
   bootstrapBusy: boolean
   bootstrapApplyBusy: boolean
   bootstrapApplyFeedback: string | null
+  bootstrapJob: TctbpBootstrapJob | null
   onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
   onApplyBootstrap: (request: TctbpBootstrapRequest) => void
   onLoad: () => void
@@ -43,6 +48,7 @@ export function TctbpUpgradePanel({
   bootstrapBusy,
   bootstrapApplyBusy,
   bootstrapApplyFeedback,
+  bootstrapJob,
   onPrepareBootstrap,
   onApplyBootstrap,
   onLoad,
@@ -193,6 +199,7 @@ export function TctbpUpgradePanel({
           applyBusy={bootstrapApplyBusy}
           plan={bootstrapPlan}
           applyFeedback={bootstrapApplyFeedback}
+          job={bootstrapJob}
           aiApplyReady={aiApplyReady}
           onPrepare={onPrepareBootstrap}
           onApply={onApplyBootstrap}

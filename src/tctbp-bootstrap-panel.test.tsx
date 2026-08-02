@@ -11,6 +11,7 @@ describe('TCTBP bootstrap panel', () => {
         applyBusy={false}
         plan={null}
         applyFeedback={null}
+        job={null}
         aiApplyReady={false}
         onPrepare={() => undefined}
         onApply={() => undefined}

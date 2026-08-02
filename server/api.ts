@@ -4,6 +4,7 @@ import type { SafeConfigurationExport } from '../shared/diagnostics'
 import { createAiReviewer, type AiReviewer } from './ai-reviewer'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { AiReviewStore } from './ai-review-store'
+import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
@@ -41,6 +42,7 @@ export interface ApiRuntime {
   readonly tctbpSource: CanonicalTctbpSourceService
   readonly aiReviewer: AiReviewer
   readonly aiReviewStore: AiReviewStore
+  readonly bootstrapJobs: TctbpBootstrapJobStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -82,6 +84,7 @@ export function createApiRuntime(
     maximumResponseBytes: 512 * 1024,
   })
   const aiReviewStore = new AiReviewStore()
+  const bootstrapJobs = new TctbpBootstrapJobStore()
   return {
     sessionToken,
     registry,
@@ -90,6 +93,7 @@ export function createApiRuntime(
     tctbpSource,
     aiReviewer,
     aiReviewStore,
+    bootstrapJobs,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -100,6 +104,11 @@ export function createApiRuntime(
       tctbpSource,
     ),
   }
+}
+
+function safeBootstrapJobError(error: unknown): string {
+  if (error instanceof AdviserError) return `${error.code}: ${error.message}`
+  return 'Bootstrap failed before completion.'
 }
 
 function requireAiApproval(
@@ -249,6 +258,23 @@ export function createApiHandler(runtime: ApiRuntime) {
         return
       }
 
+      const bootstrapJobMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-jobs\/([^/]+)$/.exec(url.pathname)
+      if (request.method === 'GET' && bootstrapJobMatch) {
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapJobMatch[1]),
+        )
+        const job = runtime.bootstrapJobs.get(
+          decodeURIComponent(bootstrapJobMatch[2]),
+          repository.id,
+        )
+        if (!job) {
+          throw new AdviserError('bootstrap-job-not-found', 'Bootstrap job was not found.')
+        }
+        sendJson(response, 200, job)
+        return
+      }
+
       const bootstrapApplyMatch =
         /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-apply$/.exec(url.pathname)
       if (request.method === 'POST' && bootstrapApplyMatch) {
@@ -256,23 +282,35 @@ export function createApiHandler(runtime: ApiRuntime) {
         const repository = await runtime.registry.require(
           decodeURIComponent(bootstrapApplyMatch[1]),
         )
-        const observation = await runtime.inspections.inspect(repository)
-        const bootstrapPlan = await runtime.tctbpSource.bootstrapPlan(
-          observation,
-          bootstrapRequest.request,
-        )
-        requireAiApproval(
-          runtime.aiReviewStore,
-          bootstrapRequest.aiReviewId,
-          bootstrapRequest.aiReviewAcknowledged,
-          bootstrapPlan.fingerprint,
-        )
-        const result = await runtime.tctbpSource.bootstrapApply(
-          repository.path,
-          observation,
-          bootstrapRequest,
-        )
-        sendJson(response, 200, result)
+        const job = runtime.bootstrapJobs.create(repository.id)
+        const progress = runtime.bootstrapJobs.progress(job.jobId)
+        void (async () => {
+          try {
+            runtime.bootstrapJobs.start(job.jobId)
+            progress('validate', 'Re-inspecting the target before bootstrap.')
+            const observation = await runtime.inspections.inspect(repository)
+            const bootstrapPlan = await runtime.tctbpSource.bootstrapPlan(
+              observation,
+              bootstrapRequest.request,
+            )
+            requireAiApproval(
+              runtime.aiReviewStore,
+              bootstrapRequest.aiReviewId,
+              bootstrapRequest.aiReviewAcknowledged,
+              bootstrapPlan.fingerprint,
+            )
+            const result = await runtime.tctbpSource.bootstrapApply(
+              repository.path,
+              observation,
+              bootstrapRequest,
+              progress,
+            )
+            runtime.bootstrapJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.bootstrapJobs.fail(job.jobId, safeBootstrapJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
         return
       }
 

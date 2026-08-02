@@ -1,6 +1,8 @@
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapApplyResult,
+  TctbpBootstrapJob,
+  TctbpBootstrapJobStart,
   TctbpBootstrapPlan,
   TctbpBootstrapRequest,
 } from '../shared/tctbp-bootstrap'
@@ -25,6 +27,37 @@ export async function loadTctbpBootstrapReview(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
     },
+  )
+}
+
+export async function startTctbpBootstrap(
+  repositoryId: string,
+  planFingerprint: string,
+  aiReviewId: string,
+  request: TctbpBootstrapRequest,
+): Promise<TctbpBootstrapJobStart> {
+  return requestJson<TctbpBootstrapJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        confirm: true,
+        aiReviewId,
+        aiReviewAcknowledged: true,
+        planFingerprint,
+        request,
+      }),
+    },
+  )
+}
+
+export async function loadTctbpBootstrapJob(
+  repositoryId: string,
+  jobId: string,
+): Promise<TctbpBootstrapJob> {
+  return requestJson<TctbpBootstrapJob>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-jobs/${encodeURIComponent(jobId)}`,
   )
 }
 

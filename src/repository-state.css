@@ -180,6 +180,41 @@ code {
   border-radius: 7px;
 }
 
+.bootstrap-progress {
+  margin: 14px 0;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #d4dbd8;
+  border-radius: 7px;
+}
+
+.bootstrap-progress ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.bootstrap-progress li {
+  margin: 5px 0;
+}
+
+.bootstrap-progress small {
+  color: #6e797e;
+}
+
+.bootstrap-step-pending {
+  color: #879296;
+}
+
+.bootstrap-step-running {
+  color: #a45d28;
+  font-weight: 700;
+}
+
+.bootstrap-step-failed {
+  color: #963f2b;
+  font-weight: 700;
+}
+
 .bootstrap-plan p:last-child {
   margin-bottom: 0;
 }

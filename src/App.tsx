@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AiReviewResult } from '../shared/ai-review'
-import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../shared/tctbp-bootstrap'
+import type {
+  TctbpBootstrapJob,
+  TctbpBootstrapPlan,
+  TctbpBootstrapRequest,
+} from '../shared/tctbp-bootstrap'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
@@ -9,8 +13,9 @@ import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
-  applyTctbpBootstrap,
   applyTctbpUpgradePlan,
+  loadTctbpBootstrapJob,
+  startTctbpBootstrap,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
   loadTctbpBootstrapReview,
@@ -41,6 +46,7 @@ function App() {
   const [bootstrapBusy, setBootstrapBusy] = useState(false)
   const [bootstrapApplyBusy, setBootstrapApplyBusy] = useState(false)
   const [bootstrapApplyFeedback, setBootstrapApplyFeedback] = useState<string | null>(null)
+  const [bootstrapJob, setBootstrapJob] = useState<TctbpBootstrapJob | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
@@ -52,6 +58,33 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const started = useRef(false)
+
+  useEffect(() => {
+    if (
+      !selectedId
+      || !bootstrapJob
+      || bootstrapJob.status === 'completed'
+      || bootstrapJob.status === 'failed'
+    ) return
+    const timer = window.setTimeout(() => {
+      void loadTctbpBootstrapJob(selectedId, bootstrapJob.jobId)
+        .then((nextJob) => {
+          setBootstrapJob(nextJob)
+          if (nextJob.status === 'completed') {
+            setBootstrapApplyBusy(false)
+            setBootstrapApplyFeedback(
+              `Bootstrap completed on ${nextJob.result?.branch ?? 'the dedicated branch'} with ${nextJob.result?.appliedPaths.length ?? 0} file(s). Review and checkpoint before publishing.`,
+            )
+            void refreshDetail(selectedId, intent)
+          } else if (nextJob.status === 'failed') {
+            setBootstrapApplyBusy(false)
+            setBootstrapApplyFeedback(nextJob.error ?? 'Bootstrap failed before completion.')
+          }
+        })
+        .catch((cause) => captureError(cause, requestId.current))
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [bootstrapJob, intent, selectedId])
 
   async function refreshPortfolio(force = false): Promise<void> {
     const currentRequest = ++requestId.current
@@ -144,16 +177,24 @@ function App() {
     setBootstrapApplyFeedback(null)
     setError(null)
     try {
-      const result = await applyTctbpBootstrap(
+      const startedJob = await startTctbpBootstrap(
         selectedId,
         bootstrapPlan.fingerprint,
         aiReview.reviewId,
         request,
       )
-      setBootstrapApplyFeedback(
-        `Bootstrap applied on ${result.branch} with ${result.appliedPaths.length} file(s). Review and checkpoint before publishing.`,
-      )
-      await refreshDetail(selectedId, intent)
+      setBootstrapJob({
+        jobId: startedJob.jobId,
+        repositoryId: selectedId,
+        status: 'queued',
+        steps: [],
+        result: null,
+        error: null,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        completedAt: null,
+      })
+      setBootstrapApplyFeedback('Bootstrap job started. Showing live progress…')
     } catch (cause) {
       captureError(cause, requestId.current)
     } finally {
@@ -265,6 +306,7 @@ function App() {
     setBootstrapBusy(false)
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
+    setBootstrapJob(null)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -284,6 +326,7 @@ function App() {
     setBootstrapBusy(false)
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
+    setBootstrapJob(null)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -303,6 +346,7 @@ function App() {
     setBootstrapBusy(false)
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
+    setBootstrapJob(null)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -393,6 +437,7 @@ function App() {
             bootstrapBusy={bootstrapBusy}
             bootstrapApplyBusy={bootstrapApplyBusy}
             bootstrapApplyFeedback={bootstrapApplyFeedback}
+            bootstrapJob={bootstrapJob}
             onPrepareBootstrap={(request) => void prepareBootstrap(request)}
             onApplyBootstrap={(request) => void applyBootstrap(request)}
             onBack={showPortfolio}
