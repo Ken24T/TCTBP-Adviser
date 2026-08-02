@@ -89,6 +89,28 @@ describe('Jasper upgrade-plan reviewer', () => {
     })
   })
 
+  it('reports when the provider truncates JSON at the token limit', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{
+        finish_reason: 'length',
+        message: { content: '{"summary":"incomplete' },
+      }],
+    }), { status: 200 }))
+    const reviewer = createAiReviewer({
+      enabled: true,
+      apiKey: 'test-key',
+      baseUrl: 'https://example.test/v1',
+      model: 'jasper-test',
+      timeoutMs: 1_000,
+      maximumResponseBytes: 16_384,
+    }, fetcher)
+
+    await expect(reviewer.reviewUpgradePlan(evidence)).resolves.toMatchObject({
+      status: 'invalid',
+      error: 'AI provider response was truncated before valid JSON was completed.',
+    })
+  })
+
   it('explains when the provider returns reasoning without a final answer', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{ message: { content: null, reasoning_content: 'thinking' } }],

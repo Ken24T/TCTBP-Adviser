@@ -56,7 +56,7 @@ class OpenAiCompatibleReviewer implements AiReviewer {
         body: JSON.stringify({
           model: this.settings.model,
           temperature: 0.1,
-          max_tokens: 1_500,
+          max_tokens: 3_000,
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: REVIEW_SYSTEM_PROMPT },
@@ -123,7 +123,8 @@ const REVIEW_SYSTEM_PROMPT = [
   'You are Jasper, an advisory reviewer for deterministic TCTBP upgrade plans.',
   'Do not invent policy details. Treat the supplied evidence as authoritative.',
   'Do not approve or execute changes. Explain risks and recommend the next human step.',
-  'Return JSON with summary, risks, recommendedNextStep, confidence, and unknowns.',
+  'Return one valid JSON object only, with no Markdown fences, prose, or commentary.',
+  'The JSON must contain summary, risks, recommendedNextStep, confidence, and unknowns.',
   'Each risk must be an object with message and evidenceRefs from the supplied evidence.',
   'Do not make claims without evidenceRefs; put unresolved questions in unknowns.',
   'confidence must be low, medium, high, or unknown.',
@@ -148,9 +149,9 @@ function parseProviderResponse(text: string): {
     return { value: null, error: 'AI provider returned an invalid JSON envelope.' }
   }
 
-  let content: string
+  let extracted: { content: string; finishReason: string | null }
   try {
-    content = extractContent(envelope)
+    extracted = extractContent(envelope)
   } catch (error) {
     return {
       value: null,
@@ -162,9 +163,14 @@ function parseProviderResponse(text: string): {
 
   let value: unknown
   try {
-    value = JSON.parse(stripJsonFences(content))
+    value = JSON.parse(stripJsonFences(extracted.content))
   } catch {
-    return { value: null, error: 'AI provider final content was not valid JSON.' }
+    return {
+      value: null,
+      error: extracted.finishReason === 'length'
+        ? 'AI provider response was truncated before valid JSON was completed.'
+        : 'AI provider final content was not valid JSON.',
+    }
   }
   if (!isObject(value) || typeof value.summary !== 'string') {
     return { value: null, error: 'AI provider JSON did not include a summary.' }
@@ -186,22 +192,27 @@ function parseProviderResponse(text: string): {
   }
 }
 
-function extractContent(envelope: unknown): string {
+function extractContent(envelope: unknown): { content: string; finishReason: string | null } {
   if (!isObject(envelope)) throw new Error('AI response is not an object.')
   const choices = Array.isArray(envelope.choices) ? envelope.choices : []
   const first = isObject(choices[0]) ? choices[0] : null
   const message = first && isObject(first.message) ? first.message : null
+  const finishReason = first && typeof first.finish_reason === 'string'
+    ? first.finish_reason
+    : null
   if (!message) throw new Error('AI response has no message.')
   if (typeof message.content === 'string' && message.content.trim().length > 0) {
-    return message.content
+    return { content: message.content, finishReason }
   }
-  if (isObject(message.content)) return JSON.stringify(message.content)
+  if (isObject(message.content)) {
+    return { content: JSON.stringify(message.content), finishReason }
+  }
   if (Array.isArray(message.content)) {
     const content = message.content
       .filter((part) => isObject(part) && typeof part.text === 'string')
       .map((part) => (part as { text: string }).text)
       .join('')
-    if (content.trim().length > 0) return content
+    if (content.trim().length > 0) return { content, finishReason }
   }
   if (typeof message.reasoning_content === 'string') {
     throw new Error('AI provider returned reasoning content but no final answer.')
