@@ -150,7 +150,16 @@ code {
   border-radius: 8px;
 }
 
-.ai-review p:last-child {
+.bootstrap-plan {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: #f3f1eb;
+  border-left: 4px solid #d7984d;
+  border-radius: 8px;
+}
+
+.ai-review p:last-child,
+.bootstrap-plan p:last-child {
   margin-bottom: 0;
 }
 

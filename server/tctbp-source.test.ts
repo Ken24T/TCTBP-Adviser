@@ -255,6 +255,11 @@ describe('canonical TCTBP-Web source planning', () => {
     )
 
     expect(plan.disposition).toBe('bootstrap-required')
+    expect(plan.bootstrap).toMatchObject({
+      applyAllowed: false,
+      managedFileCount: 3,
+      requiredInputs: expect.arrayContaining(['Project name and description']),
+    })
     expect(plan.blockers).toContainEqual({
       code: 'environment-branch',
       message: 'The target is on a configured environment branch; use a dedicated upgrade branch.',

@@ -473,6 +473,31 @@ function createPlan(
     target,
     drift,
     policy,
+    ...(assessment.disposition === 'bootstrap-required'
+      ? {
+        bootstrap: {
+          sourceRevision: source.revision,
+          sourceVersion: source.version,
+          managedFileCount: source.managedFileCount,
+          recommendedBranch: target.branch
+            ? `upgrade/tctbp-bootstrap-${source.revision?.slice(0, 7) ?? 'source'}`
+            : null,
+          requiredInputs: [
+            'Project name and description',
+            'Branch strategy and environment branches',
+            'Version source and release policy',
+            'Test, build, and deployment commands',
+            'Hook layer and local workflow deviations',
+          ],
+          preserveAreas: [
+            'Application source and documentation',
+            'Project-specific package commands',
+            'Branch and deployment settings',
+          ],
+          applyAllowed: false as const,
+        },
+      }
+      : {}),
   }
   return {
     ...plan,

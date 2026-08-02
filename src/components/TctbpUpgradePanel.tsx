@@ -223,6 +223,22 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
         />
       </dl>
       {plan.source.message && <p className="empty-state">{plan.source.message}</p>}
+      {plan.bootstrap && (
+        <section className="bootstrap-plan" aria-label="TCTBP bootstrap plan">
+          <strong>Bootstrap plan</strong>
+          <p>
+            Start on <code>{plan.bootstrap.recommendedBranch ?? 'a dedicated upgrade branch'}</code>.
+          </p>
+          <p>Required decisions before installation:</p>
+          <ul className="compact-list">
+            {plan.bootstrap.requiredInputs.map((input) => <li key={input}>{input}</li>)}
+          </ul>
+          <p>Preserved areas:</p>
+          <ul className="compact-list">
+            {plan.bootstrap.preserveAreas.map((area) => <li key={area}>{area}</li>)}
+          </ul>
+        </section>
+      )}
       {plan.blockers.length > 0 && (
         <ul className="compact-list">
           {plan.blockers.map((blocker) => (

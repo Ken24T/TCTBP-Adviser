@@ -93,6 +93,16 @@ export interface TctbpUpgradeBlocker {
 
 export type ManagedFileActionCounts = Record<ManagedFileAction, number>
 
+export interface TctbpBootstrapPlan {
+  sourceRevision: string | null
+  sourceVersion: string | null
+  managedFileCount: number
+  recommendedBranch: string | null
+  requiredInputs: string[]
+  preserveAreas: string[]
+  applyAllowed: false
+}
+
 export type TctbpApplyMode = 'additions-only' | 'approved-managed-files'
 
 export interface TctbpApplyRequest {
@@ -128,4 +138,5 @@ export interface TctbpUpgradePlan {
   actionCounts: ManagedFileActionCounts
   blockers: TctbpUpgradeBlocker[]
   policy: TctbpPolicyComparison
+  bootstrap?: TctbpBootstrapPlan
 }
