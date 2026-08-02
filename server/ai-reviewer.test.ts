@@ -89,6 +89,25 @@ describe('Jasper upgrade-plan reviewer', () => {
     })
   })
 
+  it('explains when the provider returns reasoning without a final answer', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: null, reasoning_content: 'thinking' } }],
+    }), { status: 200 }))
+    const reviewer = createAiReviewer({
+      enabled: true,
+      apiKey: 'test-key',
+      baseUrl: 'https://example.test/v1',
+      model: 'jasper-test',
+      timeoutMs: 1_000,
+      maximumResponseBytes: 16_384,
+    }, fetcher)
+
+    await expect(reviewer.reviewUpgradePlan(evidence)).resolves.toMatchObject({
+      status: 'invalid',
+      error: 'AI provider returned reasoning content but no final answer.',
+    })
+  })
+
   it('validates a structured provider response without calling real AI', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{

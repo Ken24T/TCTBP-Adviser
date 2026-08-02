@@ -117,11 +117,18 @@ export function TctbpUpgradePanel({
       {plan && (
         <button
           className="upgrade-plan-button"
-          disabled={aiBusy}
+          disabled={
+            aiBusy
+            || (plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request)
+          }
           type="button"
           onClick={onReviewAi}
         >
-          {aiBusy ? 'Asking Jasper…' : 'Ask Jasper to review this plan'}
+          {aiBusy
+            ? 'Asking Jasper…'
+            : plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request
+              ? 'Prepare bootstrap plan first'
+              : 'Ask Jasper to review this plan'}
         </button>
       )}
       {aiReview && <AiReviewDetails review={aiReview} />}

@@ -85,13 +85,13 @@ class OpenAiCompatibleReviewer implements AiReviewer {
         )
       }
       const parsed = parseProviderResponse(text)
-      if (!parsed) {
+      if (!parsed.value) {
         return unavailableResult(
           'invalid',
           reviewId,
           reviewedAt,
           this.settings.model,
-          'AI response did not match the expected review schema.',
+          parsed.error,
         )
       }
       return {
@@ -101,7 +101,7 @@ class OpenAiCompatibleReviewer implements AiReviewer {
         provider: 'openai-compatible',
         model: this.settings.model,
         planFingerprint: evidence.planFingerprint,
-        ...parsed,
+        ...parsed.value,
         error: null,
       }
     } catch (error) {
@@ -129,22 +129,51 @@ const REVIEW_SYSTEM_PROMPT = [
   'confidence must be low, medium, high, or unknown.',
 ].join(' ')
 
-function parseProviderResponse(text: string): {
+type ParsedReview = {
   summary: string
   risks: AiReviewRisk[]
   recommendedNextStep: string
   confidence: 'low' | 'medium' | 'high' | 'unknown'
   unknowns: string[]
-} | null {
+}
+
+function parseProviderResponse(text: string): {
+  value: ParsedReview | null
+  error: string
+} {
+  let envelope: unknown
   try {
-    const envelope: unknown = JSON.parse(text)
-    const content = extractContent(envelope)
-    const value: unknown = JSON.parse(stripJsonFences(content))
-    if (!isObject(value) || typeof value.summary !== 'string') return null
-    const confidence = ['low', 'medium', 'high', 'unknown'].includes(String(value.confidence))
-      ? value.confidence as 'low' | 'medium' | 'high' | 'unknown'
-      : 'unknown'
+    envelope = JSON.parse(text)
+  } catch {
+    return { value: null, error: 'AI provider returned an invalid JSON envelope.' }
+  }
+
+  let content: string
+  try {
+    content = extractContent(envelope)
+  } catch (error) {
     return {
+      value: null,
+      error: error instanceof Error
+        ? error.message
+        : 'AI provider returned no final message content.',
+    }
+  }
+
+  let value: unknown
+  try {
+    value = JSON.parse(stripJsonFences(content))
+  } catch {
+    return { value: null, error: 'AI provider final content was not valid JSON.' }
+  }
+  if (!isObject(value) || typeof value.summary !== 'string') {
+    return { value: null, error: 'AI provider JSON did not include a summary.' }
+  }
+  const confidence = ['low', 'medium', 'high', 'unknown'].includes(String(value.confidence))
+    ? value.confidence as 'low' | 'medium' | 'high' | 'unknown'
+    : 'unknown'
+  return {
+    value: {
       summary: value.summary.slice(0, 4_000),
       risks: parseRisks(value.risks),
       recommendedNextStep: typeof value.recommendedNextStep === 'string'
@@ -152,9 +181,8 @@ function parseProviderResponse(text: string): {
         : 'Review the deterministic plan before taking action.',
       confidence,
       unknowns: stringList(value.unknowns, 5, 500),
-    }
-  } catch {
-    return null
+    },
+    error: '',
   }
 }
 
@@ -164,14 +192,21 @@ function extractContent(envelope: unknown): string {
   const first = isObject(choices[0]) ? choices[0] : null
   const message = first && isObject(first.message) ? first.message : null
   if (!message) throw new Error('AI response has no message.')
-  if (typeof message.content === 'string') return message.content
-  if (Array.isArray(message.content)) {
+  if (typeof message.content === 'string' && message.content.trim().length > 0) {
     return message.content
+  }
+  if (isObject(message.content)) return JSON.stringify(message.content)
+  if (Array.isArray(message.content)) {
+    const content = message.content
       .filter((part) => isObject(part) && typeof part.text === 'string')
       .map((part) => (part as { text: string }).text)
       .join('')
+    if (content.trim().length > 0) return content
   }
-  throw new Error('AI response has no message content.')
+  if (typeof message.reasoning_content === 'string') {
+    throw new Error('AI provider returned reasoning content but no final answer.')
+  }
+  throw new Error('AI provider returned no final message content.')
 }
 
 function stripJsonFences(content: string): string {
