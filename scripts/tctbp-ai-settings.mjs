@@ -8,7 +8,7 @@ import path from 'node:path'
 const command = process.argv[2] || 'status'
 const options = parseOptions(process.argv.slice(3))
 
-if (!['configure', 'status'].includes(command)) {
+if (!['configure', 'status', 'test'].includes(command)) {
   printUsage(1)
 }
 
@@ -25,12 +25,14 @@ const keyPath = path.resolve(
 
 if (command === 'status') {
   const settings = await loadSettings()
-  console.log(`Settings file: ${settingsPath}`)
-  console.log(`Enabled: ${settings.enabled ? 'yes' : 'no'}`)
-  console.log(`Configured: ${settings.apiKey && settings.baseUrl && settings.model ? 'yes' : 'no'}`)
-  console.log(`Base URL: ${settings.baseUrl || 'not configured'}`)
-  console.log(`Model: ${settings.model || 'not configured'}`)
+  printStatus(settings)
   process.exit(0)
+}
+
+if (command === 'test') {
+  const settings = await loadSettings()
+  printStatus(settings)
+  process.exit(await testConnectivity(settings) ? 0 : 1)
 }
 
 const current = await loadSettings()
@@ -55,6 +57,42 @@ await saveSettings({
 console.log(`Encrypted AI settings saved to ${settingsPath}`)
 console.log(`Enabled: ${enabled ? 'yes' : 'no'}`)
 console.log(`Configured: ${apiKey || current.apiKey ? 'yes' : 'no'}`)
+
+function printStatus(settings) {
+  console.log(`Settings file: ${settingsPath}`)
+  console.log(`Enabled: ${settings.enabled ? 'yes' : 'no'}`)
+  console.log(`Configured: ${settings.apiKey && settings.baseUrl && settings.model ? 'yes' : 'no'}`)
+  console.log(`Base URL: ${settings.baseUrl || 'not configured'}`)
+  console.log(`Model: ${settings.model || 'not configured'}`)
+}
+
+async function testConnectivity(settings) {
+  if (!settings.apiKey || !settings.baseUrl) {
+    console.log('Connectivity: not configured')
+    return false
+  }
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), settings.timeoutMs)
+  try {
+    const response = await fetch(`${settings.baseUrl}/models`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${settings.apiKey}`,
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    })
+    console.log(`Connectivity: ${response.ok ? 'ok' : `HTTP ${response.status}`}`)
+    return response.ok
+  } catch (error) {
+    console.log(
+      `Connectivity: ${error instanceof DOMException && error.name === 'AbortError' ? 'timeout' : 'unreachable'}`,
+    )
+    return false
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
 
 function parseOptions(args) {
   const parsed = {
@@ -81,7 +119,7 @@ function parseOptions(args) {
 }
 
 function printUsage(code) {
-  console.log('Usage: npm run ai:settings -- <configure|status> [options]')
+  console.log('Usage: npm run ai:settings -- <configure|status|test> [options]')
   console.log('  --settings-file <path>  Override encrypted settings path')
   console.log('  --key-file <path>       Override encryption key path')
   console.log('  --base-url <url>        Set provider base URL')
