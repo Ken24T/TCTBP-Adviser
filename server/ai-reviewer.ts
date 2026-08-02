@@ -56,7 +56,7 @@ class OpenAiCompatibleReviewer implements AiReviewer {
         body: JSON.stringify({
           model: this.settings.model,
           temperature: 0.1,
-          max_tokens: 3_000,
+          max_tokens: this.settings.maximumOutputTokens,
           response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: REVIEW_SYSTEM_PROMPT },

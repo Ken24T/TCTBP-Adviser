@@ -39,6 +39,7 @@ export interface SafeConfigurationExport {
     baseUrl: string | null
     model: string | null
     timeoutMs: number
+    maximumOutputTokens: number
     maximumResponseBytes: number
   }
   omissions: {

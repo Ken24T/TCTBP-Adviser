@@ -30,6 +30,7 @@ describe('encrypted Adviser AI settings', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 10_000,
+      maximumOutputTokens: 4_000,
       maximumResponseBytes: 65_536,
     }
 
@@ -45,6 +46,7 @@ describe('encrypted Adviser AI settings', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 10_000,
+      maximumOutputTokens: 4_000,
       maximumResponseBytes: 65_536,
     })
   })

@@ -9,6 +9,7 @@ export interface AiSettings {
   baseUrl: string | null
   model: string | null
   timeoutMs: number
+  maximumOutputTokens: number
   maximumResponseBytes: number
 }
 
@@ -23,8 +24,9 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   apiKey: null,
   baseUrl: null,
   model: null,
-  timeoutMs: 30_000,
-  maximumResponseBytes: 512 * 1024,
+  timeoutMs: 120_000,
+  maximumOutputTokens: 8_000,
+  maximumResponseBytes: 2 * 1024 * 1024,
 }
 
 export async function loadAiSettings(
@@ -57,7 +59,13 @@ export async function loadAiSettings(
       environment.TCTBP_ADVISER_AI_TIMEOUT_MS,
       stored.timeoutMs ?? DEFAULT_AI_SETTINGS.timeoutMs,
       1_000,
-      300_000,
+      600_000,
+    ),
+    maximumOutputTokens: boundedInteger(
+      environment.TCTBP_ADVISER_AI_MAX_OUTPUT_TOKENS,
+      stored.maximumOutputTokens ?? DEFAULT_AI_SETTINGS.maximumOutputTokens,
+      1_000,
+      64_000,
     ),
     maximumResponseBytes: boundedInteger(
       environment.TCTBP_ADVISER_AI_MAX_RESPONSE_BYTES,
@@ -79,6 +87,7 @@ export async function saveAiSettings(
     baseUrl: settings.baseUrl,
     model: settings.model,
     timeoutMs: settings.timeoutMs,
+    maximumOutputTokens: settings.maximumOutputTokens,
     maximumResponseBytes: settings.maximumResponseBytes,
   }), environment)
   await mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 })
@@ -98,6 +107,7 @@ export function safeAiSettings(settings: AiSettings) {
     baseUrl: settings.baseUrl,
     model: settings.model,
     timeoutMs: settings.timeoutMs,
+    maximumOutputTokens: settings.maximumOutputTokens,
     maximumResponseBytes: settings.maximumResponseBytes,
   }
 }

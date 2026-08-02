@@ -34,6 +34,7 @@ describe('Jasper upgrade-plan reviewer', () => {
       baseUrl: null,
       model: null,
       timeoutMs: 1_000,
+      maximumOutputTokens: 8_000,
       maximumResponseBytes: 16_384,
     })
 
@@ -57,6 +58,7 @@ describe('Jasper upgrade-plan reviewer', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 1_000,
+      maximumOutputTokens: 8_000,
       maximumResponseBytes: 16_384,
     }, fetcher)
 
@@ -80,6 +82,7 @@ describe('Jasper upgrade-plan reviewer', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 1_000,
+      maximumOutputTokens: 8_000,
       maximumResponseBytes: 16_384,
     }, fetcher)
 
@@ -102,6 +105,7 @@ describe('Jasper upgrade-plan reviewer', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 1_000,
+      maximumOutputTokens: 8_000,
       maximumResponseBytes: 16_384,
     }, fetcher)
 
@@ -121,6 +125,7 @@ describe('Jasper upgrade-plan reviewer', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 1_000,
+      maximumOutputTokens: 8_000,
       maximumResponseBytes: 16_384,
     }, fetcher)
 
@@ -153,6 +158,7 @@ describe('Jasper upgrade-plan reviewer', () => {
       baseUrl: 'https://example.test/v1',
       model: 'jasper-test',
       timeoutMs: 1_000,
+      maximumOutputTokens: 8_000,
       maximumResponseBytes: 16_384,
     }, fetcher)
 

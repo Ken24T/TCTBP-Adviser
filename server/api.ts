@@ -80,8 +80,9 @@ export function createApiRuntime(
     apiKey: null,
     baseUrl: null,
     model: null,
-    timeoutMs: 30_000,
-    maximumResponseBytes: 512 * 1024,
+    timeoutMs: 120_000,
+    maximumOutputTokens: 8_000,
+    maximumResponseBytes: 2 * 1024 * 1024,
   })
   const aiReviewStore = new AiReviewStore()
   const bootstrapJobs = new TctbpBootstrapJobStore()

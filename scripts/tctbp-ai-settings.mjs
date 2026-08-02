@@ -51,7 +51,8 @@ await saveSettings({
   apiKey: apiKey || current.apiKey || null,
   baseUrl: normaliseUrl(baseUrl),
   model: model.trim() || null,
-  timeoutMs: current.timeoutMs,
+  timeoutMs: options.timeoutMs ?? current.timeoutMs,
+  maximumOutputTokens: options.maxOutputTokens ?? current.maximumOutputTokens,
   maximumResponseBytes: current.maximumResponseBytes,
 })
 console.log(`Encrypted AI settings saved to ${settingsPath}`)
@@ -64,6 +65,8 @@ function printStatus(settings) {
   console.log(`Configured: ${settings.apiKey && settings.baseUrl && settings.model ? 'yes' : 'no'}`)
   console.log(`Base URL: ${settings.baseUrl || 'not configured'}`)
   console.log(`Model: ${settings.model || 'not configured'}`)
+  console.log(`Timeout: ${settings.timeoutMs} ms`)
+  console.log(`Maximum output tokens: ${settings.maximumOutputTokens}`)
 }
 
 async function testConnectivity(settings) {
@@ -100,6 +103,8 @@ function parseOptions(args) {
     keyFile: null,
     baseUrl: null,
     model: null,
+    timeoutMs: null,
+    maxOutputTokens: null,
     enabled: false,
     disabled: false,
     keyStdin: false,
@@ -110,11 +115,19 @@ function parseOptions(args) {
     else if (arg === '--key-file') parsed.keyFile = args[++index]
     else if (arg === '--base-url') parsed.baseUrl = args[++index]
     else if (arg === '--model') parsed.model = args[++index]
+    else if (arg === '--timeout-ms') parsed.timeoutMs = boundedInteger(args[++index], 1_000, 600_000)
+    else if (arg === '--max-output-tokens') parsed.maxOutputTokens = boundedInteger(args[++index], 1_000, 64_000)
     else if (arg === '--enabled') parsed.enabled = true
     else if (arg === '--disabled') parsed.disabled = true
     else if (arg === '--key-stdin') parsed.keyStdin = true
     else printUsage(1)
   }
+  return parsed
+}
+
+function boundedInteger(value, minimum, maximum) {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) printUsage(1)
   return parsed
 }
 
@@ -124,6 +137,8 @@ function printUsage(code) {
   console.log('  --key-file <path>       Override encryption key path')
   console.log('  --base-url <url>        Set provider base URL')
   console.log('  --model <name>          Set provider model')
+  console.log('  --timeout-ms <number>   Set request timeout (1,000–600,000 ms)')
+  console.log('  --max-output-tokens <n> Set completion budget (1,000–64,000)')
   console.log('  --enabled|--disabled    Set enabled state without prompting')
   console.log('  --key-stdin             Read the API key from stdin without echoing it')
   process.exit(code)
@@ -135,8 +150,9 @@ async function loadSettings() {
     apiKey: null,
     baseUrl: null,
     model: null,
-    timeoutMs: 30_000,
-    maximumResponseBytes: 512 * 1024,
+    timeoutMs: 120_000,
+    maximumOutputTokens: 8_000,
+    maximumResponseBytes: 2 * 1024 * 1024,
   }
   try {
     const encrypted = JSON.parse(await readFile(settingsPath, 'utf8'))
