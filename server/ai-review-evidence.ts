@@ -24,6 +24,10 @@ export function buildUpgradeReviewEvidence(
     target: {
       branch: observation.head.branch,
       headSha: observation.head.sha,
+      tctbpInstalled: observation.tctbp.installed,
+      policyAvailable: plan.policy.state !== 'unavailable',
+      workingTreeClean: observation.workingTree.clean,
+      detached: observation.head.detached,
       sourceRepository: plan.target.sourceRepository,
       sourceVersion: plan.target.sourceVersion,
     },

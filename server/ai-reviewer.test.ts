@@ -12,6 +12,10 @@ const evidence: UpgradeReviewEvidence = {
   target: {
     branch: 'feature/upgrade',
     headSha: 'b'.repeat(40),
+    tctbpInstalled: true,
+    policyAvailable: true,
+    workingTreeClean: true,
+    detached: false,
     sourceRepository: 'Ken24T/TCTBP-Web',
     sourceVersion: '0.2.0',
   },
@@ -39,13 +43,62 @@ describe('Jasper upgrade-plan reviewer', () => {
     })
   })
 
+  it('accepts fenced JSON and preserves evidence references', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{
+        message: {
+          content: '```json\n{"summary":"Bootstrap needs review.","risks":[{"message":"No policy","evidenceRefs":["target.policyAvailable"]}],"confidence":"low"}\n```',
+        },
+      }],
+    }), { status: 200 }))
+    const reviewer = createAiReviewer({
+      enabled: true,
+      apiKey: 'test-key',
+      baseUrl: 'https://example.test/v1',
+      model: 'jasper-test',
+      timeoutMs: 1_000,
+      maximumResponseBytes: 16_384,
+    }, fetcher)
+
+    await expect(reviewer.reviewUpgradePlan(evidence)).resolves.toMatchObject({
+      status: 'available',
+      summary: 'Bootstrap needs review.',
+      risks: [{
+        message: 'No policy',
+        evidenceRefs: ['target.policyAvailable'],
+      }],
+    })
+  })
+
+  it('reports safe provider diagnostics for HTTP errors', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response('secret provider body', {
+      status: 400,
+    }))
+    const reviewer = createAiReviewer({
+      enabled: true,
+      apiKey: 'test-key',
+      baseUrl: 'https://example.test/v1',
+      model: 'jasper-test',
+      timeoutMs: 1_000,
+      maximumResponseBytes: 16_384,
+    }, fetcher)
+
+    await expect(reviewer.reviewUpgradePlan(evidence)).resolves.toMatchObject({
+      status: 'unavailable',
+      error: 'AI provider returned HTTP 400.',
+    })
+  })
+
   it('validates a structured provider response without calling real AI', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       choices: [{
         message: {
           content: JSON.stringify({
             summary: 'Review the managed file drift.',
-            risks: ['A policy difference needs review.'],
+            risks: [{
+              message: 'A policy difference needs review.',
+              evidenceRefs: ['plan.policyDifferences'],
+            }],
             recommendedNextStep: 'Inspect the exported plan.',
             confidence: 'medium',
             unknowns: [],

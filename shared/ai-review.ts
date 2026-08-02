@@ -7,6 +7,18 @@ import type {
   TctbpSourceAlignment,
 } from './tctbp-upgrade'
 
+export type UpgradeEvidenceReference =
+  | 'plan.disposition'
+  | 'plan.sourceAlignment'
+  | 'target.tctbpInstalled'
+  | 'target.policyAvailable'
+  | 'target.branch'
+  | 'target.workingTreeClean'
+  | 'target.detached'
+  | 'plan.fileActions'
+  | 'plan.blockers'
+  | 'plan.policyDifferences'
+
 export interface UpgradeReviewEvidence {
   evidenceVersion: 1
   repositoryName: string
@@ -21,6 +33,10 @@ export interface UpgradeReviewEvidence {
   target: {
     branch: string | null
     headSha: string | null
+    tctbpInstalled: boolean
+    policyAvailable: boolean
+    workingTreeClean: boolean
+    detached: boolean
     sourceRepository: string | null
     sourceVersion: string | null
   }
@@ -29,6 +45,11 @@ export interface UpgradeReviewEvidence {
   blockers: TctbpUpgradeBlocker[]
   policyDifferences: TctbpPolicyDifference[]
   truncated: boolean
+}
+
+export interface AiReviewRisk {
+  message: string
+  evidenceRefs: UpgradeEvidenceReference[]
 }
 
 export type AiReviewStatus =
@@ -45,7 +66,7 @@ export interface AiReviewResult {
   model: string | null
   planFingerprint: string | null
   summary: string | null
-  risks: string[]
+  risks: AiReviewRisk[]
   recommendedNextStep: string | null
   confidence: 'low' | 'medium' | 'high' | 'unknown'
   unknowns: string[]

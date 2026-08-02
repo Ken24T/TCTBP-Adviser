@@ -11,6 +11,10 @@ const observation = {
   head: {
     branch: 'feature/upgrade', detached: false, unborn: false, sha: 'a'.repeat(40),
   },
+  workingTree: { clean: true, pathCount: 0, counts: {
+    staged: 0, modified: 0, untracked: 0, conflicted: 0,
+  } },
+  tctbp: { installed: true },
 } as RepositoryObservation
 
 const plan = {
@@ -23,6 +27,10 @@ const plan = {
   },
   target: {
     branch: 'feature/upgrade', headSha: 'a'.repeat(40),
+    tctbpInstalled: true,
+    policyAvailable: true,
+    workingTreeClean: true,
+    detached: false,
     sourceRepository: 'Ken24T/TCTBP-Web', sourceRevision: 'd'.repeat(40), sourceVersion: '0.2.0',
   },
   actionCounts: { preserve: 0, add: 0, review: 1, unavailable: 0 },

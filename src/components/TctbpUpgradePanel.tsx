@@ -165,7 +165,17 @@ function AiReviewDetails({ review }: { review: AiReviewResult }) {
       {review.summary && <p>{review.summary}</p>}
       {review.risks.length > 0 && (
         <ul className="compact-list">
-          {review.risks.map((risk) => <li key={risk}>{risk}</li>)}
+          {review.risks.map((risk) => (
+            <li key={risk.message}>
+              {risk.message}
+              {risk.evidenceRefs.length > 0 && (
+                <small> Evidence: {risk.evidenceRefs.join(', ')}</small>
+              )}
+              {risk.evidenceRefs.length === 0 && (
+                <small> Evidence reference unavailable</small>
+              )}
+            </li>
+          ))}
         </ul>
       )}
       {review.recommendedNextStep && (
