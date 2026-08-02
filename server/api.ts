@@ -1,6 +1,8 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SafeConfigurationExport } from '../shared/diagnostics'
+import { createAiReviewer, type AiReviewer } from './ai-reviewer'
+import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
@@ -34,6 +36,7 @@ export interface ApiRuntime {
   readonly inspections: RepositoryInspectionService
   readonly github: GitHubEnrichmentService
   readonly tctbpSource: CanonicalTctbpSourceService
+  readonly aiReviewer: AiReviewer
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -66,12 +69,21 @@ export function createApiRuntime(
     config.canonicalTctbpWebRoot ?? null,
     executor,
   )
+  const aiReviewer = createAiReviewer(config.ai ?? {
+    enabled: false,
+    apiKey: null,
+    baseUrl: null,
+    model: null,
+    timeoutMs: 30_000,
+    maximumResponseBytes: 512 * 1024,
+  })
   return {
     sessionToken,
     registry,
     inspections,
     github,
     tctbpSource,
+    aiReviewer,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -195,6 +207,24 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation,
         )
         sendJson(response, 200, plan)
+        return
+      }
+
+      const reviewMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-upgrade-review$/.exec(url.pathname)
+      if (request.method === 'POST' && reviewMatch) {
+        await requireEmptyBody(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(reviewMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const plan = await runtime.tctbpSource.plan(repository.path, observation)
+        const evidence = buildUpgradeReviewEvidence(
+          repository.name,
+          observation,
+          plan,
+        )
+        sendJson(response, 200, await runtime.aiReviewer.reviewUpgradePlan(evidence))
         return
       }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { AiReviewResult } from '../shared/ai-review'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
@@ -10,6 +11,7 @@ import {
   applyTctbpUpgradePlan,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
+  loadTctbpUpgradeReview,
 } from './api-client'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
@@ -29,6 +31,8 @@ function App() {
   const [upgradeBusy, setUpgradeBusy] = useState(false)
   const [applyBusy, setApplyBusy] = useState(false)
   const [upgradeFeedback, setUpgradeFeedback] = useState<string | null>(null)
+  const [aiReview, setAiReview] = useState<AiReviewResult | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
@@ -87,6 +91,19 @@ function App() {
       captureError(cause, currentRequest)
     } finally {
       if (currentRequest === requestId.current) setUpgradeBusy(false)
+    }
+  }
+
+  async function refreshAiReview(): Promise<void> {
+    if (!selectedId) return
+    setAiBusy(true)
+    setError(null)
+    try {
+      setAiReview(await loadTctbpUpgradeReview(selectedId))
+    } catch (cause) {
+      captureError(cause, requestId.current)
+    } finally {
+      setAiBusy(false)
     }
   }
 
@@ -187,6 +204,8 @@ function App() {
     setUpgradeBusy(false)
     setApplyBusy(false)
     setUpgradeFeedback(null)
+    setAiReview(null)
+    setAiBusy(false)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -200,6 +219,8 @@ function App() {
     setUpgradeBusy(false)
     setApplyBusy(false)
     setUpgradeFeedback(null)
+    setAiReview(null)
+    setAiBusy(false)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -213,6 +234,8 @@ function App() {
     setUpgradeBusy(false)
     setApplyBusy(false)
     setUpgradeFeedback(null)
+    setAiReview(null)
+    setAiBusy(false)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -297,10 +320,13 @@ function App() {
             upgradeBusy={upgradeBusy}
             applyBusy={applyBusy}
             upgradeFeedback={upgradeFeedback}
+            aiReview={aiReview}
+            aiBusy={aiBusy}
             onBack={showPortfolio}
             onIntentChange={changeIntent}
             onRefresh={() => void refreshDetail(selectedId, intent)}
             onLoadUpgradePlan={() => void refreshUpgradePlan(selectedId)}
+            onReviewAi={() => void refreshAiReview()}
             onApplyAdditions={() => void applyUpgradeAdditions()}
             onApplyPolicy={() => void applyUpgradePolicy()}
             onDeleteObsolete={() => void deleteObsoleteUpgradeFiles()}

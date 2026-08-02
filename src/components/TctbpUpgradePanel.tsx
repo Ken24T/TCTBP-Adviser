@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { AiReviewResult } from '../../shared/ai-review'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import {
   createTctbpPlanDocument,
@@ -13,7 +14,10 @@ interface TctbpUpgradePanelProps {
   busy: boolean
   applyBusy: boolean
   upgradeFeedback: string | null
+  aiReview: AiReviewResult | null
+  aiBusy: boolean
   onLoad: () => void
+  onReviewAi: () => void
   onApplyAdditions: () => void
   onApplyPolicy: () => void
   onDeleteObsolete: () => void
@@ -25,7 +29,10 @@ export function TctbpUpgradePanel({
   busy,
   applyBusy,
   upgradeFeedback,
+  aiReview,
+  aiBusy,
   onLoad,
+  onReviewAi,
   onApplyAdditions,
   onApplyPolicy,
   onDeleteObsolete,
@@ -75,6 +82,17 @@ export function TctbpUpgradePanel({
       >
         {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
       </button>
+      {plan && (
+        <button
+          className="upgrade-plan-button"
+          disabled={aiBusy}
+          type="button"
+          onClick={onReviewAi}
+        >
+          {aiBusy ? 'Asking Jasper…' : 'Ask Jasper to review this plan'}
+        </button>
+      )}
+      {aiReview && <AiReviewDetails review={aiReview} />}
       {plan && (
         <div className="plan-export-actions" aria-label="Upgrade plan export">
           <button type="button" onClick={() => exportPlan('markdown')}>
@@ -132,6 +150,31 @@ export function TctbpUpgradePanel({
       {plan && <PlanDetails plan={plan} />}
     </section>
   )
+}
+
+function AiReviewDetails({ review }: { review: AiReviewResult }) {
+  return (
+    <section className="ai-review" aria-label="Jasper AI review">
+      <strong>{aiReviewLabel(review.status)}</strong>
+      {review.summary && <p>{review.summary}</p>}
+      {review.risks.length > 0 && (
+        <ul className="compact-list">
+          {review.risks.map((risk) => <li key={risk}>{risk}</li>)}
+        </ul>
+      )}
+      {review.recommendedNextStep && (
+        <p><strong>Next step:</strong> {review.recommendedNextStep}</p>
+      )}
+      {review.error && <p className="empty-state">{review.error}</p>}
+    </section>
+  )
+}
+
+function aiReviewLabel(status: AiReviewResult['status']): string {
+  if (status === 'available') return 'Jasper review — advisory only'
+  if (status === 'disabled') return 'Jasper review is not configured'
+  if (status === 'invalid') return 'Jasper returned an invalid review'
+  return 'Jasper review is unavailable'
 }
 
 function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {

@@ -142,6 +142,18 @@ code {
   opacity: 0.55;
 }
 
+.ai-review {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: #f3f1eb;
+  border-left: 4px solid #963f2b;
+  border-radius: 8px;
+}
+
+.ai-review p:last-child {
+  margin-bottom: 0;
+}
+
 .plan-export-actions {
   display: flex;
   flex-wrap: wrap;

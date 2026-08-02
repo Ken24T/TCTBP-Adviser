@@ -55,7 +55,10 @@ describe('TCTBP upgrade preview panel', () => {
         busy={false}
         applyBusy={false}
         upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
         onLoad={() => undefined}
+        onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
         onDeleteObsolete={() => undefined}
@@ -66,6 +69,7 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('outdated')
     expect(markup).toContain('Blocked:')
     expect(markup).toContain('Candidate guard is missing.')
+    expect(markup).toContain('Ask Jasper to review this plan')
     expect(markup).toContain('Download Markdown')
     expect(markup).toContain('Download JSON')
     expect(markup).toContain('Copy Markdown')

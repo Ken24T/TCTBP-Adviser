@@ -1,3 +1,4 @@
+import type { AiReviewResult } from '../shared/ai-review'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
@@ -7,6 +8,15 @@ import type {
   TctbpApplyResult,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
+
+export async function loadTctbpUpgradeReview(
+  repositoryId: string,
+): Promise<AiReviewResult> {
+  return requestJson<AiReviewResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-upgrade-review`,
+    { method: 'POST' },
+  )
+}
 
 export async function applyTctbpUpgradePlan(
   repositoryId: string,

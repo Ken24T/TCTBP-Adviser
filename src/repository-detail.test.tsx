@@ -29,9 +29,12 @@ describe('repository detail view', () => {
         upgradeBusy={false}
         applyBusy={false}
         upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
+        onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
         onDeleteObsolete={() => undefined}
@@ -77,9 +80,12 @@ describe('repository detail view', () => {
         upgradeBusy={false}
         applyBusy={false}
         upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
+        onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
         onDeleteObsolete={() => undefined}

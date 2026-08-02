@@ -33,6 +33,14 @@ export interface SafeConfigurationExport {
     cacheTtlMs: number
     concurrency: number
   }
+  ai: {
+    enabled: boolean
+    configured: boolean
+    baseUrl: string | null
+    model: string | null
+    timeoutMs: number
+    maximumResponseBytes: number
+  }
   omissions: {
     repositoryPaths: true
     githubToken: true

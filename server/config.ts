@@ -1,4 +1,5 @@
 import { AdviserError } from './errors'
+import { loadAiSettings, type AiSettings } from './ai-settings'
 import {
   resolveAllowedRepository,
   resolveAllowedRoot,
@@ -16,6 +17,7 @@ export interface ServiceConfig {
   commandTimeoutMs: number
   commandMaxOutputBytes: number
   github: GitHubConfig
+  ai?: AiSettings
 }
 
 export interface GitHubConfig {
@@ -70,6 +72,7 @@ export async function loadServiceConfig(
   return {
     repositoryRoots,
     canonicalTctbpWebRoot,
+    ai: await loadAiSettings(environment),
     excludeDirectories: environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES
       ? safeDirectoryNames(jsonStringArray(
         environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES,
