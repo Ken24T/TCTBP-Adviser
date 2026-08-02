@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../../shared/tctbp-bootstrap'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
@@ -52,6 +52,18 @@ export function TctbpUpgradePanel({
   onDeleteObsolete,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [aiAcknowledged, setAiAcknowledged] = useState(false)
+  const reviewFingerprint = bootstrapPlan?.fingerprint ?? plan?.fingerprint
+  const aiApplyReady = Boolean(
+    reviewFingerprint
+    && aiReview?.status === 'available'
+    && aiReview.planFingerprint === reviewFingerprint
+    && aiAcknowledged,
+  )
+
+  useEffect(() => {
+    setAiAcknowledged(false)
+  }, [aiReview?.reviewId])
 
   function exportPlan(format: 'markdown' | 'json'): void {
     if (!plan) return
@@ -107,6 +119,16 @@ export function TctbpUpgradePanel({
         </button>
       )}
       {aiReview && <AiReviewDetails review={aiReview} />}
+      {plan && aiReview?.status === 'available' && aiReview.planFingerprint === reviewFingerprint && (
+        <label className="ai-acknowledgement">
+          <input
+            checked={aiAcknowledged}
+            type="checkbox"
+            onChange={(event) => setAiAcknowledged(event.currentTarget.checked)}
+          />
+          I have reviewed Jasper’s advisory and the deterministic plan.
+        </label>
+      )}
       {plan && (
         <div className="plan-export-actions" aria-label="Upgrade plan export">
           <button type="button" onClick={() => exportPlan('markdown')}>
@@ -122,6 +144,7 @@ export function TctbpUpgradePanel({
             className="upgrade-apply-button"
             disabled={
               applyBusy
+              || !aiApplyReady
               || !plan.fingerprint
               || plan.blockers.length > 0
               || plan.actionCounts.add === 0
@@ -135,6 +158,7 @@ export function TctbpUpgradePanel({
             className="upgrade-apply-button"
             disabled={
               applyBusy
+              || !aiApplyReady
               || !plan.fingerprint
               || plan.blockers.length > 0
               || plan.policy.state !== 'drifted'
@@ -148,6 +172,7 @@ export function TctbpUpgradePanel({
             className="upgrade-apply-button"
             disabled={
               applyBusy
+              || !aiApplyReady
               || !plan.fingerprint
               || plan.blockers.length > 0
               || (plan.drift.obsoleteTargets?.length ?? 0) === 0
@@ -168,6 +193,7 @@ export function TctbpUpgradePanel({
           applyBusy={bootstrapApplyBusy}
           plan={bootstrapPlan}
           applyFeedback={bootstrapApplyFeedback}
+          aiApplyReady={aiApplyReady}
           onPrepare={onPrepareBootstrap}
           onApply={onApplyBootstrap}
         />

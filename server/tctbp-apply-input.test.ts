@@ -7,6 +7,8 @@ describe('TCTBP apply request validation', () => {
   it('accepts an explicitly confirmed additions-only request', async () => {
     const request = await readTctbpApplyRequest(body({
       confirm: true,
+      aiReviewId: 'review-id',
+      aiReviewAcknowledged: true,
       planFingerprint: 'a'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
@@ -16,6 +18,8 @@ describe('TCTBP apply request validation', () => {
 
     expect(request).toEqual({
       confirm: true,
+      aiReviewId: 'review-id',
+      aiReviewAcknowledged: true,
       planFingerprint: 'a'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
@@ -35,6 +39,8 @@ describe('TCTBP apply request validation', () => {
     }))).rejects.toMatchObject({ code: 'request-confirmation-required' })
     await expect(readTctbpApplyRequest(body({
       confirm: true,
+      aiReviewId: 'review-id',
+      aiReviewAcknowledged: true,
       planFingerprint: 'stale',
       mode: 'additions-only',
       approvedPaths: [],

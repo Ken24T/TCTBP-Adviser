@@ -67,108 +67,109 @@ export function RepositoryDetail({
   return (
     <>
       <header className="repository-header">
-        <div>
-          {onBack && (
-            <button className="back-button" type="button" onClick={onBack}>
-              ← Portfolio
-            </button>
-          )}
-          <p className="eyebrow">Configured local repository</p>
-          <h1>{observation.repository.name}</h1>
-          <p className="repository-description">
-            {observation.tctbp.projectDescription
-              ?? 'No project description is available in the TCTBP profile.'}
-          </p>
-        </div>
-        <div className="trust-badges" aria-label="Inspection properties">
-          <span>Local evidence</span>
-          <span>Read-only inspection</span>
-          <span>Managed TCTBP apply only</span>
-        </div>
+<div>
+  {onBack && (
+    <button className="back-button" type="button" onClick={onBack}>
+      ← Portfolio
+    </button>
+  )}
+  <p className="eyebrow">Configured local repository</p>
+  <h1>{observation.repository.name}</h1>
+  <p className="repository-description">
+    {observation.tctbp.projectDescription
+      ?? 'No project description is available in the TCTBP profile.'}
+  </p>
+</div>
+<div className="trust-badges" aria-label="Inspection properties">
+  <span>Local evidence</span>
+  <span>Read-only inspection</span>
+  <span>Managed TCTBP apply only</span>
+</div>
       </header>
 
       <section className="intent-bar" aria-labelledby="intent-title">
-        <div>
-          <p className="eyebrow">Intent adviser</p>
-          <h2 id="intent-title">What are you trying to do?</h2>
-        </div>
-        <div className="intent-actions">
-          <label className="intent-select">
-            <span>Selected outcome</span>
-            <select
-              disabled={busy}
-              value={intent}
-              onChange={(event) => onIntentChange(
-                event.currentTarget.value as RecommendationIntent,
-              )}
-            >
-              {INTENT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="refresh-button"
-            disabled={busy}
-            onClick={onRefresh}
-            type="button"
-          >
-            {busy ? 'Inspecting…' : 'Refresh'}
-          </button>
-        </div>
+<div>
+  <p className="eyebrow">Intent adviser</p>
+  <h2 id="intent-title">What are you trying to do?</h2>
+</div>
+<div className="intent-actions">
+  <label className="intent-select">
+    <span>Selected outcome</span>
+    <select
+      disabled={busy}
+      value={intent}
+      onChange={(event) => onIntentChange(
+event.currentTarget.value as RecommendationIntent,
+      )}
+    >
+      {INTENT_OPTIONS.map((option) => (
+<option key={option.value} value={option.value}>
+  {option.label}
+</option>
+      ))}
+    </select>
+  </label>
+  <button
+    className="refresh-button"
+    disabled={busy}
+    onClick={onRefresh}
+    type="button"
+  >
+    {busy ? 'Inspecting…' : 'Refresh'}
+  </button>
+</div>
       </section>
 
       <RecommendationPanel recommendation={recommendation} />
       <IntentPlanPanel plan={detail.intentPlan} />
       <RepositoryState
-        observation={observation}
-        recommendation={recommendation}
+observation={observation}
+recommendation={recommendation}
       />
       <TctbpPanel observation={observation} />
       <TctbpUpgradePanel
-        repositoryName={observation.repository.name}
-        plan={upgradePlan}
-        busy={upgradeBusy}
-        applyBusy={applyBusy}
-        upgradeFeedback={upgradeFeedback}
-        aiReview={aiReview}
-        aiBusy={aiBusy}
-        bootstrapPlan={bootstrapPlan}
-        bootstrapBusy={bootstrapBusy}
-        bootstrapApplyBusy={bootstrapApplyBusy}
-        bootstrapApplyFeedback={bootstrapApplyFeedback}
-        onPrepareBootstrap={onPrepareBootstrap}
-        onApplyBootstrap={onApplyBootstrap}
-        onLoad={onLoadUpgradePlan}
-        onReviewAi={onReviewAi}
-        onApplyAdditions={onApplyAdditions}
-        onApplyPolicy={onApplyPolicy}
-        onDeleteObsolete={onDeleteObsolete}
+repositoryName={observation.repository.name}
+plan={upgradePlan}
+busy={upgradeBusy}
+applyBusy={applyBusy}
+upgradeFeedback={upgradeFeedback}
+aiReview={aiReview}
+aiBusy={aiBusy}
+bootstrapPlan={bootstrapPlan}
+bootstrapBusy={bootstrapBusy}
+bootstrapApplyBusy={bootstrapApplyBusy}
+bootstrapApplyFeedback={bootstrapApplyFeedback}
+
+onPrepareBootstrap={onPrepareBootstrap}
+onApplyBootstrap={onApplyBootstrap}
+onLoad={onLoadUpgradePlan}
+onReviewAi={onReviewAi}
+onApplyAdditions={onApplyAdditions}
+onApplyPolicy={onApplyPolicy}
+onDeleteObsolete={onDeleteObsolete}
       />
       <RepositoryReferencePanel reference={detail.reference} />
       <GitHubPanel
-        evidence={detail.github}
-        localBranch={observation.head.branch}
-        localSha={observation.head.sha}
+evidence={detail.github}
+localBranch={observation.head.branch}
+localSha={observation.head.sha}
       />
 
       <section className="uncertainties" aria-labelledby="uncertainty-title">
-        <p className="eyebrow">Known limits</p>
-        <h2 id="uncertainty-title">What this inspection cannot prove</h2>
-        <ul>
-          {recommendation.uncertainties.map((issue) => (
-            <li key={`${issue.code}-${issue.message}`}>{issue.message}</li>
-          ))}
-          {observation.tctbp.scaffold.uncertainties.map((message) => (
-            <li key={message}>{message}</li>
-          ))}
-          <li>
-            No fetch was performed. Remote comparisons use locally cached
-            tracking refs and may not reflect current GitHub state.
-          </li>
-        </ul>
+<p className="eyebrow">Known limits</p>
+<h2 id="uncertainty-title">What this inspection cannot prove</h2>
+<ul>
+  {recommendation.uncertainties.map((issue) => (
+    <li key={`${issue.code}-${issue.message}`}>{issue.message}</li>
+  ))}
+  {observation.tctbp.scaffold.uncertainties.map((message) => (
+    <li key={message}>{message}</li>
+  ))}
+  <li>
+    No fetch was performed. Remote comparisons use locally cached
+    tracking refs and may not reflect current GitHub state.
+  </li>
+</ul>
       </section>
     </>
   )

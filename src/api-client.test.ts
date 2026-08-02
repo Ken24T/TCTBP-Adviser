@@ -29,6 +29,7 @@ describe('repository detail client', () => {
     await expect(applyTctbpUpgradePlan(
       'opaque-id',
       'a'.repeat(64),
+      'review-id',
       'additions-only',
     )).resolves.toStrictEqual(result)
     expect(fetchMock).toHaveBeenCalledWith(
@@ -37,6 +38,8 @@ describe('repository detail client', () => {
         method: 'POST',
         body: JSON.stringify({
           confirm: true,
+          aiReviewId: 'review-id',
+          aiReviewAcknowledged: true,
           planFingerprint: 'a'.repeat(64),
           mode: 'additions-only',
           approvedPaths: [],

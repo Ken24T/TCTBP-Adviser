@@ -18,11 +18,19 @@ export async function readBootstrapApplyRequest(
     throw new AdviserError('request-body-invalid', 'Bootstrap apply request must contain an object.')
   }
   const value = body as Record<string, unknown>
-  if (value.confirm !== true || typeof value.planFingerprint !== 'string' || typeof value.request !== 'object') {
+  if (
+    value.confirm !== true
+    || value.aiReviewAcknowledged !== true
+    || typeof value.aiReviewId !== 'string'
+    || typeof value.planFingerprint !== 'string'
+    || typeof value.request !== 'object'
+  ) {
     throw new AdviserError('bootstrap-confirmation-required', 'Bootstrap apply requires explicit confirmation and a plan fingerprint.')
   }
   return {
     confirm: true,
+    aiReviewId: value.aiReviewId,
+    aiReviewAcknowledged: true,
     planFingerprint: value.planFingerprint,
     request: validateBootstrapRequest(value.request),
   }

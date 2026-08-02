@@ -11,6 +11,7 @@ interface TctbpBootstrapPanelProps {
   applyBusy: boolean
   plan: TctbpBootstrapPlan | null
   applyFeedback: string | null
+  aiApplyReady: boolean
   onPrepare: (request: TctbpBootstrapRequest) => void
   onApply: (request: TctbpBootstrapRequest) => void
 }
@@ -21,6 +22,7 @@ export function TctbpBootstrapPanel({
   applyBusy,
   plan,
   applyFeedback,
+  aiApplyReady,
   onPrepare,
   onApply,
 }: TctbpBootstrapPanelProps) {
@@ -89,6 +91,7 @@ export function TctbpBootstrapPanel({
             className="upgrade-apply-button"
             disabled={
               applyBusy
+              || !aiApplyReady
               || !plan.fingerprint
               || plan.targetClean !== true
               || plan.targetDetached === true

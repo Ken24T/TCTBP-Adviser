@@ -18,6 +18,8 @@ export interface TctbpBootstrapRequest {
 
 export interface TctbpBootstrapApplyRequest {
   confirm: true
+  aiReviewId: string
+  aiReviewAcknowledged: true
   planFingerprint: string
   request: TctbpBootstrapRequest
 }

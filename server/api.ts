@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SafeConfigurationExport } from '../shared/diagnostics'
 import { createAiReviewer, type AiReviewer } from './ai-reviewer'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
+import { AiReviewStore } from './ai-review-store'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
@@ -39,6 +40,7 @@ export interface ApiRuntime {
   readonly github: GitHubEnrichmentService
   readonly tctbpSource: CanonicalTctbpSourceService
   readonly aiReviewer: AiReviewer
+  readonly aiReviewStore: AiReviewStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -79,6 +81,7 @@ export function createApiRuntime(
     timeoutMs: 30_000,
     maximumResponseBytes: 512 * 1024,
   })
+  const aiReviewStore = new AiReviewStore()
   return {
     sessionToken,
     registry,
@@ -86,6 +89,7 @@ export function createApiRuntime(
     github,
     tctbpSource,
     aiReviewer,
+    aiReviewStore,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -95,6 +99,31 @@ export function createApiRuntime(
       github,
       tctbpSource,
     ),
+  }
+}
+
+function requireAiApproval(
+  store: AiReviewStore,
+  reviewId: string,
+  acknowledged: boolean,
+  currentPlanFingerprint: string | undefined,
+): void {
+  if (!acknowledged) {
+    throw new AdviserError(
+      'ai-review-acknowledgement-required',
+      'A successful Jasper review must be acknowledged before applying changes.',
+    )
+  }
+  const review = store.get(reviewId)
+  if (
+    !review
+    || review.status !== 'available'
+    || review.planFingerprint !== currentPlanFingerprint
+  ) {
+    throw new AdviserError(
+      'ai-review-stale-or-unavailable',
+      'The Jasper review is missing, unavailable, or no longer matches the current plan.',
+    )
   }
 }
 
@@ -196,6 +225,30 @@ export function createApiHandler(runtime: ApiRuntime) {
         return
       }
 
+      const bootstrapReviewMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-review$/.exec(url.pathname)
+      if (request.method === 'POST' && bootstrapReviewMatch) {
+        const bootstrapRequest = await readBootstrapRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapReviewMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const [plan, bootstrapPlan] = await Promise.all([
+          runtime.tctbpSource.plan(repository.path, observation),
+          runtime.tctbpSource.bootstrapPlan(observation, bootstrapRequest),
+        ])
+        const evidence = buildUpgradeReviewEvidence(
+          repository.name,
+          observation,
+          plan,
+          bootstrapPlan,
+        )
+        const result = await runtime.aiReviewer.reviewUpgradePlan(evidence)
+        runtime.aiReviewStore.put(result)
+        sendJson(response, 200, result)
+        return
+      }
+
       const bootstrapApplyMatch =
         /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-apply$/.exec(url.pathname)
       if (request.method === 'POST' && bootstrapApplyMatch) {
@@ -204,6 +257,16 @@ export function createApiHandler(runtime: ApiRuntime) {
           decodeURIComponent(bootstrapApplyMatch[1]),
         )
         const observation = await runtime.inspections.inspect(repository)
+        const bootstrapPlan = await runtime.tctbpSource.bootstrapPlan(
+          observation,
+          bootstrapRequest.request,
+        )
+        requireAiApproval(
+          runtime.aiReviewStore,
+          bootstrapRequest.aiReviewId,
+          bootstrapRequest.aiReviewAcknowledged,
+          bootstrapPlan.fingerprint,
+        )
         const result = await runtime.tctbpSource.bootstrapApply(
           repository.path,
           observation,
@@ -259,7 +322,9 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation,
           plan,
         )
-        sendJson(response, 200, await runtime.aiReviewer.reviewUpgradePlan(evidence))
+        const result = await runtime.aiReviewer.reviewUpgradePlan(evidence)
+        runtime.aiReviewStore.put(result)
+        sendJson(response, 200, result)
         return
       }
 
@@ -271,6 +336,13 @@ export function createApiHandler(runtime: ApiRuntime) {
           decodeURIComponent(applyMatch[1]),
         )
         const observation = await runtime.inspections.inspect(repository)
+        const currentPlan = await runtime.tctbpSource.plan(repository.path, observation)
+        requireAiApproval(
+          runtime.aiReviewStore,
+          applyRequest.aiReviewId,
+          applyRequest.aiReviewAcknowledged,
+          currentPlan.fingerprint,
+        )
         const result = await runtime.tctbpSource.apply(
           repository.path,
           observation,

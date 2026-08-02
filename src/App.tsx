@@ -13,6 +13,7 @@ import {
   applyTctbpUpgradePlan,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
+  loadTctbpBootstrapReview,
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
 } from './api-client'
@@ -93,7 +94,10 @@ function App() {
     setError(null)
     try {
       const nextPlan = await loadTctbpUpgradePlan(repositoryId)
-      if (currentRequest === requestId.current) setUpgradePlan(nextPlan)
+      if (currentRequest === requestId.current) {
+        setUpgradePlan(nextPlan)
+        setAiReview(null)
+      }
     } catch (cause) {
       captureError(cause, currentRequest)
     } finally {
@@ -106,7 +110,10 @@ function App() {
     setAiBusy(true)
     setError(null)
     try {
-      setAiReview(await loadTctbpUpgradeReview(selectedId))
+      const nextReview = bootstrapPlan?.request
+        ? await loadTctbpBootstrapReview(selectedId, bootstrapPlan.request)
+        : await loadTctbpUpgradeReview(selectedId)
+      setAiReview(nextReview)
     } catch (cause) {
       captureError(cause, requestId.current)
     } finally {
@@ -117,6 +124,7 @@ function App() {
   async function prepareBootstrap(request: TctbpBootstrapRequest): Promise<void> {
     if (!selectedId) return
     setBootstrapBusy(true)
+    setAiReview(null)
     setError(null)
     try {
       setBootstrapPlan(await prepareTctbpBootstrap(selectedId, request))
@@ -128,7 +136,7 @@ function App() {
   }
 
   async function applyBootstrap(request: TctbpBootstrapRequest): Promise<void> {
-    if (!selectedId || !bootstrapPlan?.fingerprint) return
+    if (!selectedId || !bootstrapPlan?.fingerprint || aiReview?.status !== 'available') return
     if (!window.confirm(
       'Create the bootstrap branch and install canonical TCTBP infrastructure? No commit or push will be performed.',
     )) return
@@ -139,6 +147,7 @@ function App() {
       const result = await applyTctbpBootstrap(
         selectedId,
         bootstrapPlan.fingerprint,
+        aiReview.reviewId,
         request,
       )
       setBootstrapApplyFeedback(
@@ -153,13 +162,13 @@ function App() {
   }
 
   async function applyUpgrade(
-    mode: Parameters<typeof applyTctbpUpgradePlan>[2],
+    mode: Parameters<typeof applyTctbpUpgradePlan>[3],
     approvedPaths: string[],
     approvedDeletionPaths: string[],
     confirmDeletions: boolean,
     confirmation: string,
   ): Promise<void> {
-    if (!selectedId || !upgradePlan?.fingerprint) return
+    if (!selectedId || !upgradePlan?.fingerprint || aiReview?.status !== 'available') return
     if (!window.confirm(confirmation)) return
     setApplyBusy(true)
     setUpgradeFeedback(null)
@@ -168,6 +177,7 @@ function App() {
       const result = await applyTctbpUpgradePlan(
         selectedId,
         upgradePlan.fingerprint,
+        aiReview.reviewId,
         mode,
         approvedPaths,
         approvedDeletionPaths,

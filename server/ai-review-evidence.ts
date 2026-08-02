@@ -8,13 +8,14 @@ export function buildUpgradeReviewEvidence(
   repositoryName: string,
   observation: RepositoryObservation,
   plan: TctbpUpgradePlan,
+  bootstrapPlan?: UpgradeReviewEvidence['bootstrap'],
 ): UpgradeReviewEvidence {
   const files = plan.drift.files.filter((file) => file.action !== 'preserve')
   return {
     evidenceVersion: 1,
     repositoryName: repositoryName.slice(0, 200),
-    planFingerprint: plan.fingerprint ?? null,
-    disposition: plan.disposition,
+    planFingerprint: bootstrapPlan?.fingerprint ?? plan.fingerprint ?? null,
+    disposition: bootstrapPlan ? 'bootstrap-required' : plan.disposition,
     sourceAlignment: plan.sourceAlignment,
     source: {
       repository: plan.source.repository,
@@ -44,6 +45,7 @@ export function buildUpgradeReviewEvidence(
       area: difference.area,
       message: difference.message.slice(0, 500),
     })),
+    bootstrap: bootstrapPlan,
     truncated: files.length > MAX_FILES,
   }
 }

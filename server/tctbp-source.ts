@@ -154,7 +154,9 @@ export class CanonicalTctbpSourceService {
         capabilities: ['inspection.local-v1', 'workflow-catalogue.core-v1', 'reason-codes.core-v1'],
       },
       installedAt: new Date().toISOString().slice(0, 10),
-      managedSurface: source.managedPaths,
+      managedSurface: source.managedPaths.filter((filePath) => (
+        request.request.includeHookLayer || !filePath.startsWith('.github/hooks/')
+      )),
     }, null, 2) + '\n'
     const appliedPaths: string[] = []
     for (const [filePath, content] of sourceFiles) {

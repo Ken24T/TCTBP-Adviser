@@ -1,3 +1,4 @@
+import type { TctbpBootstrapPlan } from './tctbp-bootstrap'
 import type {
   ManagedFileActionCounts,
   ManagedFileDrift,
@@ -44,6 +45,7 @@ export interface UpgradeReviewEvidence {
   files: ManagedFileDrift[]
   blockers: TctbpUpgradeBlocker[]
   policyDifferences: TctbpPolicyDifference[]
+  bootstrap?: TctbpBootstrapPlan
   truncated: boolean
 }
 

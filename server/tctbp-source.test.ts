@@ -65,6 +65,8 @@ describe('canonical TCTBP-Web source planning', () => {
     })
     const result = await service.bootstrapApply(target, observation, {
       confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
       planFingerprint: plan.fingerprint ?? '',
       request: plan.request!,
     })
@@ -182,6 +184,8 @@ describe('canonical TCTBP-Web source planning', () => {
     const plan = await service.plan(target, observation)
     const request: TctbpApplyRequest = {
       confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
       planFingerprint: plan.fingerprint ?? '',
       mode: 'additions-only',
       approvedPaths: [],
@@ -214,6 +218,8 @@ describe('canonical TCTBP-Web source planning', () => {
 
     await expect(service.apply(target, observation, {
       confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
       planFingerprint: 'b'.repeat(64),
       mode: 'additions-only',
       approvedPaths: [],
@@ -257,6 +263,8 @@ describe('canonical TCTBP-Web source planning', () => {
 
     await service.apply(target, observation, {
       confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
       planFingerprint: plan.fingerprint ?? '',
       mode: 'approved-managed-files',
       approvedPaths: ['.github/TCTBP.json'],
@@ -299,6 +307,8 @@ describe('canonical TCTBP-Web source planning', () => {
     ])
     await service.apply(target, observation, {
       confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
       planFingerprint: plan.fingerprint ?? '',
       mode: 'approved-managed-files',
       approvedPaths: [],

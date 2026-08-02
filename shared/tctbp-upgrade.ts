@@ -100,6 +100,8 @@ export type TctbpApplyMode = 'additions-only' | 'approved-managed-files'
 
 export interface TctbpApplyRequest {
   confirm: true
+  aiReviewId: string
+  aiReviewAcknowledged: true
   planFingerprint: string
   mode: TctbpApplyMode
   approvedPaths: string[]

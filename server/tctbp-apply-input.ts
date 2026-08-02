@@ -46,6 +46,8 @@ export async function readTctbpApplyRequest(
   const record = body as Record<string, unknown>
   const allowedKeys = new Set([
     'confirm',
+    'aiReviewId',
+    'aiReviewAcknowledged',
     'planFingerprint',
     'mode',
     'approvedPaths',
@@ -58,10 +60,16 @@ export async function readTctbpApplyRequest(
       'TCTBP apply request contains unsupported fields.',
     )
   }
-  if (record.confirm !== true) {
+  if (record.confirm !== true || record.aiReviewAcknowledged !== true) {
     throw new AdviserError(
       'request-confirmation-required',
-      'TCTBP apply requires explicit confirmation.',
+      'TCTBP apply requires explicit confirmation and an acknowledged Jasper review.',
+    )
+  }
+  if (typeof record.aiReviewId !== 'string' || record.aiReviewId.length === 0) {
+    throw new AdviserError(
+      'request-ai-review-invalid',
+      'TCTBP apply requires a valid Jasper review identifier.',
     )
   }
   if (
@@ -105,6 +113,8 @@ export async function readTctbpApplyRequest(
 
   return {
     confirm: true,
+    aiReviewId: record.aiReviewId,
+    aiReviewAcknowledged: true,
     planFingerprint: record.planFingerprint,
     mode: record.mode as TctbpApplyMode,
     approvedPaths: Array.from(new Set(record.approvedPaths as string[])),

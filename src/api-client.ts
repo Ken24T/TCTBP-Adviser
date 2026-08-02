@@ -14,9 +14,24 @@ import type {
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
 
+export async function loadTctbpBootstrapReview(
+  repositoryId: string,
+  request: TctbpBootstrapRequest,
+): Promise<AiReviewResult> {
+  return requestJson<AiReviewResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-review`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    },
+  )
+}
+
 export async function applyTctbpBootstrap(
   repositoryId: string,
   planFingerprint: string,
+  aiReviewId: string,
   request: TctbpBootstrapRequest,
 ): Promise<TctbpBootstrapApplyResult> {
   return requestJson<TctbpBootstrapApplyResult>(
@@ -24,7 +39,13 @@ export async function applyTctbpBootstrap(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: true, planFingerprint, request }),
+      body: JSON.stringify({
+        confirm: true,
+        aiReviewId,
+        aiReviewAcknowledged: true,
+        planFingerprint,
+        request,
+      }),
     },
   )
 }
@@ -55,6 +76,7 @@ export async function loadTctbpUpgradeReview(
 export async function applyTctbpUpgradePlan(
   repositoryId: string,
   planFingerprint: string,
+  aiReviewId: string,
   mode: TctbpApplyMode,
   approvedPaths: string[] = [],
   approvedDeletionPaths: string[] = [],
@@ -67,6 +89,8 @@ export async function applyTctbpUpgradePlan(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         confirm: true,
+        aiReviewId,
+        aiReviewAcknowledged: true,
         planFingerprint,
         mode,
         approvedPaths,
