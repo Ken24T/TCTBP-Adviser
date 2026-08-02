@@ -30,6 +30,8 @@ source revision but does not modify or execute the canonical checkout.
 Optional Jasper upgrade-plan reviews use encrypted local settings and remain
 advisory only. AI review is disabled unless explicitly enabled and configured;
 the API key is never sent to the browser or included in diagnostic exports.
+Configure it locally with `npm run ai:settings -- configure`; inspect the safe
+state with `npm run ai:settings -- status`.
 
 The application discovers bounded local roots and opens the portfolio
 dashboard. Select a repository to see local branch and working-tree state, one
