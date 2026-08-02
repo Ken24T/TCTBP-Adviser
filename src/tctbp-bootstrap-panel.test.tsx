@@ -8,8 +8,11 @@ describe('TCTBP bootstrap panel', () => {
       <TctbpBootstrapPanel
         repositoryName="ddre-intranet-roadmap"
         busy={false}
+        applyBusy={false}
         plan={null}
+        applyFeedback={null}
         onPrepare={() => undefined}
+        onApply={() => undefined}
       />,
     )
 

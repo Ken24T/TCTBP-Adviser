@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createTemporaryDirectory } from '../test/helpers'
+import { createGitRepository, createTemporaryDirectory, git } from '../test/helpers'
 import type { TctbpApplyRequest } from '../shared/tctbp-upgrade'
 import type { GitExecutor } from './git-command'
 import { CanonicalTctbpSourceService } from './tctbp-source'
@@ -16,6 +16,72 @@ afterEach(async () => {
 })
 
 describe('canonical TCTBP-Web source planning', () => {
+  it('bootstraps a temporary target on a dedicated branch without committing', async () => {
+    const root = await createTemporaryDirectory()
+    temporaryDirectories.push(root)
+    const source = path.join(root, 'TCTBP-Web')
+    const target = await createGitRepository(root, 'target')
+    await mkdir(path.join(source, 'scripts'), { recursive: true })
+    await mkdir(path.join(source, '.github'), { recursive: true })
+    await mkdir(path.join(source, 'schemas'), { recursive: true })
+    await writeFile(
+      path.join(source, 'scripts', 'tctbp-run-scaffold.js'),
+      [
+        'const RUNNER_FILES = ["tctbp-core.js"];',
+        'const GITHUB_FILES = [];',
+        'const PROMPT_FILES = [];',
+        'const CONTRACT_FILES = ["schemas/contract.json"];',
+      ].join('\\n'),
+    )
+    await writeFile(path.join(source, 'VERSION'), '{"version":"0.3.0"}\\n')
+    await writeFile(
+      path.join(source, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        project: { name: 'canonical' },
+        profile: { commands: {}, qualityGates: {} },
+      }),
+    )
+    await writeFile(path.join(source, 'scripts', 'tctbp-core.js'), '// core\\n')
+    await writeFile(path.join(source, 'schemas', 'contract.json'), '{}\\n')
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: null,
+      sourceRevision: null,
+      sourceVersion: null,
+    }, 'main', [], false)
+    const plan = await service.bootstrapPlan(observation, {
+      projectName: 'target',
+      projectDescription: 'A test target.',
+      branchStrategy: 'simple',
+      workingBranch: 'development',
+      preProductionBranch: null,
+      productionBranch: 'main',
+      testCommand: 'npm run test',
+      buildCommand: 'npm run build',
+      deployEnabled: false,
+      includeHookLayer: true,
+    })
+    const result = await service.bootstrapApply(target, observation, {
+      confirm: true,
+      planFingerprint: plan.fingerprint ?? '',
+      request: plan.request!,
+    })
+
+    expect(result).toMatchObject({
+      status: 'applied',
+      branch: 'upgrade/tctbp-bootstrap-aaaaaaa',
+      committed: false,
+      pushed: false,
+    })
+    expect(git(target, ['branch', '--show-current'])).toBe('upgrade/tctbp-bootstrap-aaaaaaa')
+    await expect(readFile(path.join(target, '.github', 'TCTBP.json'), 'utf8'))
+      .resolves.toContain('"name": "target"')
+    await expect(readFile(path.join(target, '.tctbp', 'source.json'), 'utf8'))
+      .resolves.toContain('Ken24T/TCTBP-Web')
+  })
+
   it('plans managed-file drift against a configured canonical checkout', async () => {
     const root = await createTemporaryDirectory()
     temporaryDirectories.push(root)

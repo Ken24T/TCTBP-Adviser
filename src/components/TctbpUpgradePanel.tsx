@@ -20,7 +20,10 @@ interface TctbpUpgradePanelProps {
   aiBusy: boolean
   bootstrapPlan: TctbpBootstrapPlan | null
   bootstrapBusy: boolean
+  bootstrapApplyBusy: boolean
+  bootstrapApplyFeedback: string | null
   onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
+  onApplyBootstrap: (request: TctbpBootstrapRequest) => void
   onLoad: () => void
   onReviewAi: () => void
   onApplyAdditions: () => void
@@ -38,7 +41,10 @@ export function TctbpUpgradePanel({
   aiBusy,
   bootstrapPlan,
   bootstrapBusy,
+  bootstrapApplyBusy,
+  bootstrapApplyFeedback,
   onPrepareBootstrap,
+  onApplyBootstrap,
   onLoad,
   onReviewAi,
   onApplyAdditions,
@@ -159,8 +165,11 @@ export function TctbpUpgradePanel({
         <TctbpBootstrapPanel
           repositoryName={repositoryName}
           busy={bootstrapBusy}
+          applyBusy={bootstrapApplyBusy}
           plan={bootstrapPlan}
+          applyFeedback={bootstrapApplyFeedback}
           onPrepare={onPrepareBootstrap}
+          onApply={onApplyBootstrap}
         />
       )}
       {plan && <PlanDetails plan={plan} />}

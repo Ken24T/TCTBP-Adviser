@@ -16,7 +16,23 @@ export interface TctbpBootstrapRequest {
   includeHookLayer: boolean
 }
 
+export interface TctbpBootstrapApplyRequest {
+  confirm: true
+  planFingerprint: string
+  request: TctbpBootstrapRequest
+}
+
+export interface TctbpBootstrapApplyResult {
+  status: 'applied'
+  branch: string
+  appliedPaths: string[]
+  planFingerprint: string
+  committed: false
+  pushed: false
+}
+
 export interface TctbpBootstrapPlan {
+  fingerprint?: string
   sourceRevision: string | null
   sourceVersion: string | null
   managedFileCount: number

@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { lstat, mkdir, realpath, rename, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type {
@@ -6,6 +8,8 @@ import type {
   ScaffoldHealthObservation,
 } from '../shared/inspection'
 import type {
+  TctbpBootstrapApplyRequest,
+  TctbpBootstrapApplyResult,
   TctbpBootstrapPlan,
   TctbpBootstrapRequest,
 } from '../shared/tctbp-bootstrap'
@@ -39,13 +43,17 @@ import { AdviserError } from './errors'
 import { assessTctbpUpgrade } from './tctbp-upgrade-assessment'
 import { fingerprintTctbpPlan } from './tctbp-plan-fingerprint'
 import { listManagedSurfaceFiles } from './tctbp-target-manifest'
-import { buildBootstrapPlan } from './tctbp-bootstrap'
+import {
+  buildBootstrapPlan,
+  generateBootstrapPolicy,
+} from './tctbp-bootstrap'
 import {
   isPathContained,
   readBoundedRepositoryFile,
 } from './security'
 
 const VERSION_PATH = 'VERSION'
+const execFileAsync = promisify(execFile)
 
 interface LoadedCanonicalSource extends CanonicalSourceSummary {
   managedPaths: string[]
@@ -91,6 +99,80 @@ export class CanonicalTctbpSourceService {
       },
       request,
     )
+  }
+
+  async bootstrapApply(
+    targetRoot: string,
+    targetObservation: UpgradeTargetObservation,
+    request: TctbpBootstrapApplyRequest,
+  ): Promise<TctbpBootstrapApplyResult> {
+    const source = await this.loadSource()
+    const plan = buildBootstrapPlan(
+      withoutManagedPaths(source),
+      {
+        branch: targetObservation.head.branch,
+        clean: targetObservation.workingTree.clean,
+        detached: targetObservation.head.detached,
+        operationCount: targetObservation.operations.length,
+      },
+      request.request,
+    )
+    if (!plan.fingerprint || request.planFingerprint !== plan.fingerprint) {
+      throw new AdviserError(
+        'bootstrap-plan-stale',
+        'The bootstrap plan is stale; prepare a new plan before applying.',
+      )
+    }
+    if (
+      source.state !== 'available'
+      || !this.sourceRoot
+      || !source.policyContent
+      || !targetObservation.workingTree.clean
+      || targetObservation.operations.length > 0
+      || targetObservation.head.detached
+    ) {
+      throw new AdviserError(
+        'bootstrap-apply-blocked',
+        'Bootstrap is blocked by source or target repository state.',
+      )
+    }
+    const branch = plan.recommendedBranch
+    if (!branch) throw new AdviserError('bootstrap-branch-invalid', 'Bootstrap branch could not be generated.')
+    await execFileAsync('git', ['switch', '-c', branch], { cwd: targetRoot })
+
+    const sourceFiles = await readFiles(this.sourceRoot, source.managedPaths)
+    const policy = generateBootstrapPolicy(source.policyContent, request.request)
+    if (!policy) throw new AdviserError('bootstrap-policy-invalid', 'Bootstrap policy could not be generated.')
+    const sourceJson = JSON.stringify({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: source.revision,
+      sourceVersion: source.version,
+      installedSchemaVersion: 11,
+      adviserContract: {
+        major: 1,
+        minor: 0,
+        capabilities: ['inspection.local-v1', 'workflow-catalogue.core-v1', 'reason-codes.core-v1'],
+      },
+      installedAt: new Date().toISOString().slice(0, 10),
+      managedSurface: source.managedPaths,
+    }, null, 2) + '\n'
+    const appliedPaths: string[] = []
+    for (const [filePath, content] of sourceFiles) {
+      if (!request.request.includeHookLayer && filePath.startsWith('.github/hooks/')) continue
+      await writeManagedFile(targetRoot, filePath, content)
+      appliedPaths.push(filePath)
+    }
+    await writeManagedFile(targetRoot, '.github/TCTBP.json', policy)
+    await writeManagedFile(targetRoot, '.tctbp/source.json', sourceJson)
+    appliedPaths.push('.github/TCTBP.json', '.tctbp/source.json')
+    return {
+      status: 'applied',
+      branch,
+      appliedPaths,
+      planFingerprint: plan.fingerprint,
+      committed: false,
+      pushed: false,
+    }
   }
 
   async plan(

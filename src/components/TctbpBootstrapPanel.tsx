@@ -8,15 +8,21 @@ import type {
 interface TctbpBootstrapPanelProps {
   repositoryName: string
   busy: boolean
+  applyBusy: boolean
   plan: TctbpBootstrapPlan | null
+  applyFeedback: string | null
   onPrepare: (request: TctbpBootstrapRequest) => void
+  onApply: (request: TctbpBootstrapRequest) => void
 }
 
 export function TctbpBootstrapPanel({
   repositoryName,
   busy,
+  applyBusy,
   plan,
+  applyFeedback,
   onPrepare,
+  onApply,
 }: TctbpBootstrapPanelProps) {
   const [branchStrategy, setBranchStrategy] = useState<TctbpBootstrapBranchStrategy>(
     'long-lived-environment-branches',
@@ -32,19 +38,15 @@ export function TctbpBootstrapPanel({
     else if (!preProductionBranch) setPreProductionBranch(next === 'staged' ? 'staging' : 'review')
   }
 
-  function submit(): void {
-    onPrepare({
-      projectName: repositoryName,
+  function currentRequest(): TctbpBootstrapRequest {
+    return requestFromState(
+      repositoryName,
       projectDescription,
       branchStrategy,
-      workingBranch: 'development',
-      preProductionBranch: branchStrategy === 'simple' ? null : preProductionBranch,
-      productionBranch: 'main',
-      testCommand: testCommand.trim() || null,
-      buildCommand: buildCommand.trim() || null,
-      deployEnabled: false,
-      includeHookLayer: true,
-    })
+      preProductionBranch,
+      testCommand,
+      buildCommand,
+    )
   }
 
   return (
@@ -77,15 +79,51 @@ export function TctbpBootstrapPanel({
         <span>Build command</span>
         <input value={buildCommand} onChange={(event) => setBuildCommand(event.currentTarget.value)} />
       </label>
-      <button className="upgrade-plan-button" disabled={busy} type="button" onClick={submit}>
+      <button className="upgrade-plan-button" disabled={busy} type="button" onClick={() => onPrepare(currentRequest())}>
         {busy ? 'Preparing bootstrap plan…' : 'Prepare bootstrap plan'}
       </button>
       {plan && (
-        <p>
-          Plan ready for <code>{plan.recommendedBranch ?? 'a dedicated branch'}</code>.
-          Installation remains a separate approved step.
-        </p>
+        <>
+          <p>Plan ready for <code>{plan.recommendedBranch ?? 'a dedicated branch'}</code>.</p>
+          <button
+            className="upgrade-apply-button"
+            disabled={
+              applyBusy
+              || !plan.fingerprint
+              || plan.targetClean !== true
+              || plan.targetDetached === true
+              || (plan.activeOperationCount ?? 0) > 0
+            }
+            type="button"
+            onClick={() => onApply(currentRequest())}
+          >
+            {applyBusy ? 'Applying bootstrap…' : 'Apply bootstrap (no commit/push)'}
+          </button>
+          {applyFeedback && <p className="empty-state">{applyFeedback}</p>}
+        </>
       )}
     </section>
   )
+}
+
+function requestFromState(
+  repositoryName: string,
+  projectDescription: string,
+  branchStrategy: TctbpBootstrapBranchStrategy,
+  preProductionBranch: string,
+  testCommand: string,
+  buildCommand: string,
+): TctbpBootstrapRequest {
+  return {
+    projectName: repositoryName,
+    projectDescription,
+    branchStrategy,
+    workingBranch: 'development',
+    preProductionBranch: branchStrategy === 'simple' ? null : preProductionBranch,
+    productionBranch: 'main',
+    testCommand: testCommand.trim() || null,
+    buildCommand: buildCommand.trim() || null,
+    deployEnabled: false,
+    includeHookLayer: true,
+  }
 }

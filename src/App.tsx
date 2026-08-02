@@ -9,6 +9,7 @@ import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
+  applyTctbpBootstrap,
   applyTctbpUpgradePlan,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
@@ -37,6 +38,8 @@ function App() {
   const [aiBusy, setAiBusy] = useState(false)
   const [bootstrapPlan, setBootstrapPlan] = useState<TctbpBootstrapPlan | null>(null)
   const [bootstrapBusy, setBootstrapBusy] = useState(false)
+  const [bootstrapApplyBusy, setBootstrapApplyBusy] = useState(false)
+  const [bootstrapApplyFeedback, setBootstrapApplyFeedback] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
@@ -121,6 +124,31 @@ function App() {
       captureError(cause, requestId.current)
     } finally {
       setBootstrapBusy(false)
+    }
+  }
+
+  async function applyBootstrap(request: TctbpBootstrapRequest): Promise<void> {
+    if (!selectedId || !bootstrapPlan?.fingerprint) return
+    if (!window.confirm(
+      'Create the bootstrap branch and install canonical TCTBP infrastructure? No commit or push will be performed.',
+    )) return
+    setBootstrapApplyBusy(true)
+    setBootstrapApplyFeedback(null)
+    setError(null)
+    try {
+      const result = await applyTctbpBootstrap(
+        selectedId,
+        bootstrapPlan.fingerprint,
+        request,
+      )
+      setBootstrapApplyFeedback(
+        `Bootstrap applied on ${result.branch} with ${result.appliedPaths.length} file(s). Review and checkpoint before publishing.`,
+      )
+      await refreshDetail(selectedId, intent)
+    } catch (cause) {
+      captureError(cause, requestId.current)
+    } finally {
+      setBootstrapApplyBusy(false)
     }
   }
 
@@ -225,6 +253,8 @@ function App() {
     setAiBusy(false)
     setBootstrapPlan(null)
     setBootstrapBusy(false)
+    setBootstrapApplyBusy(false)
+    setBootstrapApplyFeedback(null)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -242,6 +272,8 @@ function App() {
     setAiBusy(false)
     setBootstrapPlan(null)
     setBootstrapBusy(false)
+    setBootstrapApplyBusy(false)
+    setBootstrapApplyFeedback(null)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -259,6 +291,8 @@ function App() {
     setAiBusy(false)
     setBootstrapPlan(null)
     setBootstrapBusy(false)
+    setBootstrapApplyBusy(false)
+    setBootstrapApplyFeedback(null)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -347,7 +381,10 @@ function App() {
             aiBusy={aiBusy}
             bootstrapPlan={bootstrapPlan}
             bootstrapBusy={bootstrapBusy}
+            bootstrapApplyBusy={bootstrapApplyBusy}
+            bootstrapApplyFeedback={bootstrapApplyFeedback}
             onPrepareBootstrap={(request) => void prepareBootstrap(request)}
+            onApplyBootstrap={(request) => void applyBootstrap(request)}
             onBack={showPortfolio}
             onIntentChange={changeIntent}
             onRefresh={() => void refreshDetail(selectedId, intent)}

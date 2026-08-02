@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { AdviserError } from './errors'
 import type { CanonicalSourceSummary } from '../shared/tctbp-upgrade'
 import type {
@@ -55,6 +56,75 @@ export function validateBootstrapRequest(
   }
 }
 
+export function generateBootstrapPolicy(
+  sourceContent: string | null,
+  request: TctbpBootstrapRequest,
+): string | null {
+  if (!sourceContent) return null
+  try {
+    const source = JSON.parse(sourceContent) as Record<string, any>
+    const profile = source.profile && typeof source.profile === 'object'
+      ? source.profile
+      : {}
+    const commands = profile.commands && typeof profile.commands === 'object'
+      ? profile.commands
+      : {}
+    const qualityGates = profile.qualityGates && typeof profile.qualityGates === 'object'
+      ? profile.qualityGates
+      : {}
+    const branchModel = request.branchStrategy === 'simple'
+      ? {
+        strategy: 'simple',
+        productionBranch: request.productionBranch,
+        promoteEnabled: false,
+        deployEnabled: false,
+      }
+      : request.branchStrategy === 'staged'
+        ? {
+          strategy: 'staged',
+          workingBranch: request.workingBranch,
+          stagingBranch: request.preProductionBranch,
+          productionBranch: request.productionBranch,
+          promoteEnabled: true,
+          deployEnabled: request.deployEnabled,
+        }
+        : {
+          strategy: 'long-lived-environment-branches',
+          workingBranch: request.workingBranch,
+          reviewBranch: request.preProductionBranch,
+          productionBranch: request.productionBranch,
+          promoteEnabled: true,
+          deployEnabled: request.deployEnabled,
+        }
+    return `${JSON.stringify({
+      ...source,
+      governance: { ...source.governance, templateMode: false },
+      project: {
+        ...source.project,
+        name: request.projectName,
+        description: request.projectDescription,
+        defaultBranch: request.productionBranch,
+      },
+      branchModel,
+      profile: {
+        ...profile,
+        commands: {
+          ...commands,
+          test: request.testCommand,
+          build: request.buildCommand,
+        },
+        qualityGates: {
+          ...qualityGates,
+          requireTestsBeforeShip: request.testCommand !== null,
+          requireBuildBeforeShip: request.buildCommand !== null,
+        },
+      },
+    }, null, 2)}\n`
+  } catch {
+    return null
+  }
+}
+
 export function buildBootstrapPlan(
   source: CanonicalSourceSummary,
   target: {
@@ -65,7 +135,7 @@ export function buildBootstrapPlan(
   },
   request: TctbpBootstrapRequest,
 ): TctbpBootstrapPlan {
-  return {
+  const plan = {
     sourceRevision: source.revision,
     sourceVersion: source.version,
     managedFileCount: source.managedFileCount,
@@ -89,7 +159,13 @@ export function buildBootstrapPlan(
     targetClean: target.clean,
     targetDetached: target.detached,
     activeOperationCount: target.operationCount,
-    applyAllowed: false,
+    applyAllowed: false as const,
+  }
+  return {
+    ...plan,
+    fingerprint: createHash('sha256')
+      .update(JSON.stringify(plan))
+      .digest('hex'),
   }
 }
 

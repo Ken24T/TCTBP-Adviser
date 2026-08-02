@@ -24,7 +24,10 @@ interface RepositoryDetailProps {
   aiBusy: boolean
   bootstrapPlan: TctbpBootstrapPlan | null
   bootstrapBusy: boolean
+  bootstrapApplyBusy: boolean
+  bootstrapApplyFeedback: string | null
   onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
+  onApplyBootstrap: (request: TctbpBootstrapRequest) => void
   onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
@@ -47,7 +50,10 @@ export function RepositoryDetail({
   aiBusy,
   bootstrapPlan,
   bootstrapBusy,
+  bootstrapApplyBusy,
+  bootstrapApplyFeedback,
   onPrepareBootstrap,
+  onApplyBootstrap,
   onBack,
   onIntentChange,
   onRefresh,
@@ -131,7 +137,10 @@ export function RepositoryDetail({
         aiBusy={aiBusy}
         bootstrapPlan={bootstrapPlan}
         bootstrapBusy={bootstrapBusy}
+        bootstrapApplyBusy={bootstrapApplyBusy}
+        bootstrapApplyFeedback={bootstrapApplyFeedback}
         onPrepareBootstrap={onPrepareBootstrap}
+        onApplyBootstrap={onApplyBootstrap}
         onLoad={onLoadUpgradePlan}
         onReviewAi={onReviewAi}
         onApplyAdditions={onApplyAdditions}

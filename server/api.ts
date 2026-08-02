@@ -8,6 +8,7 @@ import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
 import { readTctbpApplyRequest } from './tctbp-apply-input'
 import { readBootstrapRequest } from './tctbp-bootstrap-input'
+import { readBootstrapApplyRequest } from './tctbp-bootstrap-apply-input'
 import { safeConfigurationExport } from './configuration-export'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
@@ -192,6 +193,23 @@ export function createApiHandler(runtime: ApiRuntime) {
         )
         const observation = await runtime.inspections.inspect(repository)
         sendJson(response, 200, observation)
+        return
+      }
+
+      const bootstrapApplyMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-apply$/.exec(url.pathname)
+      if (request.method === 'POST' && bootstrapApplyMatch) {
+        const bootstrapRequest = await readBootstrapApplyRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapApplyMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const result = await runtime.tctbpSource.bootstrapApply(
+          repository.path,
+          observation,
+          bootstrapRequest,
+        )
+        sendJson(response, 200, result)
         return
       }
 

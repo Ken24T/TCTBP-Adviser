@@ -1,5 +1,9 @@
 import type { AiReviewResult } from '../shared/ai-review'
-import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../shared/tctbp-bootstrap'
+import type {
+  TctbpBootstrapApplyResult,
+  TctbpBootstrapPlan,
+  TctbpBootstrapRequest,
+} from '../shared/tctbp-bootstrap'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
@@ -9,6 +13,21 @@ import type {
   TctbpApplyResult,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
+
+export async function applyTctbpBootstrap(
+  repositoryId: string,
+  planFingerprint: string,
+  request: TctbpBootstrapRequest,
+): Promise<TctbpBootstrapApplyResult> {
+  return requestJson<TctbpBootstrapApplyResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true, planFingerprint, request }),
+    },
+  )
+}
 
 export async function prepareTctbpBootstrap(
   repositoryId: string,

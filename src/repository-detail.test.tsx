@@ -33,7 +33,10 @@ describe('repository detail view', () => {
         aiBusy={false}
         bootstrapPlan={null}
         bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
         onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
@@ -87,7 +90,10 @@ describe('repository detail view', () => {
         aiBusy={false}
         bootstrapPlan={null}
         bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
         onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
         onLoadUpgradePlan={() => undefined}
