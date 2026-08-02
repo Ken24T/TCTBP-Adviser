@@ -93,15 +93,8 @@ export interface TctbpUpgradeBlocker {
 
 export type ManagedFileActionCounts = Record<ManagedFileAction, number>
 
-export interface TctbpBootstrapPlan {
-  sourceRevision: string | null
-  sourceVersion: string | null
-  managedFileCount: number
-  recommendedBranch: string | null
-  requiredInputs: string[]
-  preserveAreas: string[]
-  applyAllowed: false
-}
+import type { TctbpBootstrapPlan } from './tctbp-bootstrap'
+export type { TctbpBootstrapPlan } from './tctbp-bootstrap'
 
 export type TctbpApplyMode = 'additions-only' | 'approved-managed-files'
 

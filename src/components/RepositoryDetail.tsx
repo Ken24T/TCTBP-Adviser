@@ -1,4 +1,5 @@
 import type { AiReviewResult } from '../../shared/ai-review'
+import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../../shared/tctbp-bootstrap'
 import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
@@ -21,6 +22,9 @@ interface RepositoryDetailProps {
   upgradeFeedback: string | null
   aiReview: AiReviewResult | null
   aiBusy: boolean
+  bootstrapPlan: TctbpBootstrapPlan | null
+  bootstrapBusy: boolean
+  onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
   onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
@@ -41,6 +45,9 @@ export function RepositoryDetail({
   upgradeFeedback,
   aiReview,
   aiBusy,
+  bootstrapPlan,
+  bootstrapBusy,
+  onPrepareBootstrap,
   onBack,
   onIntentChange,
   onRefresh,
@@ -122,6 +129,9 @@ export function RepositoryDetail({
         upgradeFeedback={upgradeFeedback}
         aiReview={aiReview}
         aiBusy={aiBusy}
+        bootstrapPlan={bootstrapPlan}
+        bootstrapBusy={bootstrapBusy}
+        onPrepareBootstrap={onPrepareBootstrap}
         onLoad={onLoadUpgradePlan}
         onReviewAi={onReviewAi}
         onApplyAdditions={onApplyAdditions}

@@ -57,6 +57,9 @@ describe('TCTBP upgrade preview panel', () => {
         upgradeFeedback={null}
         aiReview={null}
         aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        onPrepareBootstrap={() => undefined}
         onLoad={() => undefined}
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}

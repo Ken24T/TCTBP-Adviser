@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AiReviewResult } from '../shared/ai-review'
+import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../shared/tctbp-bootstrap'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
@@ -12,6 +13,7 @@ import {
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
   loadTctbpUpgradeReview,
+  prepareTctbpBootstrap,
 } from './api-client'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
@@ -33,6 +35,8 @@ function App() {
   const [upgradeFeedback, setUpgradeFeedback] = useState<string | null>(null)
   const [aiReview, setAiReview] = useState<AiReviewResult | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
+  const [bootstrapPlan, setBootstrapPlan] = useState<TctbpBootstrapPlan | null>(null)
+  const [bootstrapBusy, setBootstrapBusy] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
@@ -104,6 +108,19 @@ function App() {
       captureError(cause, requestId.current)
     } finally {
       setAiBusy(false)
+    }
+  }
+
+  async function prepareBootstrap(request: TctbpBootstrapRequest): Promise<void> {
+    if (!selectedId) return
+    setBootstrapBusy(true)
+    setError(null)
+    try {
+      setBootstrapPlan(await prepareTctbpBootstrap(selectedId, request))
+    } catch (cause) {
+      captureError(cause, requestId.current)
+    } finally {
+      setBootstrapBusy(false)
     }
   }
 
@@ -206,6 +223,8 @@ function App() {
     setUpgradeFeedback(null)
     setAiReview(null)
     setAiBusy(false)
+    setBootstrapPlan(null)
+    setBootstrapBusy(false)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -221,6 +240,8 @@ function App() {
     setUpgradeFeedback(null)
     setAiReview(null)
     setAiBusy(false)
+    setBootstrapPlan(null)
+    setBootstrapBusy(false)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -236,6 +257,8 @@ function App() {
     setUpgradeFeedback(null)
     setAiReview(null)
     setAiBusy(false)
+    setBootstrapPlan(null)
+    setBootstrapBusy(false)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -322,6 +345,9 @@ function App() {
             upgradeFeedback={upgradeFeedback}
             aiReview={aiReview}
             aiBusy={aiBusy}
+            bootstrapPlan={bootstrapPlan}
+            bootstrapBusy={bootstrapBusy}
+            onPrepareBootstrap={(request) => void prepareBootstrap(request)}
             onBack={showPortfolio}
             onIntentChange={changeIntent}
             onRefresh={() => void refreshDetail(selectedId, intent)}

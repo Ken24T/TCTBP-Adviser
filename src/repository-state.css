@@ -159,6 +159,27 @@ code {
 }
 
 .ai-review p:last-child,
+.bootstrap-field {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+
+.bootstrap-field span {
+  color: #6e797e;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.bootstrap-field input,
+.bootstrap-field select {
+  padding: 8px 10px;
+  color: #223843;
+  background: #fff;
+  border: 1px solid #c8d0ce;
+  border-radius: 7px;
+}
+
 .bootstrap-plan p:last-child {
   margin-bottom: 0;
 }

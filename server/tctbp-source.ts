@@ -6,6 +6,10 @@ import type {
   ScaffoldHealthObservation,
 } from '../shared/inspection'
 import type {
+  TctbpBootstrapPlan,
+  TctbpBootstrapRequest,
+} from '../shared/tctbp-bootstrap'
+import type {
   CanonicalSourceSummary,
   TctbpApplyRequest,
   TctbpApplyResult,
@@ -35,6 +39,7 @@ import { AdviserError } from './errors'
 import { assessTctbpUpgrade } from './tctbp-upgrade-assessment'
 import { fingerprintTctbpPlan } from './tctbp-plan-fingerprint'
 import { listManagedSurfaceFiles } from './tctbp-target-manifest'
+import { buildBootstrapPlan } from './tctbp-bootstrap'
 import {
   isPathContained,
   readBoundedRepositoryFile,
@@ -70,6 +75,23 @@ export class CanonicalTctbpSourceService {
     readonly sourceRoot: string | null,
     readonly executor: GitExecutor,
   ) {}
+
+  async bootstrapPlan(
+    targetObservation: UpgradeTargetObservation,
+    request: TctbpBootstrapRequest,
+  ): Promise<TctbpBootstrapPlan> {
+    const source = await this.loadSource()
+    return buildBootstrapPlan(
+      withoutManagedPaths(source),
+      {
+        branch: targetObservation.head.branch,
+        clean: targetObservation.workingTree.clean,
+        detached: targetObservation.head.detached,
+        operationCount: targetObservation.operations.length,
+      },
+      request,
+    )
+  }
 
   async plan(
     targetRoot: string,

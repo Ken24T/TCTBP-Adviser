@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { AiReviewResult } from '../../shared/ai-review'
+import type { TctbpBootstrapPlan, TctbpBootstrapRequest } from '../../shared/tctbp-bootstrap'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import {
   createTctbpPlanDocument,
   formatTctbpPlanJson,
   formatTctbpPlanMarkdown,
 } from '../tctbp-plan-export'
+import { TctbpBootstrapPanel } from './TctbpBootstrapPanel'
 import { PanelHeading } from './RepositoryState'
 
 interface TctbpUpgradePanelProps {
@@ -16,6 +18,9 @@ interface TctbpUpgradePanelProps {
   upgradeFeedback: string | null
   aiReview: AiReviewResult | null
   aiBusy: boolean
+  bootstrapPlan: TctbpBootstrapPlan | null
+  bootstrapBusy: boolean
+  onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
   onLoad: () => void
   onReviewAi: () => void
   onApplyAdditions: () => void
@@ -31,6 +36,9 @@ export function TctbpUpgradePanel({
   upgradeFeedback,
   aiReview,
   aiBusy,
+  bootstrapPlan,
+  bootstrapBusy,
+  onPrepareBootstrap,
   onLoad,
   onReviewAi,
   onApplyAdditions,
@@ -148,10 +156,12 @@ export function TctbpUpgradePanel({
       {feedback && <p className="empty-state">{feedback}</p>}
       {upgradeFeedback && <p className="empty-state">{upgradeFeedback}</p>}
       {plan?.disposition === 'bootstrap-required' && (
-        <p className="empty-state">
-          TCTBP infrastructure is not installed. Review this canonical bootstrap
-          plan on a dedicated branch before applying anything.
-        </p>
+        <TctbpBootstrapPanel
+          repositoryName={repositoryName}
+          busy={bootstrapBusy}
+          plan={bootstrapPlan}
+          onPrepare={onPrepareBootstrap}
+        />
       )}
       {plan && <PlanDetails plan={plan} />}
     </section>
