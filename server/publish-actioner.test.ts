@@ -33,5 +33,7 @@ describe('publish Actioner', () => {
       remote,
     })
     expect(git(remote, ['show-ref', '--hash', 'refs/heads/development'])).toBe(result.commitSha)
+    expect(git(repository, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']))
+      .toBe('origin/development')
   })
 })

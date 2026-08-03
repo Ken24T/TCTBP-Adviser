@@ -3,7 +3,7 @@ import type { ActionerJob } from '../../shared/actioner'
 export function ActionerProgress({ job }: { job: ActionerJob }) {
   return (
     <section className="actioner-progress" aria-live="polite">
-      <strong>Checkpoint {job.status}</strong>
+      <strong>{job.workflowId === 'publish' ? 'Publish' : 'Checkpoint'} {job.status}</strong>
       <ol>
         {job.steps.map((step) => (
           <li key={step.id} className={`actioner-step-${step.status}`}>
