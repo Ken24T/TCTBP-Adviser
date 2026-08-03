@@ -88,7 +88,8 @@ export function IntentPlanPanel({
                   || step.workflowId === 'handover'
                   || (step.workflowId === 'deploy' && step.targetBranch === 'dev'))
                   && step.condition === 'required'
-                  && plan.fingerprint && (
+                  && plan.fingerprint
+                  && !(actionJob?.workflowId === 'handover' && actionJob.status === 'completed') && (
                   <button
                     className="intent-action-button"
                     disabled={inspectionBusy || actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}

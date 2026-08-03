@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { RepositoryObservation } from '../../shared/inspection'
 import type { DeploymentEvidence } from '../../shared/deployment'
+import type { HandoverEvidence } from '../../shared/handover'
 import type {
   IntentPlan,
   IntentPlanBlock,
@@ -19,6 +20,7 @@ export interface PlanContext {
   state: RecommendationResult
   intent: SelectedIntent
   deploymentEvidence?: DeploymentEvidence | null
+  handoverEvidence?: HandoverEvidence | null
 }
 
 export function readyPlan(

@@ -1,5 +1,6 @@
 import type { RepositoryObservation } from '../../shared/inspection'
 import type { DeploymentEvidence } from '../../shared/deployment'
+import type { HandoverEvidence } from '../../shared/handover'
 import type {
   IntentPlan,
   IntentPlanBlock,
@@ -27,9 +28,10 @@ export function planIntent(
   state: RecommendationResult,
   intent: RecommendationIntent,
   deploymentEvidence: DeploymentEvidence | null = null,
+  handoverEvidence: HandoverEvidence | null = null,
 ): IntentPlan | null {
   if (intent === 'none') return null
-  const context = { observation, state, intent, deploymentEvidence }
+  const context = { observation, state, intent, deploymentEvidence, handoverEvidence }
   if (intent === 'recover-interrupted-workflow') {
     return recoveryPlan(context)
   }
@@ -125,6 +127,18 @@ function preserveAndPublish(context: PlanContext): IntentPlan {
 }
 
 function handover(context: PlanContext): IntentPlan {
+  if (
+    context.handoverEvidence?.workflowCompleted === true
+    && context.handoverEvidence.branch === context.observation.head.branch
+    && context.handoverEvidence.commitSha === context.observation.head.sha
+  ) {
+    return completePlan(
+      context,
+      'Handover already completed for this commit',
+      context.handoverEvidence.summary,
+      [statusStep()],
+    )
+  }
   const steps: IntentPlanStep[] = []
   if (context.observation.localTracking.state === 'behind') {
     steps.push(workflowStep(

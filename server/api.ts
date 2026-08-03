@@ -11,6 +11,7 @@ import { BranchActioner } from './branch-actioner'
 import { RepairActioner } from './repair-actioner'
 import { HandoverActioner } from './handover-actioner'
 import { DeploymentEvidenceStore } from './deployment-evidence'
+import { HandoverEvidenceStore } from './handover-evidence'
 import { PublishActioner } from './publish-actioner'
 import { DeployActioner } from './deploy-actioner'
 import { readActionerRequest } from './actioner-input'
@@ -54,6 +55,7 @@ export interface ApiRuntime {
   readonly bootstrapJobs: TctbpBootstrapJobStore
   readonly actionerJobs: ActionerJobStore
   readonly deployments: DeploymentEvidenceStore
+  readonly handovers: HandoverEvidenceStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -99,6 +101,7 @@ export function createApiRuntime(
   const bootstrapJobs = new TctbpBootstrapJobStore()
   const actionerJobs = new ActionerJobStore()
   const deployments = new DeploymentEvidenceStore()
+  const handovers = new HandoverEvidenceStore()
   return {
     sessionToken,
     registry,
@@ -110,6 +113,7 @@ export function createApiRuntime(
     bootstrapJobs,
     actionerJobs,
     deployments,
+    handovers,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -523,6 +527,15 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
+            await runtime.handovers.record({
+              repositoryId: repository.id,
+              branch: result.branch ?? 'unknown',
+              commitSha: result.commitSha ?? '',
+              completedAt: new Date().toISOString(),
+              workflow: 'handover',
+              workflowCompleted: true,
+              summary: 'Handover completed; continuation context and branch publication were handled by TCTBP.',
+            })
             runtime.actionerJobs.complete(job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
@@ -766,6 +779,11 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation.head.branch,
           observation.head.sha,
         )
+        const handoverEvidence = await runtime.handovers.get(
+          repository.id,
+          observation.head.branch,
+          observation.head.sha,
+        )
         const result: RepositoryDetailResult = {
           observation,
           recommendation: recommend(observation, 'none', new Date()),
@@ -778,6 +796,7 @@ export function createApiHandler(runtime: ApiRuntime) {
           result.recommendation,
           intent,
           deploymentEvidence,
+          handoverEvidence,
         )
         sendJson(response, 200, result)
         return
