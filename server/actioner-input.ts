@@ -26,7 +26,7 @@ export async function readActionerRequest(
   }
   const value = body as Record<string, unknown>
   if (
-    !['checkpoint', 'publish', 'deploy-development', 'branch-development', 'repair-tctbp-script-compatibility', 'handover'].includes(String(value.workflowId))
+    !['checkpoint', 'publish', 'deploy-development', 'branch-development', 'repair-tctbp-script-compatibility', 'handover', 'resume'].includes(String(value.workflowId))
     || !['preserve-locally', 'preserve-and-publish', 'deploy-current-environment', 'continue-on-another-machine'].includes(String(value.intent))
     || value.confirm !== true
     || typeof value.planFingerprint !== 'string'
@@ -38,7 +38,7 @@ export async function readActionerRequest(
     )
   }
   return {
-    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development' | 'branch-development' | 'repair-tctbp-script-compatibility' | 'handover',
+    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development' | 'branch-development' | 'repair-tctbp-script-compatibility' | 'handover' | 'resume',
     intent: value.intent as 'preserve-locally' | 'preserve-and-publish' | 'deploy-current-environment' | 'continue-on-another-machine',
     planFingerprint: value.planFingerprint,
     confirm: true,

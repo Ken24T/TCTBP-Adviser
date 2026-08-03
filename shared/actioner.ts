@@ -1,3 +1,5 @@
+import type { RecommendationIntent } from './recommendation'
+
 export type ActionerWorkflowId =
   | 'checkpoint'
   | 'publish'
@@ -5,8 +7,7 @@ export type ActionerWorkflowId =
   | 'branch-development'
   | 'repair-tctbp-script-compatibility'
   | 'handover'
-
-import type { RecommendationIntent } from './recommendation'
+  | 'resume'
 
 export type ActionerIntent = Exclude<RecommendationIntent, 'none'>
 

@@ -86,6 +86,7 @@ export function IntentPlanPanel({
                   || step.workflowId === 'publish'
                   || (step.workflowId === 'branch' && step.targetBranch === 'development')
                   || step.workflowId === 'handover'
+                  || step.workflowId === 'resume'
                   || (step.workflowId === 'deploy' && step.targetBranch === 'dev'))
                   && step.condition === 'required'
                   && plan.fingerprint
@@ -99,7 +100,9 @@ export function IntentPlanPanel({
                         ? 'branch-development'
                         : step.workflowId === 'handover'
                           ? 'handover'
-                          : step.workflowId === 'deploy'
+                          : step.workflowId === 'resume'
+                            ? 'resume'
+                            : step.workflowId === 'deploy'
                             ? 'deploy-development'
                             : step.workflowId as 'checkpoint' | 'publish',
                     )}
@@ -114,7 +117,9 @@ export function IntentPlanPanel({
                             ? 'Branch development'
                             : step.workflowId === 'handover'
                               ? 'Run handover'
-                              : 'Deploy development'}
+                              : step.workflowId === 'resume'
+                                ? 'Run resume'
+                                : 'Deploy development'}
                   </button>
                 )}
               </div>

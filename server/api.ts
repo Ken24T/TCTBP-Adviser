@@ -10,6 +10,7 @@ import { CheckpointActioner } from './checkpoint-actioner'
 import { BranchActioner } from './branch-actioner'
 import { RepairActioner } from './repair-actioner'
 import { HandoverActioner } from './handover-actioner'
+import { ResumeActioner } from './resume-actioner'
 import { DeploymentEvidenceStore } from './deployment-evidence'
 import { HandoverEvidenceStore } from './handover-evidence'
 import { PublishActioner } from './publish-actioner'
@@ -170,6 +171,21 @@ function assertPublishPlan(
       'actioner-plan-stale-or-blocked',
       'The publish plan is stale, blocked, or no longer required.',
     )
+  }
+}
+
+function assertResumePlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'resume-after-machine-change',
+  )
+  const resumeStep = plan?.steps.find((step) => step.workflowId === 'resume')
+  if (!plan || plan.fingerprint !== planFingerprint || plan.status !== 'ready' || resumeStep?.condition !== 'required') {
+    throw new AdviserError('actioner-plan-stale-or-blocked', 'The resume plan is stale or blocked.')
   }
 }
 
@@ -536,6 +552,35 @@ export function createApiHandler(runtime: ApiRuntime) {
               workflowCompleted: true,
               summary: 'Handover completed; continuation context and branch publication were handled by TCTBP.',
             })
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const resumeActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/resume$/.exec(url.pathname)
+      if (request.method === 'POST' && resumeActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(resumeActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertResumePlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'resume')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertResumePlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new ResumeActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
             runtime.actionerJobs.complete(job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))

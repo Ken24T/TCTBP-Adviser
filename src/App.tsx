@@ -19,6 +19,7 @@ import {
   startBranchDevelopmentAction,
   startDeployDevelopmentAction,
   startHandoverAction,
+  startResumeAction,
   startRepairCompatibilityAction,
   startPublishAction,
   applyTctbpUpgradePlan,
@@ -137,7 +138,9 @@ function App() {
             ? 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.'
             : workflowId === 'handover'
               ? 'Create continuation context and publish the current branch for another machine.'
-              : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
+              : workflowId === 'resume'
+                ? 'Reconcile the clean local branch with its origin state. No force update will occur.'
+                : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
     if (!window.confirm(confirmation)) return
     setActionBusy(true)
     setActionFeedback(null)
@@ -157,7 +160,9 @@ function App() {
               ? await startRepairCompatibilityAction(selectedId, detail.intentPlan.fingerprint)
               : workflowId === 'handover'
                 ? await startHandoverAction(selectedId, detail.intentPlan.fingerprint)
-                : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
+                : workflowId === 'resume'
+                  ? await startResumeAction(selectedId, detail.intentPlan.fingerprint)
+                  : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,

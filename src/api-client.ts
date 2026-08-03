@@ -91,6 +91,25 @@ export async function startBranchDevelopmentAction(
   )
 }
 
+export async function startResumeAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/resume`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'resume',
+        intent: 'resume-after-machine-change',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startHandoverAction(
   repositoryId: string,
   planFingerprint: string,
