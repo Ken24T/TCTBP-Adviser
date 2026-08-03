@@ -14,6 +14,7 @@ import { TctbpPanel } from './TctbpPanel'
 import { GitHubPanel } from './GitHubPanel'
 import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
+import { intentForRecommendation } from '../recommended-intent'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
@@ -135,7 +136,13 @@ export function RepositoryDetail({
         </div>
       </section>
 
-      <RecommendationPanel recommendation={recommendation} />
+      <RecommendationPanel
+        recommendation={recommendation}
+        onReviewPlan={() => {
+          const suggestedIntent = intentForRecommendation(recommendation.primaryAction)
+          if (suggestedIntent) onIntentChange(suggestedIntent)
+        }}
+      />
       <IntentPlanPanel
         plan={detail.intentPlan}
         actionJob={actionJob}

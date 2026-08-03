@@ -25,6 +25,7 @@ import {
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
 } from './api-client'
+import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
@@ -163,7 +164,7 @@ function App() {
   async function refreshDetail(
     repositoryId: string,
     selectedIntent: RecommendationIntent,
-  ): Promise<void> {
+  ): Promise<RepositoryDetailResult | null> {
     const currentRequest = ++requestId.current
     setBusy(true)
     setError(null)
@@ -173,8 +174,10 @@ function App() {
         selectedIntent,
       )
       if (currentRequest === requestId.current) setDetail(nextDetail)
+      return nextDetail
     } catch (cause) {
       captureError(cause, currentRequest)
+      return null
     } finally {
       if (currentRequest === requestId.current) setBusy(false)
     }
@@ -371,7 +374,16 @@ function App() {
     setActionBusy(false)
     setActionFeedback(null)
     setIntent('none')
-    void refreshDetail(repositoryId, 'none')
+    void (async () => {
+      const nextDetail = await refreshDetail(repositoryId, 'none')
+      const suggestedIntent = intentForRecommendation(
+        nextDetail?.recommendation.primaryAction ?? null,
+      )
+      if (suggestedIntent) {
+        setIntent(suggestedIntent)
+        await refreshDetail(repositoryId, suggestedIntent)
+      }
+    })()
   }
 
   function showPortfolio(): void {
