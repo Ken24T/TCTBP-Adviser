@@ -69,6 +69,18 @@ export function statusStep(): IntentPlanStep {
   }
 }
 
+export function branchStep(target: string, explanation: string): IntentPlanStep {
+  return workflowStep(
+    `branch-${target}`,
+    `Create ${target} branch`,
+    `branch ${target} please`,
+    'required',
+    explanation,
+    'branch',
+    target,
+  )
+}
+
 export function promoteStep(
   target: string,
   condition: IntentPlanStep['condition'],

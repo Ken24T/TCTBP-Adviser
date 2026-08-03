@@ -75,6 +75,7 @@ export function IntentPlanPanel({
                 {step.trigger && <code>{step.trigger}</code>}
                 {(step.workflowId === 'checkpoint'
                   || step.workflowId === 'publish'
+                  || (step.workflowId === 'branch' && step.targetBranch === 'development')
                   || (step.workflowId === 'deploy' && step.targetBranch === 'dev'))
                   && step.condition === 'required'
                   && plan.fingerprint && (
@@ -83,9 +84,11 @@ export function IntentPlanPanel({
                     disabled={actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
                     type="button"
                     onClick={() => onRunAction(
-                      step.workflowId === 'deploy'
-                        ? 'deploy-development'
-                        : step.workflowId as 'checkpoint' | 'publish',
+                      step.workflowId === 'branch'
+                        ? 'branch-development'
+                        : step.workflowId === 'deploy'
+                          ? 'deploy-development'
+                          : step.workflowId as 'checkpoint' | 'publish',
                     )}
                   >
                     {actionBusy

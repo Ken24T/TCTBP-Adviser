@@ -1,4 +1,9 @@
-export type ActionerWorkflowId = 'checkpoint' | 'publish' | 'deploy-development'
+export type ActionerWorkflowId =
+  | 'checkpoint'
+  | 'publish'
+  | 'deploy-development'
+  | 'branch-development'
+  | 'branch-development'
 
 export type ActionerIntent =
   | 'preserve-locally'

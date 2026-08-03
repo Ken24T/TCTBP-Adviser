@@ -72,6 +72,25 @@ export async function startPublishAction(
   )
 }
 
+export async function startBranchDevelopmentAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/branch-development`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'branch-development',
+        intent: 'deploy-current-environment',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startDeployDevelopmentAction(
   repositoryId: string,
   planFingerprint: string,

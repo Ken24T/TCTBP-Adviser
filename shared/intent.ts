@@ -3,6 +3,7 @@ import type { RecommendationIntent } from './recommendation'
 
 export type IntentWorkflowId =
   | 'status'
+  | 'branch'
   | 'checkpoint'
   | 'publish'
   | 'handover'

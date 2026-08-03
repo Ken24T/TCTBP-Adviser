@@ -10,6 +10,7 @@ import type {
 } from '../../shared/recommendation'
 import {
   blockedPlan,
+  branchStep,
   completePlan,
   deployStep,
   guidanceStep,
@@ -222,10 +223,31 @@ function deployCurrent(context: PlanContext): IntentPlan {
         ? 'dev'
         : null
   if (!target) {
+    const workingBranch = model.workingBranch
+    const activationSteps = workingBranch && branch !== workingBranch
+      ? [
+        branchStep(
+          workingBranch,
+          `Create or switch to the configured working branch '${workingBranch}' before deployment.`,
+        ),
+        workflowStep(
+          'publish-working-branch',
+          'Publish working branch',
+          'publish please',
+          'required',
+          `Publish '${workingBranch}' so the deployment workflow has branch-backed continuity.`,
+          'publish',
+          workingBranch,
+        ),
+        deployStep('dev', 'conditional'),
+      ]
+      : []
     return blockedPlan(context, [{
       code: 'deployment-branch-unmapped',
-      message: 'The current branch has no configured environment role.',
-    }])
+      message: workingBranch
+        ? `The current branch '${branch ?? 'unknown'}' has no environment role. Activate '${workingBranch}' before deploying development.`
+        : 'The current branch has no configured environment role.',
+    }], activationSteps)
   }
   const steps = preservationPrerequisites(observation)
   steps.push(deployStep(target, 'required'))

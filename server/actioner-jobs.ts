@@ -13,13 +13,17 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
       ? 'Create local checkpoint commit'
       : workflowId === 'publish'
         ? 'Publish current branch to origin'
-        : 'Execute development deployment' },
+        : workflowId === 'deploy-development'
+        ? 'Execute development deployment'
+        : 'Create development branch' },
     { id: 'reinspect', label: 'Re-inspect repository state' },
     { id: 'complete', label: workflowId === 'checkpoint'
       ? 'Complete without push'
       : workflowId === 'publish'
         ? 'Complete with verified remote state'
-        : 'Complete with deployment result' },
+        : workflowId === 'deploy-development'
+          ? 'Complete with deployment result'
+          : 'Complete with local branch result' },
   ]
 }
 
