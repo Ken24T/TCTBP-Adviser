@@ -149,6 +149,7 @@ export function RepositoryDetail({
         plan={detail.intentPlan}
         actionJob={actionJob}
         actionBusy={actionBusy}
+        inspectionBusy={busy}
         actionFeedback={actionFeedback}
         onRunAction={onRunAction}
         onRepairCompatibility={onRepairCompatibility}

@@ -6,6 +6,7 @@ interface IntentPlanPanelProps {
   plan: IntentPlan | null
   actionJob: ActionerJob | null
   actionBusy: boolean
+  inspectionBusy: boolean
   actionFeedback: string | null
   onRunAction: (workflowId: ActionerWorkflowId) => void
   onRepairCompatibility: () => void
@@ -15,6 +16,7 @@ export function IntentPlanPanel({
   plan,
   actionJob,
   actionBusy,
+  inspectionBusy,
   actionFeedback,
   onRunAction,
   onRepairCompatibility,
@@ -88,7 +90,7 @@ export function IntentPlanPanel({
                   && plan.fingerprint && (
                   <button
                     className="intent-action-button"
-                    disabled={actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
+                    disabled={inspectionBusy || actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
                     type="button"
                     onClick={() => onRunAction(
                       step.workflowId === 'branch'

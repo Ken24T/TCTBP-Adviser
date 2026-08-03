@@ -18,6 +18,7 @@ describe('repository detail view', () => {
       <RepositoryDetail
         actionJob={null}
         actionBusy={false}
+
         actionFeedback={null}
         onRunAction={() => undefined}
         onRepairCompatibility={() => undefined}
@@ -81,6 +82,7 @@ describe('repository detail view', () => {
       <RepositoryDetail
         actionJob={null}
         actionBusy={false}
+
         actionFeedback={null}
         onRunAction={() => undefined}
         onRepairCompatibility={() => undefined}

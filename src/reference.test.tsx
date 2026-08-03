@@ -38,6 +38,7 @@ describe('intent and reference views', () => {
       plan={plan}
       actionJob={null}
       actionBusy={false}
+      inspectionBusy={false}
       actionFeedback={null}
       onRunAction={() => undefined}
       onRepairCompatibility={() => undefined}
