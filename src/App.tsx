@@ -109,7 +109,13 @@ function App() {
           setActionJob(nextJob)
           if (nextJob.status === 'completed' || nextJob.status === 'failed') {
             setActionBusy(false)
-            void refreshDetail(selectedId, intent)
+            void refreshDetail(selectedId, intent).then((refreshed) => {
+              if (!refreshed) {
+                setActionFeedback(
+                  `${nextJob.workflowId} completed, but the Adviser could not refresh repository state. Refresh manually before continuing.`,
+                )
+              }
+            })
           }
         })
         .catch((cause) => captureError(cause, requestId.current))
@@ -141,7 +147,7 @@ function App() {
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,
-        workflowId: 'checkpoint',
+        workflowId,
         status: 'queued',
         steps: [],
         result: null,

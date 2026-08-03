@@ -1,9 +1,16 @@
 import type { ActionerJob } from '../../shared/actioner'
 
+function actionerLabel(workflowId: ActionerJob['workflowId']): string {
+  if (workflowId === 'publish') return 'Publish'
+  if (workflowId === 'branch-development') return 'Branch development'
+  if (workflowId === 'deploy-development') return 'Deploy development'
+  return 'Checkpoint'
+}
+
 export function ActionerProgress({ job }: { job: ActionerJob }) {
   return (
     <section className="actioner-progress" aria-live="polite">
-      <strong>{job.workflowId === 'publish' ? 'Publish' : 'Checkpoint'} {job.status}</strong>
+      <strong>{actionerLabel(job.workflowId)} {job.status}</strong>
       <ol>
         {job.steps.map((step) => (
           <li key={step.id} className={`actioner-step-${step.status}`}>
