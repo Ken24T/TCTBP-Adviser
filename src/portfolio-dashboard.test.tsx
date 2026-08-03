@@ -28,6 +28,12 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Adviser Control Room')
     expect(markup).toContain('TCTBP-Adviser')
     expect(markup).toContain('TCTBP schema 11')
+    expect(markup).toContain('TCTBP review')
+    expect(markup).toContain('TCTBP review required')
+    expect(markup).toContain('TCTBP blocked')
+    expect(markup).toContain('Bootstrap required')
+    expect(markup).toContain('Source outdated')
+    expect(markup).toContain('Policy drift')
     expect(markup).toContain('Plain-Repo')
     expect(markup).toContain('TCTBP not installed')
     expect(markup).toContain('Install TCTBP')
@@ -151,6 +157,14 @@ function portfolioFixture(): PortfolioSnapshot {
       githubOnly: 0,
       unavailable: 0,
     },
+    upgrade: {
+      enabled: true,
+      current: 0,
+      reviewRequired: 1,
+      bootstrapRequired: 0,
+      blocked: 0,
+      sourceUnavailable: 0,
+    },
     repositories: [
       {
         id: 'A'.repeat(24),
@@ -170,6 +184,14 @@ function portfolioFixture(): PortfolioSnapshot {
         },
         error: null,
         github: disabledGitHub(),
+        upgrade: {
+          disposition: 'review-required',
+          sourceAlignment: 'outdated',
+          actionCounts: { preserve: 1, add: 0, review: 1, unavailable: 0 },
+          blockerCount: 0,
+          policyDifferenceCount: 1,
+          reasons: ['canonical source is newer', '1 policy difference(s)'],
+        },
       },
       {
         id: 'B'.repeat(24),

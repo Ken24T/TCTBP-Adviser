@@ -1,4 +1,5 @@
 import type { SafeConfigurationExport } from '../shared/diagnostics'
+import { safeAiSettings } from './ai-settings'
 import type { ServiceConfig } from './config'
 
 export function safeConfigurationExport(
@@ -30,6 +31,15 @@ export function safeConfigurationExport(
       cacheTtlMs: config.github.cacheTtlMs,
       concurrency: config.github.concurrency,
     },
+    ai: safeAiSettings(config.ai ?? {
+      enabled: false,
+      apiKey: null,
+      baseUrl: null,
+      model: null,
+      timeoutMs: 120_000,
+      ['maximumOutputTokens']: 8_000,
+      maximumResponseBytes: 2 * 1024 * 1024,
+    }),
     omissions: {
       repositoryPaths: true,
       githubToken: true,

@@ -298,6 +298,13 @@
   border-radius: 999px;
 }
 
+.portfolio-upgrade-reason {
+  display: block;
+  min-height: 1.4em;
+  color: #738086;
+  line-height: 1.4;
+}
+
 .rename-control {
   display: grid;
   gap: 5px;

@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
+import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
+  applyTctbpUpgradePlan,
   loadPortfolio,
   loadReferenceCatalogue,
   loadRepositoryDetail,
+  loadTctbpUpgradePlan,
 } from './api-client'
 
 afterEach(() => {
@@ -12,6 +15,84 @@ afterEach(() => {
 })
 
 describe('repository detail client', () => {
+  it('requests an explicitly confirmed additions-only apply', async () => {
+    const result = {
+      status: 'applied',
+      appliedPaths: ['scripts/tctbp-core.js'],
+      planFingerprint: 'a'.repeat(64),
+      committed: false,
+      pushed: false,
+    } as const
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(result))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(applyTctbpUpgradePlan(
+      'opaque-id',
+      'a'.repeat(64),
+      'review-id',
+      'additions-only',
+    )).resolves.toStrictEqual(result)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/repositories/opaque-id/tctbp-apply',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          confirm: true,
+          aiReviewId: 'review-id',
+          aiReviewAcknowledged: true,
+          planFingerprint: 'a'.repeat(64),
+          mode: 'additions-only',
+          approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        }),
+      }),
+    )
+  })
+
+  it('requests a read-only canonical TCTBP upgrade plan', async () => {
+    const plan = {
+      disposition: 'source-unavailable',
+      sourceAlignment: 'unknown',
+      actionCounts: { preserve: 0, add: 0, review: 0, unavailable: 0 },
+      blockers: [],
+      policy: {
+        state: 'unavailable',
+        differences: [],
+      },
+      source: {
+        state: 'not-configured',
+        repository: null,
+        revision: null,
+        version: null,
+        managedFileCount: 0,
+        message: 'Not configured',
+      },
+      target: {
+        sourceRepository: null,
+        sourceRevision: null,
+        sourceVersion: null,
+      },
+      drift: {
+        files: [],
+        counts: {
+          current: 0,
+          'missing-target': 0,
+          drifted: 0,
+          'source-unavailable': 0,
+        },
+      },
+    } satisfies TctbpUpgradePlan
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(plan))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(loadTctbpUpgradePlan('opaque-id')).resolves.toStrictEqual(plan)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/repositories/opaque-id/tctbp-upgrade-plan',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
   it('selects the opaque configured repository and sends only a fixed intent', async () => {
     const detail = {
       observation: {},

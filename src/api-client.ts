@@ -1,7 +1,147 @@
+import type { AiReviewResult } from '../shared/ai-review'
+import type {
+  TctbpBootstrapApplyResult,
+  TctbpBootstrapJob,
+  TctbpBootstrapJobStart,
+  TctbpBootstrapPlan,
+  TctbpBootstrapRequest,
+} from '../shared/tctbp-bootstrap'
 import type { PortfolioSnapshot } from '../shared/portfolio'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { ReferenceCatalogue } from '../shared/reference'
+import type {
+  TctbpApplyMode,
+  TctbpApplyResult,
+  TctbpUpgradePlan,
+} from '../shared/tctbp-upgrade'
+
+export async function loadTctbpBootstrapReview(
+  repositoryId: string,
+  request: TctbpBootstrapRequest,
+): Promise<AiReviewResult> {
+  return requestJson<AiReviewResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-review`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    },
+  )
+}
+
+export async function startTctbpBootstrap(
+  repositoryId: string,
+  planFingerprint: string,
+  aiReviewId: string,
+  request: TctbpBootstrapRequest,
+): Promise<TctbpBootstrapJobStart> {
+  return requestJson<TctbpBootstrapJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        confirm: true,
+        aiReviewId,
+        aiReviewAcknowledged: true,
+        planFingerprint,
+        request,
+      }),
+    },
+  )
+}
+
+export async function loadTctbpBootstrapJob(
+  repositoryId: string,
+  jobId: string,
+): Promise<TctbpBootstrapJob> {
+  return requestJson<TctbpBootstrapJob>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-jobs/${encodeURIComponent(jobId)}`,
+  )
+}
+
+export async function applyTctbpBootstrap(
+  repositoryId: string,
+  planFingerprint: string,
+  aiReviewId: string,
+  request: TctbpBootstrapRequest,
+): Promise<TctbpBootstrapApplyResult> {
+  return requestJson<TctbpBootstrapApplyResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        confirm: true,
+        aiReviewId,
+        aiReviewAcknowledged: true,
+        planFingerprint,
+        request,
+      }),
+    },
+  )
+}
+
+export async function prepareTctbpBootstrap(
+  repositoryId: string,
+  request: TctbpBootstrapRequest,
+): Promise<TctbpBootstrapPlan> {
+  return requestJson<TctbpBootstrapPlan>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-bootstrap-plan`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    },
+  )
+}
+
+export async function loadTctbpUpgradeReview(
+  repositoryId: string,
+): Promise<AiReviewResult> {
+  return requestJson<AiReviewResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-upgrade-review`,
+    { method: 'POST' },
+  )
+}
+
+export async function applyTctbpUpgradePlan(
+  repositoryId: string,
+  planFingerprint: string,
+  aiReviewId: string,
+  mode: TctbpApplyMode,
+  approvedPaths: string[] = [],
+  approvedDeletionPaths: string[] = [],
+  confirmDeletions = false,
+): Promise<TctbpApplyResult> {
+  return requestJson<TctbpApplyResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        confirm: true,
+        aiReviewId,
+        aiReviewAcknowledged: true,
+        planFingerprint,
+        mode,
+        approvedPaths,
+        approvedDeletionPaths,
+        confirmDeletions,
+      }),
+    },
+  )
+}
+
+export async function loadTctbpUpgradePlan(
+  repositoryId: string,
+): Promise<TctbpUpgradePlan> {
+  return requestJson<TctbpUpgradePlan>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-upgrade-plan`,
+    { method: 'POST' },
+  )
+}
 
 export async function loadRepositoryDetail(
   repositoryId: string,

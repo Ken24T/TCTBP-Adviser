@@ -1,6 +1,11 @@
 import type { LocalSyncState } from './inspection'
 import type { RepositoryGitHubEvidence } from './github'
 import type {
+  ManagedFileActionCounts,
+  TctbpSourceAlignment,
+  TctbpUpgradeDisposition,
+} from './tctbp-upgrade'
+import type {
   RecommendationAction,
   RecommendationDisposition,
   RecommendationReasonCode,
@@ -41,6 +46,25 @@ export interface PortfolioRepository {
     message: string
   } | null
   github: RepositoryGitHubEvidence
+  upgrade?: PortfolioUpgradeSummary | null
+}
+
+export interface PortfolioUpgradeSummary {
+  disposition: TctbpUpgradeDisposition
+  sourceAlignment: TctbpSourceAlignment
+  actionCounts: ManagedFileActionCounts
+  blockerCount: number
+  policyDifferenceCount: number
+  reasons: string[]
+}
+
+export interface PortfolioUpgradeTotals {
+  enabled: boolean
+  current: number
+  reviewRequired: number
+  bootstrapRequired: number
+  blocked: number
+  sourceUnavailable: number
 }
 
 export interface PortfolioSnapshot {
@@ -62,5 +86,6 @@ export interface PortfolioSnapshot {
     githubOnly: number
     unavailable: number
   }
+  upgrade?: PortfolioUpgradeTotals
   repositories: PortfolioRepository[]
 }

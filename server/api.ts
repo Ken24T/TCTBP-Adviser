@@ -1,8 +1,16 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SafeConfigurationExport } from '../shared/diagnostics'
+import { createAiReviewer, type AiReviewer } from './ai-reviewer'
+import { buildUpgradeReviewEvidence } from './ai-review-evidence'
+import { AiReviewStore } from './ai-review-store'
+import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
+import { CanonicalTctbpSourceService } from './tctbp-source'
+import { readTctbpApplyRequest } from './tctbp-apply-input'
+import { readBootstrapRequest } from './tctbp-bootstrap-input'
+import { readBootstrapApplyRequest } from './tctbp-bootstrap-apply-input'
 import { safeConfigurationExport } from './configuration-export'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
@@ -31,6 +39,10 @@ export interface ApiRuntime {
   readonly registry: RepositoryRegistry
   readonly inspections: RepositoryInspectionService
   readonly github: GitHubEnrichmentService
+  readonly tctbpSource: CanonicalTctbpSourceService
+  readonly aiReviewer: AiReviewer
+  readonly aiReviewStore: AiReviewStore
+  readonly bootstrapJobs: TctbpBootstrapJobStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -59,14 +71,69 @@ export function createApiRuntime(
       new GitHubRestClient(config.github),
     ),
   )
+  const tctbpSource = new CanonicalTctbpSourceService(
+    config.canonicalTctbpWebRoot ?? null,
+    executor,
+  )
+  const aiReviewer = createAiReviewer(config.ai ?? {
+    enabled: false,
+    apiKey: null,
+    baseUrl: null,
+    model: null,
+    timeoutMs: 120_000,
+    maximumOutputTokens: 8_000,
+    maximumResponseBytes: 2 * 1024 * 1024,
+  })
+  const aiReviewStore = new AiReviewStore()
+  const bootstrapJobs = new TctbpBootstrapJobStore()
   return {
     sessionToken,
     registry,
     inspections,
     github,
+    tctbpSource,
+    aiReviewer,
+    aiReviewStore,
+    bootstrapJobs,
     audit,
     configuration: safeConfigurationExport(config),
-    portfolio: new PortfolioService(config, registry, inspections, github),
+    portfolio: new PortfolioService(
+      config,
+      registry,
+      inspections,
+      github,
+      tctbpSource,
+    ),
+  }
+}
+
+function safeBootstrapJobError(error: unknown): string {
+  if (error instanceof AdviserError) return `${error.code}: ${error.message}`
+  return 'Bootstrap failed before completion.'
+}
+
+function requireAiApproval(
+  store: AiReviewStore,
+  reviewId: string,
+  acknowledged: boolean,
+  currentPlanFingerprint: string | undefined,
+): void {
+  if (!acknowledged) {
+    throw new AdviserError(
+      'ai-review-acknowledgement-required',
+      'A successful Jasper review must be acknowledged before applying changes.',
+    )
+  }
+  const review = store.get(reviewId)
+  if (
+    !review
+    || review.status !== 'available'
+    || review.planFingerprint !== currentPlanFingerprint
+  ) {
+    throw new AdviserError(
+      'ai-review-stale-or-unavailable',
+      'The Jasper review is missing, unavailable, or no longer matches the current plan.',
+    )
   }
 }
 
@@ -165,6 +232,162 @@ export function createApiHandler(runtime: ApiRuntime) {
         )
         const observation = await runtime.inspections.inspect(repository)
         sendJson(response, 200, observation)
+        return
+      }
+
+      const bootstrapReviewMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-review$/.exec(url.pathname)
+      if (request.method === 'POST' && bootstrapReviewMatch) {
+        const bootstrapRequest = await readBootstrapRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapReviewMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const [plan, bootstrapPlan] = await Promise.all([
+          runtime.tctbpSource.plan(repository.path, observation),
+          runtime.tctbpSource.bootstrapPlan(observation, bootstrapRequest),
+        ])
+        const evidence = buildUpgradeReviewEvidence(
+          repository.name,
+          observation,
+          plan,
+          bootstrapPlan,
+        )
+        const result = await runtime.aiReviewer.reviewUpgradePlan(evidence)
+        runtime.aiReviewStore.put(result)
+        sendJson(response, 200, result)
+        return
+      }
+
+      const bootstrapJobMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-jobs\/([^/]+)$/.exec(url.pathname)
+      if (request.method === 'GET' && bootstrapJobMatch) {
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapJobMatch[1]),
+        )
+        const job = runtime.bootstrapJobs.get(
+          decodeURIComponent(bootstrapJobMatch[2]),
+          repository.id,
+        )
+        if (!job) {
+          throw new AdviserError('bootstrap-job-not-found', 'Bootstrap job was not found.')
+        }
+        sendJson(response, 200, job)
+        return
+      }
+
+      const bootstrapApplyMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-apply$/.exec(url.pathname)
+      if (request.method === 'POST' && bootstrapApplyMatch) {
+        const bootstrapRequest = await readBootstrapApplyRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapApplyMatch[1]),
+        )
+        const job = runtime.bootstrapJobs.create(repository.id)
+        const progress = runtime.bootstrapJobs.progress(job.jobId)
+        void (async () => {
+          try {
+            runtime.bootstrapJobs.start(job.jobId)
+            progress('validate', 'Re-inspecting the target before bootstrap.')
+            const observation = await runtime.inspections.inspect(repository)
+            const bootstrapPlan = await runtime.tctbpSource.bootstrapPlan(
+              observation,
+              bootstrapRequest.request,
+            )
+            requireAiApproval(
+              runtime.aiReviewStore,
+              bootstrapRequest.aiReviewId,
+              bootstrapRequest.aiReviewAcknowledged,
+              bootstrapPlan.fingerprint,
+            )
+            const result = await runtime.tctbpSource.bootstrapApply(
+              repository.path,
+              observation,
+              bootstrapRequest,
+              progress,
+            )
+            runtime.bootstrapJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.bootstrapJobs.fail(job.jobId, safeBootstrapJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const bootstrapPlanMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-bootstrap-plan$/.exec(url.pathname)
+      if (request.method === 'POST' && bootstrapPlanMatch) {
+        const bootstrapRequest = await readBootstrapRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(bootstrapPlanMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const plan = await runtime.tctbpSource.bootstrapPlan(
+          observation,
+          bootstrapRequest,
+        )
+        sendJson(response, 200, plan)
+        return
+      }
+
+      const upgradePlanMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-upgrade-plan$/.exec(url.pathname)
+      if (request.method === 'POST' && upgradePlanMatch) {
+        await requireEmptyBody(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(upgradePlanMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const plan = await runtime.tctbpSource.plan(
+          repository.path,
+          observation,
+        )
+        sendJson(response, 200, plan)
+        return
+      }
+
+      const reviewMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-upgrade-review$/.exec(url.pathname)
+      if (request.method === 'POST' && reviewMatch) {
+        await requireEmptyBody(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(reviewMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const plan = await runtime.tctbpSource.plan(repository.path, observation)
+        const evidence = buildUpgradeReviewEvidence(
+          repository.name,
+          observation,
+          plan,
+        )
+        const result = await runtime.aiReviewer.reviewUpgradePlan(evidence)
+        runtime.aiReviewStore.put(result)
+        sendJson(response, 200, result)
+        return
+      }
+
+      const applyMatch =
+        /^\/api\/repositories\/([^/]+)\/tctbp-apply$/.exec(url.pathname)
+      if (request.method === 'POST' && applyMatch) {
+        const applyRequest = await readTctbpApplyRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(applyMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        const currentPlan = await runtime.tctbpSource.plan(repository.path, observation)
+        requireAiApproval(
+          runtime.aiReviewStore,
+          applyRequest.aiReviewId,
+          applyRequest.aiReviewAcknowledged,
+          currentPlan.fingerprint,
+        )
+        const result = await runtime.tctbpSource.apply(
+          repository.path,
+          observation,
+          applyRequest,
+        )
+        sendJson(response, 200, result)
         return
       }
 

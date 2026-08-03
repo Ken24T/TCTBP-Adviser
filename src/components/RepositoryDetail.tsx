@@ -1,5 +1,12 @@
+import type { AiReviewResult } from '../../shared/ai-review'
+import type {
+  TctbpBootstrapJob,
+  TctbpBootstrapPlan,
+  TctbpBootstrapRequest,
+} from '../../shared/tctbp-bootstrap'
 import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
+import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
@@ -7,23 +14,60 @@ import { GitHubPanel } from './GitHubPanel'
 import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
+import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
   intent: RecommendationIntent
   busy: boolean
+  upgradePlan: TctbpUpgradePlan | null
+  upgradeBusy: boolean
+  applyBusy: boolean
+  upgradeFeedback: string | null
+  aiReview: AiReviewResult | null
+  aiBusy: boolean
+  bootstrapPlan: TctbpBootstrapPlan | null
+  bootstrapBusy: boolean
+  bootstrapApplyBusy: boolean
+  bootstrapApplyFeedback: string | null
+  bootstrapJob: TctbpBootstrapJob | null
+  onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
+  onApplyBootstrap: (request: TctbpBootstrapRequest) => void
   onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
+  onLoadUpgradePlan: () => void
+  onReviewAi: () => void
+  onApplyAdditions: () => void
+  onApplyPolicy: () => void
+  onDeleteObsolete: () => void
 }
 
 export function RepositoryDetail({
   detail,
   intent,
   busy,
+  upgradePlan,
+  upgradeBusy,
+  applyBusy,
+  upgradeFeedback,
+  aiReview,
+  aiBusy,
+  bootstrapPlan,
+  bootstrapBusy,
+  bootstrapApplyBusy,
+  bootstrapApplyFeedback,
+  bootstrapJob,
+  onPrepareBootstrap,
+  onApplyBootstrap,
   onBack,
   onIntentChange,
   onRefresh,
+  onLoadUpgradePlan,
+  onReviewAi,
+  onApplyAdditions,
+  onApplyPolicy,
+  onDeleteObsolete,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   return (
@@ -44,8 +88,8 @@ export function RepositoryDetail({
         </div>
         <div className="trust-badges" aria-label="Inspection properties">
           <span>Local evidence</span>
-          <span>Read-only</span>
-          <span>Deterministic</span>
+          <span>Read-only inspection</span>
+          <span>Managed TCTBP apply only</span>
         </div>
       </header>
 
@@ -89,6 +133,27 @@ export function RepositoryDetail({
         recommendation={recommendation}
       />
       <TctbpPanel observation={observation} />
+      <TctbpUpgradePanel
+        repositoryName={observation.repository.name}
+        plan={upgradePlan}
+        busy={upgradeBusy}
+        applyBusy={applyBusy}
+        upgradeFeedback={upgradeFeedback}
+        aiReview={aiReview}
+        aiBusy={aiBusy}
+        bootstrapPlan={bootstrapPlan}
+        bootstrapBusy={bootstrapBusy}
+        bootstrapApplyBusy={bootstrapApplyBusy}
+        bootstrapApplyFeedback={bootstrapApplyFeedback}
+        bootstrapJob={bootstrapJob}
+        onPrepareBootstrap={onPrepareBootstrap}
+        onApplyBootstrap={onApplyBootstrap}
+        onLoad={onLoadUpgradePlan}
+        onReviewAi={onReviewAi}
+        onApplyAdditions={onApplyAdditions}
+        onApplyPolicy={onApplyPolicy}
+        onDeleteObsolete={onDeleteObsolete}
+      />
       <RepositoryReferencePanel reference={detail.reference} />
       <GitHubPanel
         evidence={detail.github}

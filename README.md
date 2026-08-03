@@ -1,7 +1,7 @@
 # tctbp-adviser
 
-A local-first, read-only companion for understanding repository state and
-choosing safe TCTBP workflows.
+A local-first companion for understanding repository state, choosing safe TCTBP
+workflows, and applying explicitly approved canonical TCTBP infrastructure updates.
 
 The secure local portfolio service, deterministic recommendation and intent
 engines, pinned trigger/guardrail reference, optional GitHub enrichment,
@@ -21,6 +21,17 @@ TCTBP-Web Adviser contract v1 pinned to commit
 
 The local environment ports are development `3037`, review `4037`, and
 production preview `5037`.
+
+To enable read-only canonical TCTBP upgrade plans, set
+`TCTBP_ADVISER_TCTBP_WEB_ROOT` to a local TCTBP-Web checkout beneath one of the
+configured repository roots. The Adviser reads its managed-file inventory and
+source revision but does not modify or execute the canonical checkout.
+
+Optional Jasper upgrade-plan reviews use encrypted local settings and remain
+advisory only. AI review is disabled unless explicitly enabled and configured;
+the API key is never sent to the browser or included in diagnostic exports.
+Configure it locally with `npm run ai:settings -- configure`; inspect the safe
+state with `npm run ai:settings -- status`.
 
 The application discovers bounded local roots and opens the portfolio
 dashboard. Select a repository to see local branch and working-tree state, one
@@ -129,13 +140,21 @@ scripts/          # TCTBP-Web runners (managed)
 - GitHub REST requests are read-only, fixed-host, bounded and service-side.
 - GitHub evidence has its own retrieval timestamp and never overrides local
   working-copy evidence or deterministic advice.
-- TCTBP installation health may be reviewed in the MVP.
-- Scaffolding updates remain disabled until a separately approved migration
-  design is implemented.
+- TCTBP installation health and canonical drift may be reviewed in the Adviser.
+- Repositories without usable TCTBP infrastructure are classified as
+  `bootstrap-required`, not treated as ordinary upgrades.
+- Explicitly approved apply requests can create or update canonical managed TCTBP
+  files on a dedicated non-environment branch; they never commit, push, deploy,
+  execute target commands, or modify application-owned files.
+- Deletions and project-specific policy merges require explicit per-run approval;
+  they never occur in additions-only mode.
 - Pin, hide and rename preferences are browser-only Adviser settings. They do
   not modify repositories.
 - Intent plans are clearly separate from state-driven recommendations and
   never execute their displayed triggers.
+- TCTBP apply requests require an explicit plan fingerprint and confirmation;
+  the Adviser leaves checkpointing, commit, publish, and deployment to the
+  operator.
 - The bounded in-memory inspection audit contains opaque repository IDs,
   timestamps, durations and safe error codes only.
 - Configuration export omits repository paths, GitHub repository names and

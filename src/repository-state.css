@@ -127,6 +127,125 @@ code {
   margin-bottom: 18px;
 }
 
+.upgrade-plan-button {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  color: #fff;
+  background: #223843;
+  border: 1px solid #223843;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.upgrade-plan-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.ai-review {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: #f3f1eb;
+  border-left: 4px solid #963f2b;
+  border-radius: 8px;
+}
+
+.bootstrap-plan {
+  margin: 0 0 18px;
+  padding: 16px;
+  background: #f3f1eb;
+  border-left: 4px solid #d7984d;
+  border-radius: 8px;
+}
+
+.ai-review p:last-child,
+.bootstrap-field {
+  display: grid;
+  gap: 5px;
+  margin: 10px 0;
+}
+
+.bootstrap-field span {
+  color: #6e797e;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.bootstrap-field input,
+.bootstrap-field select {
+  padding: 8px 10px;
+  color: #223843;
+  background: #fff;
+  border: 1px solid #c8d0ce;
+  border-radius: 7px;
+}
+
+.bootstrap-progress {
+  margin: 14px 0;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #d4dbd8;
+  border-radius: 7px;
+}
+
+.bootstrap-progress ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.bootstrap-progress li {
+  margin: 5px 0;
+}
+
+.bootstrap-progress small {
+  color: #6e797e;
+}
+
+.bootstrap-step-pending {
+  color: #879296;
+}
+
+.bootstrap-step-running {
+  color: #a45d28;
+  font-weight: 700;
+}
+
+.bootstrap-step-failed {
+  color: #963f2b;
+  font-weight: 700;
+}
+
+.bootstrap-plan p:last-child {
+  margin-bottom: 0;
+}
+
+.plan-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.plan-export-actions button {
+  padding: 8px 11px;
+  color: #43545c;
+  background: transparent;
+  border: 1px solid #c8d0ce;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.plan-export-actions .upgrade-apply-button {
+  color: #fff;
+  background: #963f2b;
+  border-color: #963f2b;
+}
+
+.plan-export-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .evidence-table [role="row"] {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1.8fr;

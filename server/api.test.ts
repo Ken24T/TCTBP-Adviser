@@ -77,6 +77,87 @@ describe('same-origin inspection API', () => {
     })
   })
 
+  it('returns a read-only upgrade plan without configured canonical source', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-upgrade-plan`,
+      running,
+      { method: 'POST' },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({
+      source: {
+        state: 'not-configured',
+        managedFileCount: 0,
+      },
+      drift: {
+        files: [],
+      },
+    })
+  })
+
+  it('returns a disabled Jasper review without configured AI settings', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-upgrade-review`,
+      running,
+      { method: 'POST' },
+    )
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({
+      status: 'disabled',
+      provider: 'openai-compatible',
+    })
+  })
+
+  it('requires explicit confirmation for TCTBP apply requests', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-apply`,
+      running,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          confirm: false,
+          planFingerprint: 'a'.repeat(64),
+          mode: 'additions-only',
+          approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        }),
+      },
+    )
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({
+      error: { code: 'request-confirmation-required' },
+    })
+  })
+
   it('rejects browser-supplied inspection input', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(

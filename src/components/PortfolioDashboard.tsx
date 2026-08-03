@@ -10,7 +10,18 @@ import type {
 import { formatAge } from '../presentation'
 import { PortfolioCard } from './PortfolioCard'
 
-type PortfolioFilter = 'all' | 'attention' | 'healthy' | 'non-tctbp'
+type PortfolioFilter =
+  | 'all'
+  | 'attention'
+  | 'healthy'
+  | 'non-tctbp'
+  | 'tctbp-current'
+  | 'tctbp-review'
+  | 'tctbp-bootstrap'
+  | 'tctbp-blocked'
+  | 'tctbp-outdated'
+  | 'tctbp-files'
+  | 'tctbp-policy'
 
 interface PortfolioDashboardProps {
   snapshot: PortfolioSnapshot
@@ -81,6 +92,14 @@ export function PortfolioDashboard({
         <Metric label="Healthy" value={healthyCount} />
         <Metric label="TCTBP compatible" value={compatibleCount} />
         <Metric label="GitHub mapped" value={snapshot.github.localMappings} />
+        {snapshot.upgrade?.enabled && (
+          <>
+            <Metric label="TCTBP current" value={snapshot.upgrade.current} />
+            <Metric label="TCTBP review" value={snapshot.upgrade.reviewRequired} />
+            <Metric label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} />
+            <Metric label="TCTBP blocked" value={snapshot.upgrade.blocked} />
+          </>
+        )}
       </section>
 
       <section className="portfolio-controls" aria-label="Portfolio filters">
@@ -94,18 +113,16 @@ export function PortfolioDashboard({
           />
         </label>
         <div className="filter-buttons">
-          {(['all', 'attention', 'healthy', 'non-tctbp'] as const).map(
-            (option) => (
-              <button
-                className={filter === option ? 'selected' : ''}
-                key={option}
-                type="button"
-                onClick={() => setFilter(option)}
-              >
-                {filterLabel(option)}
-              </button>
-            ),
-          )}
+          {filterOptions(snapshot).map((option) => (
+            <button
+              className={filter === option ? 'selected' : ''}
+              key={option}
+              type="button"
+              onClick={() => setFilter(option)}
+            >
+              {filterLabel(option)}
+            </button>
+          ))}
           {hiddenCount > 0 && (
             <button type="button" onClick={() => setShowHidden(!showHidden)}>
               {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
@@ -194,10 +211,49 @@ function matchesFilter(
   if (filter === 'healthy') {
     return repository.recommendation?.severity === 'healthy'
   }
-  return (
-    !repository.available
-    || repository.recommendation?.severity !== 'healthy'
-  )
+  if (filter === 'attention') {
+    return (
+      !repository.available
+      || repository.recommendation?.severity !== 'healthy'
+    )
+  }
+  if (!repository.upgrade) return false
+  if (filter === 'tctbp-current') {
+    return repository.upgrade.disposition === 'current'
+  }
+  if (filter === 'tctbp-review') {
+    return repository.upgrade.disposition === 'review-required'
+  }
+  if (filter === 'tctbp-bootstrap') {
+    return repository.upgrade.disposition === 'bootstrap-required'
+  }
+  if (filter === 'tctbp-blocked') {
+    return repository.upgrade.blockerCount > 0
+  }
+  if (filter === 'tctbp-outdated') {
+    return repository.upgrade.sourceAlignment === 'outdated'
+  }
+  if (filter === 'tctbp-files') {
+    return repository.upgrade.actionCounts.add > 0
+      || repository.upgrade.actionCounts.review > 0
+  }
+  return repository.upgrade.policyDifferenceCount > 0
+}
+
+function filterOptions(snapshot: PortfolioSnapshot): PortfolioFilter[] {
+  const options: PortfolioFilter[] = ['all', 'attention', 'healthy', 'non-tctbp']
+  if (snapshot.upgrade?.enabled) {
+    options.push(
+      'tctbp-current',
+      'tctbp-review',
+      'tctbp-bootstrap',
+      'tctbp-blocked',
+      'tctbp-outdated',
+      'tctbp-files',
+      'tctbp-policy',
+    )
+  }
+  return options
 }
 
 function displayName(
@@ -212,8 +268,20 @@ function emptyPreference(): PortfolioPreference {
 }
 
 function filterLabel(filter: PortfolioFilter): string {
-  if (filter === 'non-tctbp') return 'Without TCTBP'
-  return filter.charAt(0).toUpperCase() + filter.slice(1)
+  const labels: Record<PortfolioFilter, string> = {
+    all: 'All',
+    attention: 'Attention',
+    healthy: 'Healthy',
+    'non-tctbp': 'Without TCTBP',
+    'tctbp-current': 'TCTBP current',
+    'tctbp-review': 'TCTBP review',
+    'tctbp-bootstrap': 'Bootstrap required',
+    'tctbp-blocked': 'TCTBP blocked',
+    'tctbp-outdated': 'Source outdated',
+    'tctbp-files': 'File changes',
+    'tctbp-policy': 'Policy drift',
+  }
+  return labels[filter]
 }
 
 function Metric({ label, value }: { label: string; value: number }) {

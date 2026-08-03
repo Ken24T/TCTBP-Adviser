@@ -25,8 +25,26 @@ describe('repository detail view', () => {
         }}
         intent="none"
         busy={false}
+        upgradePlan={null}
+        upgradeBusy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
+        onLoadUpgradePlan={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onDeleteObsolete={() => undefined}
       />,
     )
 
@@ -39,6 +57,7 @@ describe('repository detail view', () => {
     expect(markup).toContain('What this action does')
     expect(markup).toContain('What this action does not do')
     expect(markup).toContain('No fetch was performed')
+    expect(markup).toContain('Preview upgrade plan')
   })
 
   it('renders the explicit machine-transfer intent path', () => {
@@ -64,8 +83,26 @@ describe('repository detail view', () => {
         }}
         intent="continue-on-another-machine"
         busy={false}
+        upgradePlan={null}
+        upgradeBusy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
+        onLoadUpgradePlan={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onDeleteObsolete={() => undefined}
       />,
     )
 
