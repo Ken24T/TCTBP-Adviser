@@ -27,7 +27,7 @@ export class PublishActioner {
     if (status.stdout.trim()) throw new Error('Publish requires a clean working tree.')
     const commitSha = (await this.git(repositoryPath, ['rev-parse', 'HEAD'])).stdout.trim()
     progress('execute', `Publishing ${branch} to origin.`)
-    await this.git(repositoryPath, ['push', '--set-upstream', 'origin', `HEAD:refs/heads/${branch}`])
+    await this.git(repositoryPath, ['push', '--set-upstream', 'origin', branch])
     progress('reinspect', 'Verifying the remote branch commit.')
     const remoteSha = (await this.git(repositoryPath, ['ls-remote', 'origin', `refs/heads/${branch}`])).stdout.trim().split(/\s+/)[0]
     if (remoteSha !== commitSha) throw new Error('Remote verification did not match the local commit.')
