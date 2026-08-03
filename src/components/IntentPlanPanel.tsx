@@ -1,6 +1,20 @@
+import type { ActionerJob } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
+import { ActionerProgress } from './ActionerProgress'
 
-export function IntentPlanPanel({ plan }: { plan: IntentPlan | null }) {
+interface IntentPlanPanelProps {
+  plan: IntentPlan | null
+  actionJob: ActionerJob | null
+  actionBusy: boolean
+  onRunCheckpoint: () => void
+}
+
+export function IntentPlanPanel({
+  plan,
+  actionJob,
+  actionBusy,
+  onRunCheckpoint,
+}: IntentPlanPanelProps) {
   if (!plan) {
     return (
       <section className="intent-plan intent-plan-empty">
@@ -28,6 +42,8 @@ export function IntentPlanPanel({ plan }: { plan: IntentPlan | null }) {
         <span>{plan.branchStrategy ?? 'Unknown branch strategy'}</span>
       </div>
 
+      {actionJob && <ActionerProgress job={actionJob} />}
+
       {plan.blockedBy.length > 0 && (
         <div className="intent-blocks">
           <strong>Resolve state or policy first</strong>
@@ -54,6 +70,16 @@ export function IntentPlanPanel({ plan }: { plan: IntentPlan | null }) {
                 </div>
                 <p>{step.explanation}</p>
                 {step.trigger && <code>{step.trigger}</code>}
+                {step.workflowId === 'checkpoint' && step.condition === 'required' && plan.fingerprint && (
+                  <button
+                    className="intent-action-button"
+                    disabled={actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
+                    type="button"
+                    onClick={onRunCheckpoint}
+                  >
+                    {actionBusy ? 'Starting…' : 'Run checkpoint'}
+                  </button>
+                )}
               </div>
             </li>
           ))}

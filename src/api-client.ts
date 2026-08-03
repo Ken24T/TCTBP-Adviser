@@ -1,4 +1,5 @@
 import type { AiReviewResult } from '../shared/ai-review'
+import type { ActionerJob, ActionerJobStart } from '../shared/actioner'
 import type {
   TctbpBootstrapApplyResult,
   TctbpBootstrapJob,
@@ -49,6 +50,34 @@ export async function startTctbpBootstrap(
         request,
       }),
     },
+  )
+}
+
+export async function startCheckpointAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/checkpoint`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'checkpoint',
+        intent: 'preserve-locally',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function loadActionerJob(
+  repositoryId: string,
+  jobId: string,
+): Promise<ActionerJob> {
+  return requestJson<ActionerJob>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/action-jobs/${encodeURIComponent(jobId)}`,
   )
 }
 

@@ -5,6 +5,9 @@ import { createAiReviewer, type AiReviewer } from './ai-reviewer'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
+import { ActionerJobStore } from './actioner-jobs'
+import { CheckpointActioner } from './checkpoint-actioner'
+import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
@@ -43,6 +46,7 @@ export interface ApiRuntime {
   readonly aiReviewer: AiReviewer
   readonly aiReviewStore: AiReviewStore
   readonly bootstrapJobs: TctbpBootstrapJobStore
+  readonly actionerJobs: ActionerJobStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -86,6 +90,7 @@ export function createApiRuntime(
   })
   const aiReviewStore = new AiReviewStore()
   const bootstrapJobs = new TctbpBootstrapJobStore()
+  const actionerJobs = new ActionerJobStore()
   return {
     sessionToken,
     registry,
@@ -95,6 +100,7 @@ export function createApiRuntime(
     aiReviewer,
     aiReviewStore,
     bootstrapJobs,
+    actionerJobs,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -105,6 +111,34 @@ export function createApiRuntime(
       tctbpSource,
     ),
   }
+}
+
+function assertCheckpointPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'preserve-locally',
+  )
+  const checkpointStep = plan?.steps.find((step) => step.workflowId === 'checkpoint')
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || checkpointStep?.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The checkpoint plan is stale, blocked, or no longer required.',
+    )
+  }
+}
+
+function safeActionerJobError(error: unknown): string {
+  if (error instanceof AdviserError) return `${error.code}: ${error.message}`
+  return 'Actioner workflow failed before completion.'
 }
 
 function safeBootstrapJobError(error: unknown): string {
@@ -256,6 +290,50 @@ export function createApiHandler(runtime: ApiRuntime) {
         const result = await runtime.aiReviewer.reviewUpgradePlan(evidence)
         runtime.aiReviewStore.put(result)
         sendJson(response, 200, result)
+        return
+      }
+
+      const actionJobMatch =
+        /^\/api\/repositories\/([^/]+)\/action-jobs\/([^/]+)$/.exec(url.pathname)
+      if (request.method === 'GET' && actionJobMatch) {
+        const repository = await runtime.registry.require(
+          decodeURIComponent(actionJobMatch[1]),
+        )
+        const job = runtime.actionerJobs.get(
+          decodeURIComponent(actionJobMatch[2]),
+          repository.id,
+        )
+        if (!job) throw new AdviserError('actioner-job-not-found', 'Actioner job was not found.')
+        sendJson(response, 200, job)
+        return
+      }
+
+      const checkpointActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/checkpoint$/.exec(url.pathname)
+      if (request.method === 'POST' && checkpointActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(checkpointActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertCheckpointPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id)
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertCheckpointPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new CheckpointActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
         return
       }
 

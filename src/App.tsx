@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ActionerJob } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -13,6 +14,8 @@ import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
+  loadActionerJob,
+  startCheckpointAction,
   applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
   startTctbpBootstrap,
@@ -36,6 +39,8 @@ import {
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
+  const [actionJob, setActionJob] = useState<ActionerJob | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
   const [upgradePlan, setUpgradePlan] = useState<TctbpUpgradePlan | null>(null)
   const [upgradeBusy, setUpgradeBusy] = useState(false)
   const [applyBusy, setApplyBusy] = useState(false)
@@ -85,6 +90,57 @@ function App() {
     }, 500)
     return () => window.clearTimeout(timer)
   }, [bootstrapJob, intent, selectedId])
+
+  useEffect(() => {
+    if (
+      !selectedId
+      || !actionJob
+      || actionJob.status === 'completed'
+      || actionJob.status === 'failed'
+    ) return
+    const timer = window.setTimeout(() => {
+      void loadActionerJob(selectedId, actionJob.jobId)
+        .then((nextJob) => {
+          setActionJob(nextJob)
+          if (nextJob.status === 'completed' || nextJob.status === 'failed') {
+            setActionBusy(false)
+            void refreshDetail(selectedId, intent)
+          }
+        })
+        .catch((cause) => captureError(cause, requestId.current))
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [actionJob, intent, selectedId])
+
+  async function runCheckpoint(): Promise<void> {
+    if (!selectedId || !detail?.intentPlan?.fingerprint) return
+    if (!window.confirm(
+      'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
+    )) return
+    setActionBusy(true)
+    setError(null)
+    try {
+      const startedJob = await startCheckpointAction(
+        selectedId,
+        detail.intentPlan.fingerprint,
+      )
+      setActionJob({
+        jobId: startedJob.jobId,
+        repositoryId: selectedId,
+        workflowId: 'checkpoint',
+        status: 'queued',
+        steps: [],
+        result: null,
+        error: null,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        completedAt: null,
+      })
+    } catch (cause) {
+      setActionBusy(false)
+      captureError(cause, requestId.current)
+    }
+  }
 
   async function refreshPortfolio(force = false): Promise<void> {
     const currentRequest = ++requestId.current
@@ -307,6 +363,8 @@ function App() {
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
     setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -327,6 +385,8 @@ function App() {
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
     setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -347,6 +407,8 @@ function App() {
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
     setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -425,6 +487,9 @@ function App() {
         ) : selectedId && detail ? (
           <RepositoryDetail
             detail={detail}
+            actionJob={actionJob}
+            actionBusy={actionBusy}
+            onRunCheckpoint={() => void runCheckpoint()}
             intent={intent}
             busy={busy}
             upgradePlan={upgradePlan}

@@ -183,6 +183,56 @@
   color: #657278;
 }
 
+.intent-action-button {
+  margin-top: 10px;
+  padding: 7px 12px;
+  color: #fff;
+  background: #963f2b;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.intent-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.actioner-progress {
+  margin: 14px 0;
+  padding: 14px;
+  background: #f3f1eb;
+  border-left: 4px solid #963f2b;
+  border-radius: 8px;
+}
+
+.actioner-progress ol {
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.actioner-progress li {
+  margin: 5px 0;
+}
+
+.actioner-progress small {
+  color: #6e797e;
+}
+
+.actioner-step-pending {
+  color: #879296;
+}
+
+.actioner-step-running {
+  color: #a45d28;
+  font-weight: 700;
+}
+
+.actioner-step-failed {
+  color: #963f2b;
+  font-weight: 700;
+}
+
 .likely-next,
 .intent-boundary {
   margin-top: 16px;

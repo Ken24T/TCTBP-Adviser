@@ -31,6 +31,7 @@ export interface IntentPlanBlock {
 
 export interface IntentPlan {
   source: 'user-intent'
+  fingerprint: string
   intent: Exclude<RecommendationIntent, 'none'>
   status: 'ready' | 'blocked' | 'complete'
   title: string

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { RepositoryObservation } from '../../shared/inspection'
 import type {
   IntentPlan,
@@ -148,8 +149,8 @@ function createPlan(
   blockedBy: IntentPlanBlock[],
 ): IntentPlan {
   const likely = steps.find((step) => step.condition === 'required') ?? null
-  return {
-    source: 'user-intent',
+  const plan = {
+    source: 'user-intent' as const,
     intent: context.intent,
     status,
     title,
@@ -165,6 +166,12 @@ function createPlan(
     }],
     branchStrategy: context.observation.tctbp.branchModel.strategy,
     effects: planEffects(steps),
+  }
+  return {
+    ...plan,
+    fingerprint: createHash('sha256')
+      .update(JSON.stringify(plan))
+      .digest('hex'),
   }
 }
 

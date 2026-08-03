@@ -1,3 +1,4 @@
+import type { ActionerJob } from '../../shared/actioner'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -18,6 +19,9 @@ import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
+  actionJob: ActionerJob | null
+  actionBusy: boolean
+  onRunCheckpoint: () => void
   intent: RecommendationIntent
   busy: boolean
   upgradePlan: TctbpUpgradePlan | null
@@ -45,6 +49,9 @@ interface RepositoryDetailProps {
 
 export function RepositoryDetail({
   detail,
+  actionJob,
+  actionBusy,
+  onRunCheckpoint,
   intent,
   busy,
   upgradePlan,
@@ -127,7 +134,12 @@ export function RepositoryDetail({
       </section>
 
       <RecommendationPanel recommendation={recommendation} />
-      <IntentPlanPanel plan={detail.intentPlan} />
+      <IntentPlanPanel
+        plan={detail.intentPlan}
+        actionJob={actionJob}
+        actionBusy={actionBusy}
+        onRunCheckpoint={onRunCheckpoint}
+      />
       <RepositoryState
         observation={observation}
         recommendation={recommendation}
