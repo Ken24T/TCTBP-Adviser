@@ -97,7 +97,9 @@ export function IntentPlanPanel({
                         ? 'Run checkpoint'
                         : step.workflowId === 'publish'
                           ? 'Publish branch'
-                          : 'Deploy development'}
+                          : step.workflowId === 'branch'
+                            ? 'Branch development'
+                            : 'Deploy development'}
                   </button>
                 )}
               </div>
