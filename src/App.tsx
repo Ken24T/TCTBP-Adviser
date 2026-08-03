@@ -141,7 +141,11 @@ function App() {
     setError(null)
     try {
       const startedJob = workflowId === 'checkpoint'
-        ? await startCheckpointAction(selectedId, detail.intentPlan.fingerprint)
+        ? await startCheckpointAction(
+            selectedId,
+            detail.intentPlan.fingerprint,
+            detail.intentPlan.intent,
+          )
         : workflowId === 'publish'
           ? await startPublishAction(selectedId, detail.intentPlan.fingerprint)
           : workflowId === 'branch-development'

@@ -120,11 +120,12 @@ export function createApiRuntime(
 function assertCheckpointPlan(
   observation: import('../shared/inspection').RepositoryObservation,
   planFingerprint: string,
+  intent: import('../shared/actioner').ActionerIntent,
 ): void {
   const plan = planIntent(
     observation,
     recommend(observation, 'none', new Date()),
-    'preserve-locally',
+    intent,
   )
   const checkpointStep = plan?.steps.find((step) => step.workflowId === 'checkpoint')
   if (
@@ -400,13 +401,13 @@ export function createApiHandler(runtime: ApiRuntime) {
           decodeURIComponent(checkpointActionMatch[1]),
         )
         const observation = await runtime.inspections.inspect(repository)
-        assertCheckpointPlan(observation, actionRequest.planFingerprint)
+        assertCheckpointPlan(observation, actionRequest.planFingerprint, actionRequest.intent)
         const job = runtime.actionerJobs.create(repository.id, 'checkpoint')
         void (async () => {
           try {
             runtime.actionerJobs.start(job.jobId)
             const currentObservation = await runtime.inspections.inspect(repository)
-            assertCheckpointPlan(currentObservation, actionRequest.planFingerprint)
+            assertCheckpointPlan(currentObservation, actionRequest.planFingerprint, actionRequest.intent)
             const result = await new CheckpointActioner().run(
               repository.path,
               currentObservation.head.branch,
@@ -816,6 +817,8 @@ function sendJson(
 function statusForError(error: unknown): number {
   if (!(error instanceof AdviserError)) return 500
   if (error.code === 'repository-not-found') return 404
+  if (error.code === 'actioner-job-not-found') return 404
+  if (error.code === 'actioner-plan-stale-or-blocked') return 409
   if (
     error.code === 'request-host-rejected'
     || error.code === 'request-origin-rejected'

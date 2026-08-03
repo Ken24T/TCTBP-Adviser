@@ -5,10 +5,9 @@ export type ActionerWorkflowId =
   | 'branch-development'
   | 'repair-tctbp-script-compatibility'
 
-export type ActionerIntent =
-  | 'preserve-locally'
-  | 'preserve-and-publish'
-  | 'deploy-current-environment'
+import type { RecommendationIntent } from './recommendation'
+
+export type ActionerIntent = Exclude<RecommendationIntent, 'none'>
 
 export type ActionerJobStatus =
   | 'queued'
