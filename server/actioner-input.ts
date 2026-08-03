@@ -26,8 +26,8 @@ export async function readActionerRequest(
   }
   const value = body as Record<string, unknown>
   if (
-    !['checkpoint', 'publish'].includes(String(value.workflowId))
-    || !['preserve-locally', 'preserve-and-publish'].includes(String(value.intent))
+    !['checkpoint', 'publish', 'deploy-development'].includes(String(value.workflowId))
+    || !['preserve-locally', 'preserve-and-publish', 'deploy-current-environment'].includes(String(value.intent))
     || value.confirm !== true
     || typeof value.planFingerprint !== 'string'
     || !/^[0-9a-f]{64}$/.test(value.planFingerprint)
@@ -38,8 +38,8 @@ export async function readActionerRequest(
     )
   }
   return {
-    workflowId: value.workflowId as 'checkpoint' | 'publish',
-    intent: value.intent as 'preserve-locally' | 'preserve-and-publish',
+    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development',
+    intent: value.intent as 'preserve-locally' | 'preserve-and-publish' | 'deploy-current-environment',
     planFingerprint: value.planFingerprint,
     confirm: true,
   }

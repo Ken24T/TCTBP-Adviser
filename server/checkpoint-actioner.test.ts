@@ -31,6 +31,7 @@ describe('checkpoint Actioner', () => {
       pushed: false,
       remote: null,
       verifiedClean: true,
+      summary: 'Local checkpoint created; no push performed.',
     })
     expect(git(repository, ['log', '-1', '--format=%s']))
       .toBe('checkpoint: preserve local working state')

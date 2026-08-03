@@ -11,11 +11,15 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
     { id: 'validate', label: `Validate ${workflowId} plan and target state` },
     { id: 'execute', label: workflowId === 'checkpoint'
       ? 'Create local checkpoint commit'
-      : 'Publish current branch to origin' },
+      : workflowId === 'publish'
+        ? 'Publish current branch to origin'
+        : 'Execute development deployment' },
     { id: 'reinspect', label: 'Re-inspect repository state' },
     { id: 'complete', label: workflowId === 'checkpoint'
       ? 'Complete without push'
-      : 'Complete with verified remote state' },
+      : workflowId === 'publish'
+        ? 'Complete with verified remote state'
+        : 'Complete with deployment result' },
   ]
 }
 

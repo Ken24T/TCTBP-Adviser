@@ -39,6 +39,7 @@ export class PublishActioner {
       pushed: true,
       remote,
       verifiedClean: true,
+      summary: 'Current branch published and remote commit verified.',
     }
   }
 

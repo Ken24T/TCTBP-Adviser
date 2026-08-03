@@ -73,18 +73,28 @@ export function IntentPlanPanel({
                 </div>
                 <p>{step.explanation}</p>
                 {step.trigger && <code>{step.trigger}</code>}
-                {(step.workflowId === 'checkpoint' || step.workflowId === 'publish')
+                {(step.workflowId === 'checkpoint'
+                  || step.workflowId === 'publish'
+                  || (step.workflowId === 'deploy' && step.targetBranch === 'dev'))
                   && step.condition === 'required'
                   && plan.fingerprint && (
                   <button
                     className="intent-action-button"
                     disabled={actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
                     type="button"
-                    onClick={() => onRunAction(step.workflowId as 'checkpoint' | 'publish')}
+                    onClick={() => onRunAction(
+                      step.workflowId === 'deploy'
+                        ? 'deploy-development'
+                        : step.workflowId as 'checkpoint' | 'publish',
+                    )}
                   >
                     {actionBusy
                       ? 'Starting…'
-                      : step.workflowId === 'checkpoint' ? 'Run checkpoint' : 'Publish branch'}
+                      : step.workflowId === 'checkpoint'
+                        ? 'Run checkpoint'
+                        : step.workflowId === 'publish'
+                          ? 'Publish branch'
+                          : 'Deploy development'}
                   </button>
                 )}
               </div>

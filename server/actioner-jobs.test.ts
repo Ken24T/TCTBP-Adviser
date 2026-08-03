@@ -15,6 +15,7 @@ describe('Actioner job store', () => {
       pushed: false,
       remote: null,
       verifiedClean: true,
+      summary: 'Local checkpoint created; no push performed.',
     })
 
     expect(store.get(job.jobId, 'repo-1')?.status).toBe('completed')

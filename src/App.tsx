@@ -16,6 +16,7 @@ import {
   loadReferenceCatalogue,
   loadActionerJob,
   startCheckpointAction,
+  startDeployDevelopmentAction,
   startPublishAction,
   applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
@@ -119,7 +120,9 @@ function App() {
     if (!selectedId || !detail?.intentPlan?.fingerprint) return
     const confirmation = workflowId === 'checkpoint'
       ? 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.'
-      : 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.'
+      : workflowId === 'publish'
+        ? 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.'
+        : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
     if (!window.confirm(confirmation)) return
     setActionBusy(true)
     setActionFeedback(null)
@@ -127,7 +130,9 @@ function App() {
     try {
       const startedJob = workflowId === 'checkpoint'
         ? await startCheckpointAction(selectedId, detail.intentPlan.fingerprint)
-        : await startPublishAction(selectedId, detail.intentPlan.fingerprint)
+        : workflowId === 'publish'
+          ? await startPublishAction(selectedId, detail.intentPlan.fingerprint)
+          : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,

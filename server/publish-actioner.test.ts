@@ -31,6 +31,7 @@ describe('publish Actioner', () => {
       pushed: true,
       verifiedClean: true,
       remote,
+      summary: 'Current branch published and remote commit verified.',
     })
     expect(git(remote, ['show-ref', '--hash', 'refs/heads/development'])).toBe(result.commitSha)
     expect(git(repository, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}']))

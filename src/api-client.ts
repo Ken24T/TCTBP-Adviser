@@ -72,6 +72,25 @@ export async function startPublishAction(
   )
 }
 
+export async function startDeployDevelopmentAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/deploy-development`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'deploy-development',
+        intent: 'deploy-current-environment',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startCheckpointAction(
   repositoryId: string,
   planFingerprint: string,

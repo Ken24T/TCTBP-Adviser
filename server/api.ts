@@ -8,6 +8,7 @@ import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
 import { ActionerJobStore } from './actioner-jobs'
 import { CheckpointActioner } from './checkpoint-actioner'
 import { PublishActioner } from './publish-actioner'
+import { DeployActioner } from './deploy-actioner'
 import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
@@ -156,6 +157,30 @@ function assertPublishPlan(
     throw new AdviserError(
       'actioner-plan-stale-or-blocked',
       'The publish plan is stale, blocked, or no longer required.',
+    )
+  }
+}
+
+function assertDeployDevelopmentPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'deploy-current-environment',
+  )
+  const deployStep = plan?.steps.find((step) => step.workflowId === 'deploy')
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || deployStep?.condition !== 'required'
+    || deployStep.targetBranch !== 'dev'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The development deployment plan is stale, blocked, or not currently required.',
     )
   }
 }
@@ -377,6 +402,35 @@ export function createApiHandler(runtime: ApiRuntime) {
             const currentObservation = await runtime.inspections.inspect(repository)
             assertPublishPlan(currentObservation, actionRequest.planFingerprint)
             const result = await new PublishActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const deployDevelopmentMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/deploy-development$/.exec(url.pathname)
+      if (request.method === 'POST' && deployDevelopmentMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(deployDevelopmentMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertDeployDevelopmentPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'deploy-development')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertDeployDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new DeployActioner().run(
               repository.path,
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),

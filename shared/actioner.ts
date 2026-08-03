@@ -1,6 +1,9 @@
-export type ActionerWorkflowId = 'checkpoint' | 'publish'
+export type ActionerWorkflowId = 'checkpoint' | 'publish' | 'deploy-development'
 
-export type ActionerIntent = 'preserve-locally' | 'preserve-and-publish'
+export type ActionerIntent =
+  | 'preserve-locally'
+  | 'preserve-and-publish'
+  | 'deploy-current-environment'
 
 export type ActionerJobStatus =
   | 'queued'
@@ -33,9 +36,10 @@ export interface ActionerResult {
   workflowId: ActionerWorkflowId
   commitSha: string | null
   branch: string | null
-  pushed: boolean
+  pushed: boolean | null
   remote: string | null
   verifiedClean: boolean
+  summary: string | null
 }
 
 export interface ActionerJob {

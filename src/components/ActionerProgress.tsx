@@ -16,9 +16,10 @@ export function ActionerProgress({ job }: { job: ActionerJob }) {
       {job.error && <p className="empty-state">{job.error}</p>}
       {job.result && (
         <p className="empty-state">
-          {job.result.pushed
-            ? `Published ${job.result.branch ?? 'branch'} at ${job.result.commitSha?.slice(0, 12) ?? 'unknown commit'}.`
-            : `Commit: ${job.result.commitSha?.slice(0, 12) ?? 'unknown commit'}. No push performed.`}
+          {job.result.summary
+            ?? (job.result.pushed
+              ? `Published ${job.result.branch ?? 'branch'} at ${job.result.commitSha?.slice(0, 12) ?? 'unknown commit'}.`
+              : `Commit: ${job.result.commitSha?.slice(0, 12) ?? 'unknown commit'}. No push performed.`)}
         </p>
       )}
     </section>

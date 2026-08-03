@@ -40,6 +40,7 @@ export class CheckpointActioner {
       pushed: false,
       remote: null,
       verifiedClean,
+      summary: 'Local checkpoint created; no push performed.',
     }
   }
 
