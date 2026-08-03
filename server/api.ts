@@ -9,6 +9,7 @@ import { ActionerJobStore } from './actioner-jobs'
 import { CheckpointActioner } from './checkpoint-actioner'
 import { BranchActioner } from './branch-actioner'
 import { RepairActioner } from './repair-actioner'
+import { DeploymentEvidenceStore } from './deployment-evidence'
 import { PublishActioner } from './publish-actioner'
 import { DeployActioner } from './deploy-actioner'
 import { readActionerRequest } from './actioner-input'
@@ -51,6 +52,7 @@ export interface ApiRuntime {
   readonly aiReviewStore: AiReviewStore
   readonly bootstrapJobs: TctbpBootstrapJobStore
   readonly actionerJobs: ActionerJobStore
+  readonly deployments: DeploymentEvidenceStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -95,6 +97,7 @@ export function createApiRuntime(
   const aiReviewStore = new AiReviewStore()
   const bootstrapJobs = new TctbpBootstrapJobStore()
   const actionerJobs = new ActionerJobStore()
+  const deployments = new DeploymentEvidenceStore()
   return {
     sessionToken,
     registry,
@@ -105,6 +108,7 @@ export function createApiRuntime(
     aiReviewStore,
     bootstrapJobs,
     actionerJobs,
+    deployments,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -529,6 +533,17 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
+            await runtime.deployments.record({
+              repositoryId: repository.id,
+              environment: 'development',
+              branch: currentObservation.head.branch ?? 'development',
+              commitSha: result.commitSha ?? '',
+              completedAt: new Date().toISOString(),
+              workflow: 'deploy-development',
+              workflowCompleted: true,
+              runtimeVerification: 'not-verified',
+              summary: 'Development deployment workflow completed; runtime health verification is not configured.',
+            })
             runtime.actionerJobs.complete(job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
@@ -697,6 +712,12 @@ export function createApiHandler(runtime: ApiRuntime) {
           runtime.inspections.inspect(repository),
           runtime.github.forLocal(repository),
         ])
+        const deploymentEvidence = await runtime.deployments.get(
+          repository.id,
+          'development',
+          observation.head.branch,
+          observation.head.sha,
+        )
         const result: RepositoryDetailResult = {
           observation,
           recommendation: recommend(observation, 'none', new Date()),
@@ -708,6 +729,7 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation,
           result.recommendation,
           intent,
+          deploymentEvidence,
         )
         sendJson(response, 200, result)
         return

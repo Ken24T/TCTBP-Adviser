@@ -1,4 +1,5 @@
 import type { RepositoryObservation } from '../../shared/inspection'
+import type { DeploymentEvidence } from '../../shared/deployment'
 import type {
   IntentPlan,
   IntentPlanBlock,
@@ -25,9 +26,10 @@ export function planIntent(
   observation: RepositoryObservation,
   state: RecommendationResult,
   intent: RecommendationIntent,
+  deploymentEvidence: DeploymentEvidence | null = null,
 ): IntentPlan | null {
   if (intent === 'none') return null
-  const context = { observation, state, intent }
+  const context = { observation, state, intent, deploymentEvidence }
   if (intent === 'recover-interrupted-workflow') {
     return recoveryPlan(context)
   }
@@ -248,6 +250,19 @@ function deployCurrent(context: PlanContext): IntentPlan {
         ? `The current branch '${branch ?? 'unknown'}' has no environment role. Activate '${workingBranch}' before deploying development.`
         : 'The current branch has no configured environment role.',
     }], activationSteps)
+  }
+  if (
+    target === 'dev'
+    && context.deploymentEvidence?.workflowCompleted === true
+    && context.deploymentEvidence.branch === branch
+    && context.deploymentEvidence.commitSha === observation.head.sha
+  ) {
+    return completePlan(
+      context,
+      'Development deployment already completed for this commit',
+      context.deploymentEvidence.summary,
+      [statusStep()],
+    )
   }
   const steps = preservationPrerequisites(observation)
   steps.push(deployStep(target, 'required'))
