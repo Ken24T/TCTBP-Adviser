@@ -38,6 +38,7 @@ export class CheckpointActioner {
       commitSha,
       branch,
       pushed: false,
+      remote: null,
       verifiedClean,
     }
   }

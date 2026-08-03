@@ -23,7 +23,7 @@ interface RepositoryDetailProps {
   actionJob: ActionerJob | null
   actionBusy: boolean
   actionFeedback: string | null
-  onRunCheckpoint: () => void
+  onRunAction: (workflowId: import('../../shared/actioner').ActionerWorkflowId) => void
   intent: RecommendationIntent
   busy: boolean
   upgradePlan: TctbpUpgradePlan | null
@@ -54,7 +54,7 @@ export function RepositoryDetail({
   actionJob,
   actionBusy,
   actionFeedback,
-  onRunCheckpoint,
+  onRunAction,
   intent,
   busy,
   upgradePlan,
@@ -148,7 +148,7 @@ export function RepositoryDetail({
         actionJob={actionJob}
         actionBusy={actionBusy}
         actionFeedback={actionFeedback}
-        onRunCheckpoint={onRunCheckpoint}
+        onRunAction={onRunAction}
       />
       <RepositoryState
         observation={observation}

@@ -1,4 +1,4 @@
-import type { ActionerJob } from '../../shared/actioner'
+import type { ActionerJob, ActionerWorkflowId } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
 import { ActionerProgress } from './ActionerProgress'
 
@@ -7,7 +7,7 @@ interface IntentPlanPanelProps {
   actionJob: ActionerJob | null
   actionBusy: boolean
   actionFeedback: string | null
-  onRunCheckpoint: () => void
+  onRunAction: (workflowId: ActionerWorkflowId) => void
 }
 
 export function IntentPlanPanel({
@@ -15,7 +15,7 @@ export function IntentPlanPanel({
   actionJob,
   actionBusy,
   actionFeedback,
-  onRunCheckpoint,
+  onRunAction,
 }: IntentPlanPanelProps) {
   if (!plan) {
     return (
@@ -73,14 +73,18 @@ export function IntentPlanPanel({
                 </div>
                 <p>{step.explanation}</p>
                 {step.trigger && <code>{step.trigger}</code>}
-                {step.workflowId === 'checkpoint' && step.condition === 'required' && plan.fingerprint && (
+                {(step.workflowId === 'checkpoint' || step.workflowId === 'publish')
+                  && step.condition === 'required'
+                  && plan.fingerprint && (
                   <button
                     className="intent-action-button"
                     disabled={actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
                     type="button"
-                    onClick={onRunCheckpoint}
+                    onClick={() => onRunAction(step.workflowId as 'checkpoint' | 'publish')}
                   >
-                    {actionBusy ? 'Starting…' : 'Run checkpoint'}
+                    {actionBusy
+                      ? 'Starting…'
+                      : step.workflowId === 'checkpoint' ? 'Run checkpoint' : 'Publish branch'}
                   </button>
                 )}
               </div>

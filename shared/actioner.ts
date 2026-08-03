@@ -1,4 +1,6 @@
-export type ActionerWorkflowId = 'checkpoint'
+export type ActionerWorkflowId = 'checkpoint' | 'publish'
+
+export type ActionerIntent = 'preserve-locally' | 'preserve-and-publish'
 
 export type ActionerJobStatus =
   | 'queued'
@@ -14,7 +16,7 @@ export type ActionerStepStatus =
 
 export interface ActionerRequest {
   workflowId: ActionerWorkflowId
-  intent: 'preserve-locally'
+  intent: ActionerIntent
   planFingerprint: string
   confirm: true
 }
@@ -29,9 +31,10 @@ export interface ActionerStep {
 
 export interface ActionerResult {
   workflowId: ActionerWorkflowId
-  commitSha: string
+  commitSha: string | null
   branch: string | null
-  pushed: false
+  pushed: boolean
+  remote: string | null
   verifiedClean: boolean
 }
 

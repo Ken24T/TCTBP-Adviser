@@ -3,14 +3,21 @@ import type {
   ActionerJob,
   ActionerResult,
   ActionerStep,
+  ActionerWorkflowId,
 } from '../shared/actioner'
 
-const STEP_DEFINITIONS: Array<Pick<ActionerStep, 'id' | 'label'>> = [
-  { id: 'validate', label: 'Validate checkpoint plan and target state' },
-  { id: 'execute', label: 'Create local checkpoint commit' },
-  { id: 'reinspect', label: 'Re-inspect repository state' },
-  { id: 'complete', label: 'Complete without push' },
-]
+function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerStep, 'id' | 'label'>> {
+  return [
+    { id: 'validate', label: `Validate ${workflowId} plan and target state` },
+    { id: 'execute', label: workflowId === 'checkpoint'
+      ? 'Create local checkpoint commit'
+      : 'Publish current branch to origin' },
+    { id: 'reinspect', label: 'Re-inspect repository state' },
+    { id: 'complete', label: workflowId === 'checkpoint'
+      ? 'Complete without push'
+      : 'Complete with verified remote state' },
+  ]
+}
 
 export class ActionerJobStore {
   readonly #jobs = new Map<string, ActionerJob>()
@@ -21,14 +28,14 @@ export class ActionerJobStore {
     readonly createId: () => string = randomUUID,
   ) {}
 
-  create(repositoryId: string): ActionerJob {
+  create(repositoryId: string, workflowId: ActionerWorkflowId): ActionerJob {
     const timestamp = this.now().toISOString()
     const job: ActionerJob = {
       jobId: this.createId(),
       repositoryId,
-      workflowId: 'checkpoint',
+      workflowId,
       status: 'queued',
-      steps: STEP_DEFINITIONS.map((step) => ({
+      steps: stepDefinitions(workflowId).map((step) => ({
         ...step,
         status: 'pending',
         detail: null,

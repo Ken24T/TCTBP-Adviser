@@ -53,6 +53,25 @@ export async function startTctbpBootstrap(
   )
 }
 
+export async function startPublishAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/publish`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'publish',
+        intent: 'preserve-and-publish',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startCheckpointAction(
   repositoryId: string,
   planFingerprint: string,

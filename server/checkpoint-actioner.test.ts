@@ -29,6 +29,7 @@ describe('checkpoint Actioner', () => {
       workflowId: 'checkpoint',
       branch: 'development',
       pushed: false,
+      remote: null,
       verifiedClean: true,
     })
     expect(git(repository, ['log', '-1', '--format=%s']))

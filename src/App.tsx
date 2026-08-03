@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ActionerJob } from '../shared/actioner'
+import type { ActionerJob, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -16,6 +16,7 @@ import {
   loadReferenceCatalogue,
   loadActionerJob,
   startCheckpointAction,
+  startPublishAction,
   applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
   startTctbpBootstrap,
@@ -114,19 +115,19 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [actionJob, intent, selectedId])
 
-  async function runCheckpoint(): Promise<void> {
+  async function runAction(workflowId: ActionerWorkflowId): Promise<void> {
     if (!selectedId || !detail?.intentPlan?.fingerprint) return
-    if (!window.confirm(
-      'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
-    )) return
+    const confirmation = workflowId === 'checkpoint'
+      ? 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.'
+      : 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.'
+    if (!window.confirm(confirmation)) return
     setActionBusy(true)
     setActionFeedback(null)
     setError(null)
     try {
-      const startedJob = await startCheckpointAction(
-        selectedId,
-        detail.intentPlan.fingerprint,
-      )
+      const startedJob = workflowId === 'checkpoint'
+        ? await startCheckpointAction(selectedId, detail.intentPlan.fingerprint)
+        : await startPublishAction(selectedId, detail.intentPlan.fingerprint)
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,
@@ -141,7 +142,7 @@ function App() {
       })
     } catch (cause) {
       setActionBusy(false)
-      const message = cause instanceof Error ? cause.message : 'Checkpoint action could not start.'
+      const message = cause instanceof Error ? cause.message : 'Action could not start.'
       setActionFeedback(message)
       captureError(cause, requestId.current)
     }
@@ -509,7 +510,7 @@ function App() {
             actionJob={actionJob}
             actionBusy={actionBusy}
             actionFeedback={actionFeedback}
-            onRunCheckpoint={() => void runCheckpoint()}
+            onRunAction={(workflowId) => void runAction(workflowId)}
             intent={intent}
             busy={busy}
             upgradePlan={upgradePlan}

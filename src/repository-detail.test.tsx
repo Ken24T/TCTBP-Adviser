@@ -19,7 +19,7 @@ describe('repository detail view', () => {
         actionJob={null}
         actionBusy={false}
         actionFeedback={null}
-        onRunCheckpoint={() => undefined}
+        onRunAction={() => undefined}
         detail={{
           observation,
           recommendation,
@@ -81,7 +81,7 @@ describe('repository detail view', () => {
         actionJob={null}
         actionBusy={false}
         actionFeedback={null}
-        onRunCheckpoint={() => undefined}
+        onRunAction={() => undefined}
         detail={{
           observation,
           recommendation,

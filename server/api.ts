@@ -7,6 +7,7 @@ import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
 import { ActionerJobStore } from './actioner-jobs'
 import { CheckpointActioner } from './checkpoint-actioner'
+import { PublishActioner } from './publish-actioner'
 import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
@@ -132,6 +133,29 @@ function assertCheckpointPlan(
     throw new AdviserError(
       'actioner-plan-stale-or-blocked',
       'The checkpoint plan is stale, blocked, or no longer required.',
+    )
+  }
+}
+
+function assertPublishPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'preserve-and-publish',
+  )
+  const publishStep = plan?.steps.find((step) => step.workflowId === 'publish')
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || publishStep?.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The publish plan is stale, blocked, or no longer required.',
     )
   }
 }
@@ -317,13 +341,42 @@ export function createApiHandler(runtime: ApiRuntime) {
         )
         const observation = await runtime.inspections.inspect(repository)
         assertCheckpointPlan(observation, actionRequest.planFingerprint)
-        const job = runtime.actionerJobs.create(repository.id)
+        const job = runtime.actionerJobs.create(repository.id, 'checkpoint')
         void (async () => {
           try {
             runtime.actionerJobs.start(job.jobId)
             const currentObservation = await runtime.inspections.inspect(repository)
             assertCheckpointPlan(currentObservation, actionRequest.planFingerprint)
             const result = await new CheckpointActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const publishActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/publish$/.exec(url.pathname)
+      if (request.method === 'POST' && publishActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(publishActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertPublishPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'publish')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertPublishPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new PublishActioner().run(
               repository.path,
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),

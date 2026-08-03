@@ -39,7 +39,7 @@ describe('intent and reference views', () => {
       actionJob={null}
       actionBusy={false}
       actionFeedback={null}
-      onRunCheckpoint={() => undefined}
+      onRunAction={() => undefined}
     />)
 
     expect(markup).toContain('Prepare a production release')
