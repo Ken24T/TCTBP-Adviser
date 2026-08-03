@@ -17,7 +17,9 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
         ? 'Execute development deployment'
         : workflowId === 'branch-development'
           ? 'Create development branch'
-          : 'Repair TCTBP script compatibility' },
+          : workflowId === 'repair-tctbp-script-compatibility'
+            ? 'Repair TCTBP script compatibility'
+            : 'Run handover workflow' },
     { id: 'reinspect', label: 'Re-inspect repository state' },
     { id: 'complete', label: workflowId === 'checkpoint'
       ? 'Complete without push'
@@ -27,7 +29,9 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
           ? 'Complete with deployment result'
           : workflowId === 'branch-development'
             ? 'Complete with local branch result'
-            : 'Complete with compatibility repair result' },
+            : workflowId === 'repair-tctbp-script-compatibility'
+              ? 'Complete with compatibility repair result'
+              : 'Complete with handover result' },
   ]
 }
 

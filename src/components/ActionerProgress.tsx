@@ -4,6 +4,7 @@ function actionerLabel(workflowId: ActionerJob['workflowId']): string {
   if (workflowId === 'publish') return 'Publish'
   if (workflowId === 'branch-development') return 'Branch development'
   if (workflowId === 'deploy-development') return 'Deploy development'
+  if (workflowId === 'handover') return 'Handover'
   return 'Checkpoint'
 }
 

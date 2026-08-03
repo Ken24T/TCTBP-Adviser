@@ -9,6 +9,7 @@ import { ActionerJobStore } from './actioner-jobs'
 import { CheckpointActioner } from './checkpoint-actioner'
 import { BranchActioner } from './branch-actioner'
 import { RepairActioner } from './repair-actioner'
+import { HandoverActioner } from './handover-actioner'
 import { DeploymentEvidenceStore } from './deployment-evidence'
 import { PublishActioner } from './publish-actioner'
 import { DeployActioner } from './deploy-actioner'
@@ -164,6 +165,24 @@ function assertPublishPlan(
     throw new AdviserError(
       'actioner-plan-stale-or-blocked',
       'The publish plan is stale, blocked, or no longer required.',
+    )
+  }
+}
+
+function assertHandoverPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'continue-on-another-machine',
+  )
+  const handoverStep = plan?.steps.find((step) => step.workflowId === 'handover')
+  if (!plan || plan.fingerprint !== planFingerprint || plan.status !== 'ready' || handoverStep?.condition !== 'required') {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The handover plan is stale or blocked.',
     )
   }
 }
@@ -471,6 +490,35 @@ export function createApiHandler(runtime: ApiRuntime) {
             const currentObservation = await runtime.inspections.inspect(repository)
             assertBranchDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
             const result = await new BranchActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const handoverActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/handover$/.exec(url.pathname)
+      if (request.method === 'POST' && handoverActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(handoverActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertHandoverPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'handover')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertHandoverPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new HandoverActioner().run(
               repository.path,
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),

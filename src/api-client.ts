@@ -91,6 +91,25 @@ export async function startBranchDevelopmentAction(
   )
 }
 
+export async function startHandoverAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/handover`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'handover',
+        intent: 'continue-on-another-machine',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startRepairCompatibilityAction(
   repositoryId: string,
   planFingerprint: string,

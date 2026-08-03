@@ -4,6 +4,7 @@ export type ActionerWorkflowId =
   | 'deploy-development'
   | 'branch-development'
   | 'repair-tctbp-script-compatibility'
+  | 'handover'
 
 import type { RecommendationIntent } from './recommendation'
 

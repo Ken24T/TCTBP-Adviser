@@ -85,6 +85,7 @@ export function IntentPlanPanel({
                 {(step.workflowId === 'checkpoint'
                   || step.workflowId === 'publish'
                   || (step.workflowId === 'branch' && step.targetBranch === 'development')
+                  || step.workflowId === 'handover'
                   || (step.workflowId === 'deploy' && step.targetBranch === 'dev'))
                   && step.condition === 'required'
                   && plan.fingerprint && (
@@ -95,9 +96,11 @@ export function IntentPlanPanel({
                     onClick={() => onRunAction(
                       step.workflowId === 'branch'
                         ? 'branch-development'
-                        : step.workflowId === 'deploy'
-                          ? 'deploy-development'
-                          : step.workflowId as 'checkpoint' | 'publish',
+                        : step.workflowId === 'handover'
+                          ? 'handover'
+                          : step.workflowId === 'deploy'
+                            ? 'deploy-development'
+                            : step.workflowId as 'checkpoint' | 'publish',
                     )}
                   >
                     {actionBusy
@@ -108,7 +111,9 @@ export function IntentPlanPanel({
                           ? 'Publish branch'
                           : step.workflowId === 'branch'
                             ? 'Branch development'
-                            : 'Deploy development'}
+                            : step.workflowId === 'handover'
+                              ? 'Run handover'
+                              : 'Deploy development'}
                   </button>
                 )}
               </div>
