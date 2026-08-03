@@ -27,19 +27,19 @@ export async function readActionerRequest(
   const value = body as Record<string, unknown>
   if (
     !['checkpoint', 'publish', 'deploy-development', 'branch-development', 'repair-tctbp-script-compatibility', 'handover'].includes(String(value.workflowId))
-    || !['preserve-locally', 'preserve-and-publish', 'deploy-current-environment'].includes(String(value.intent))
+    || !['preserve-locally', 'preserve-and-publish', 'deploy-current-environment', 'continue-on-another-machine'].includes(String(value.intent))
     || value.confirm !== true
     || typeof value.planFingerprint !== 'string'
     || !/^[0-9a-f]{64}$/.test(value.planFingerprint)
   ) {
     throw new AdviserError(
       'actioner-request-invalid',
-      'Checkpoint action requires explicit confirmation and a valid plan fingerprint.',
+      'Action requires explicit confirmation, a supported workflow, and a valid plan fingerprint.',
     )
   }
   return {
-    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development' | 'branch-development' | 'repair-tctbp-script-compatibility',
-    intent: value.intent as 'preserve-locally' | 'preserve-and-publish' | 'deploy-current-environment',
+    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development' | 'branch-development' | 'repair-tctbp-script-compatibility' | 'handover',
+    intent: value.intent as 'preserve-locally' | 'preserve-and-publish' | 'deploy-current-environment' | 'continue-on-another-machine',
     planFingerprint: value.planFingerprint,
     confirm: true,
   }

@@ -889,6 +889,7 @@ function statusForError(error: unknown): number {
   if (error.code === 'repository-not-found') return 404
   if (error.code === 'actioner-job-not-found') return 404
   if (error.code === 'actioner-plan-stale-or-blocked') return 409
+  if (error.code === 'actioner-request-invalid') return 400
   if (
     error.code === 'request-host-rejected'
     || error.code === 'request-origin-rejected'
