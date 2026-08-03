@@ -54,6 +54,7 @@ import {
 } from './security'
 
 const VERSION_PATH = 'VERSION'
+const SCRIPT_COMPATIBILITY_PATH = 'scripts/package.json'
 const execFileAsync = promisify(execFile)
 
 interface LoadedCanonicalSource extends CanonicalSourceSummary {
@@ -159,9 +160,12 @@ export class CanonicalTctbpSourceService {
         capabilities: ['inspection.local-v1', 'workflow-catalogue.core-v1', 'reason-codes.core-v1'],
       },
       installedAt: new Date().toISOString().slice(0, 10),
-      managedSurface: source.managedPaths.filter((filePath) => (
-        request.request.includeHookLayer || !filePath.startsWith('.github/hooks/')
-      )),
+      managedSurface: [
+        ...source.managedPaths.filter((filePath) => (
+          request.request.includeHookLayer || !filePath.startsWith('.github/hooks/')
+        )),
+        SCRIPT_COMPATIBILITY_PATH,
+      ],
     }, null, 2) + '\n'
     const appliedPaths: string[] = []
     const writableFiles = Array.from(sourceFiles.entries()).filter(([filePath]) => (
@@ -178,6 +182,12 @@ export class CanonicalTctbpSourceService {
     }
     progress?.('write-policy', 'Writing generated .github/TCTBP.json.')
     await writeManagedFile(targetRoot, '.github/TCTBP.json', policy)
+    await writeManagedFile(
+      targetRoot,
+      SCRIPT_COMPATIBILITY_PATH,
+      '{\n  "type": "commonjs"\n}\n',
+    )
+    appliedPaths.push(SCRIPT_COMPATIBILITY_PATH)
     progress?.('write-source-metadata', 'Writing .tctbp/source.json.')
     await writeManagedFile(targetRoot, '.tctbp/source.json', sourceJson)
     appliedPaths.push('.github/TCTBP.json', '.tctbp/source.json')

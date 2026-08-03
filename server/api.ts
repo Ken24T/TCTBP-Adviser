@@ -208,7 +208,20 @@ function assertBranchDevelopmentPlan(
 
 function safeActionerJobError(error: unknown): string {
   if (error instanceof AdviserError) return `${error.code}: ${error.message}`
-  return 'Actioner workflow failed before completion.'
+  const value = error as { message?: unknown; stderr?: unknown }
+  const message = typeof value.message === 'string' ? value.message : 'Actioner workflow failed before completion.'
+  const stderr = typeof value.stderr === 'string' ? value.stderr.trim() : ''
+  const detail = sanitiseActionerDetail(stderr || message)
+  return detail.length > 0 ? `Actioner workflow failed: ${detail.slice(0, 800)}` : 'Actioner workflow failed before completion.'
+}
+
+function sanitiseActionerDetail(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s]+/gi, '[remote-url]')
+    .replace(/Bearer\s+[^\s]+/gi, 'Bearer [redacted]')
+    .replace(/token[=:]\s*[^\s]+/gi, 'token=[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function safeBootstrapJobError(error: unknown): string {
