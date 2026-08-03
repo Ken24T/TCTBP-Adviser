@@ -38,6 +38,7 @@ describe('intent and reference views', () => {
       plan={plan}
       actionJob={null}
       actionBusy={false}
+      actionFeedback={null}
       onRunCheckpoint={() => undefined}
     />)
 

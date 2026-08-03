@@ -21,6 +21,7 @@ interface RepositoryDetailProps {
   detail: RepositoryDetailResult
   actionJob: ActionerJob | null
   actionBusy: boolean
+  actionFeedback: string | null
   onRunCheckpoint: () => void
   intent: RecommendationIntent
   busy: boolean
@@ -51,6 +52,7 @@ export function RepositoryDetail({
   detail,
   actionJob,
   actionBusy,
+  actionFeedback,
   onRunCheckpoint,
   intent,
   busy,
@@ -138,6 +140,7 @@ export function RepositoryDetail({
         plan={detail.intentPlan}
         actionJob={actionJob}
         actionBusy={actionBusy}
+        actionFeedback={actionFeedback}
         onRunCheckpoint={onRunCheckpoint}
       />
       <RepositoryState

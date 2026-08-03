@@ -41,6 +41,7 @@ function App() {
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
   const [actionJob, setActionJob] = useState<ActionerJob | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null)
   const [upgradePlan, setUpgradePlan] = useState<TctbpUpgradePlan | null>(null)
   const [upgradeBusy, setUpgradeBusy] = useState(false)
   const [applyBusy, setApplyBusy] = useState(false)
@@ -118,6 +119,7 @@ function App() {
       'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
     )) return
     setActionBusy(true)
+    setActionFeedback(null)
     setError(null)
     try {
       const startedJob = await startCheckpointAction(
@@ -138,6 +140,8 @@ function App() {
       })
     } catch (cause) {
       setActionBusy(false)
+      const message = cause instanceof Error ? cause.message : 'Checkpoint action could not start.'
+      setActionFeedback(message)
       captureError(cause, requestId.current)
     }
   }
@@ -365,6 +369,7 @@ function App() {
     setBootstrapJob(null)
     setActionJob(null)
     setActionBusy(false)
+    setActionFeedback(null)
     setIntent('none')
     void refreshDetail(repositoryId, 'none')
   }
@@ -387,6 +392,7 @@ function App() {
     setBootstrapJob(null)
     setActionJob(null)
     setActionBusy(false)
+    setActionFeedback(null)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -409,6 +415,7 @@ function App() {
     setBootstrapJob(null)
     setActionJob(null)
     setActionBusy(false)
+    setActionFeedback(null)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -489,6 +496,7 @@ function App() {
             detail={detail}
             actionJob={actionJob}
             actionBusy={actionBusy}
+            actionFeedback={actionFeedback}
             onRunCheckpoint={() => void runCheckpoint()}
             intent={intent}
             busy={busy}

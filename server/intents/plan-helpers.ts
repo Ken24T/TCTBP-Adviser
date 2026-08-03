@@ -167,10 +167,18 @@ function createPlan(
     branchStrategy: context.observation.tctbp.branchModel.strategy,
     effects: planEffects(steps),
   }
+  const fingerprintBasis = {
+    ...plan,
+    evidence: plan.evidence.map((evidence) => ({
+      field: evidence.field,
+      value: evidence.value,
+      basis: evidence.basis,
+    })),
+  }
   return {
     ...plan,
     fingerprint: createHash('sha256')
-      .update(JSON.stringify(plan))
+      .update(JSON.stringify(fingerprintBasis))
       .digest('hex'),
   }
 }

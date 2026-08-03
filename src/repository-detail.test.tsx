@@ -18,6 +18,7 @@ describe('repository detail view', () => {
       <RepositoryDetail
         actionJob={null}
         actionBusy={false}
+        actionFeedback={null}
         onRunCheckpoint={() => undefined}
         detail={{
           observation,
@@ -79,6 +80,7 @@ describe('repository detail view', () => {
       <RepositoryDetail
         actionJob={null}
         actionBusy={false}
+        actionFeedback={null}
         onRunCheckpoint={() => undefined}
         detail={{
           observation,

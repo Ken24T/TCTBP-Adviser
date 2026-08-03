@@ -6,6 +6,7 @@ interface IntentPlanPanelProps {
   plan: IntentPlan | null
   actionJob: ActionerJob | null
   actionBusy: boolean
+  actionFeedback: string | null
   onRunCheckpoint: () => void
 }
 
@@ -13,6 +14,7 @@ export function IntentPlanPanel({
   plan,
   actionJob,
   actionBusy,
+  actionFeedback,
   onRunCheckpoint,
 }: IntentPlanPanelProps) {
   if (!plan) {
@@ -43,6 +45,7 @@ export function IntentPlanPanel({
       </div>
 
       {actionJob && <ActionerProgress job={actionJob} />}
+      {actionFeedback && <p className="empty-state">{actionFeedback}</p>}
 
       {plan.blockedBy.length > 0 && (
         <div className="intent-blocks">

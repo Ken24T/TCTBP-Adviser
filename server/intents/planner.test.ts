@@ -18,6 +18,19 @@ const WORKFLOWS = [
 ]
 
 describe('intent planner', () => {
+  it('keeps the fingerprint stable across inspection timestamps', () => {
+    const first = buildPlan('preserve-locally', {
+      clean: false,
+      observedAt: '2026-08-03T10:00:00.000Z',
+    })
+    const second = buildPlan('preserve-locally', {
+      clean: false,
+      observedAt: '2026-08-03T10:01:00.000Z',
+    })
+
+    expect(first?.fingerprint).toBe(second?.fingerprint)
+  })
+
   it('preserves dirty work before publishing it', () => {
     const plan = buildPlan('preserve-and-publish', {
       clean: false,
