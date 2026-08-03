@@ -14,7 +14,7 @@ describe('handover Actioner', () => {
     directories.push(root)
     const repository = await createGitRepository(root)
     await mkdir(`${repository}/scripts`)
-    await writeFile(`${repository}/scripts/tctbp-run-handover.js`, 'process.exit(0)\n')
+    await writeFile(`${repository}/scripts/tctbp-run-handover.js`, `const fs = require('fs'); fs.mkdirSync('.tctbp/continuation', { recursive: true }); fs.writeFileSync('.tctbp/continuation/test-handover.md', '# Handover\\n');\n`)
     git(repository, ['add', '-A'])
     git(repository, ['commit', '-m', 'test: add handover workflow'])
     const result = await new HandoverActioner().run(repository, 'development', () => undefined)
@@ -24,6 +24,7 @@ describe('handover Actioner', () => {
       branch: 'development',
       pushed: true,
       verifiedClean: true,
+      summary: expect.stringContaining('.tctbp/continuation/test-handover.md'),
     })
     expect(git(repository, ['ls-files', '.tctbp/continuation']).length).toBeGreaterThanOrEqual(0)
   })

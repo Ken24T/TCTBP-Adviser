@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process'
+import { readdir } from 'node:fs/promises'
+import path from 'node:path'
 import { promisify } from 'node:util'
 import type { ActionerResult } from '../shared/actioner'
 
@@ -18,7 +20,11 @@ export class HandoverActioner {
     ], { cwd: repositoryPath, timeout: this.timeoutMs, maxBuffer: this.maxOutputBytes, windowsHide: true })
     const commitSha = (await execFileAsync('git', ['-C', repositoryPath, 'rev-parse', 'HEAD'])).stdout.trim()
     progress('reinspect', 'Reading the resulting handover state.')
-    progress('complete', `Handover completed at ${commitSha.slice(0, 12)}.`)
+    const continuationFile = await newestContinuationFile(repositoryPath)
+    const continuationSummary = continuationFile
+      ? ` Continuation file: ${continuationFile}.`
+      : ' No continuation file was found.'
+    progress('complete', `Handover completed at ${commitSha.slice(0, 12)}.${continuationSummary}`)
     return {
       workflowId: 'handover',
       commitSha,
@@ -26,7 +32,19 @@ export class HandoverActioner {
       pushed: true,
       remote: null,
       verifiedClean: true,
-      summary: 'Handover completed; continuation context and branch publication were handled by TCTBP.',
+      summary: `Handover completed; continuation context and branch publication were handled by TCTBP.${continuationFile ? ` Continuation file: ${continuationFile}.` : ' No continuation file was found.'}`,
     }
+  }
+}
+
+async function newestContinuationFile(repositoryPath: string): Promise<string | null> {
+  try {
+    const directory = path.join(repositoryPath, '.tctbp', 'continuation')
+    const files = (await readdir(directory))
+      .filter((file) => file.endsWith('.md'))
+      .sort()
+    return files.length > 0 ? `.tctbp/continuation/${files[files.length - 1]}` : null
+  } catch {
+    return null
   }
 }
