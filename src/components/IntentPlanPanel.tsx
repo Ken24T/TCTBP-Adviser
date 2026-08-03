@@ -8,6 +8,7 @@ interface IntentPlanPanelProps {
   actionBusy: boolean
   actionFeedback: string | null
   onRunAction: (workflowId: ActionerWorkflowId) => void
+  onRepairCompatibility: () => void
 }
 
 export function IntentPlanPanel({
@@ -16,6 +17,7 @@ export function IntentPlanPanel({
   actionBusy,
   actionFeedback,
   onRunAction,
+  onRepairCompatibility,
 }: IntentPlanPanelProps) {
   if (!plan) {
     return (
@@ -44,7 +46,12 @@ export function IntentPlanPanel({
         <span>{plan.branchStrategy ?? 'Unknown branch strategy'}</span>
       </div>
 
-      {actionJob && <ActionerProgress job={actionJob} />}
+      {actionJob && (
+        <ActionerProgress
+          job={actionJob}
+          onRepairCompatibility={onRepairCompatibility}
+        />
+      )}
       {actionFeedback && <p className="empty-state">{actionFeedback}</p>}
 
       {plan.blockedBy.length > 0 && (

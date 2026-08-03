@@ -3,7 +3,7 @@ export type ActionerWorkflowId =
   | 'publish'
   | 'deploy-development'
   | 'branch-development'
-  | 'branch-development'
+  | 'repair-tctbp-script-compatibility'
 
 export type ActionerIntent =
   | 'preserve-locally'

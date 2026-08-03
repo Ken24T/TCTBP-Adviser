@@ -91,6 +91,25 @@ export async function startBranchDevelopmentAction(
   )
 }
 
+export async function startRepairCompatibilityAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/repair-tctbp-script-compatibility`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'repair-tctbp-script-compatibility',
+        intent: 'deploy-current-environment',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startDeployDevelopmentAction(
   repositoryId: string,
   planFingerprint: string,

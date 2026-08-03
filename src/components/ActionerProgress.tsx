@@ -7,7 +7,12 @@ function actionerLabel(workflowId: ActionerJob['workflowId']): string {
   return 'Checkpoint'
 }
 
-export function ActionerProgress({ job }: { job: ActionerJob }) {
+interface ActionerProgressProps {
+  job: ActionerJob
+  onRepairCompatibility?: () => void
+}
+
+export function ActionerProgress({ job, onRepairCompatibility }: ActionerProgressProps) {
   return (
     <section className="actioner-progress" aria-live="polite">
       <strong>{actionerLabel(job.workflowId)} {job.status}</strong>
@@ -21,6 +26,18 @@ export function ActionerProgress({ job }: { job: ActionerJob }) {
         ))}
       </ol>
       {job.error && <p className="empty-state">{job.error}</p>}
+      {job.workflowId === 'deploy-development'
+        && job.status === 'failed'
+        && job.error?.includes('require is not defined')
+        && onRepairCompatibility && (
+        <button
+          className="intent-action-button"
+          type="button"
+          onClick={onRepairCompatibility}
+        >
+          Repair TCTBP script compatibility
+        </button>
+      )}
       {job.result && (
         <p className="empty-state">
           {job.result.summary

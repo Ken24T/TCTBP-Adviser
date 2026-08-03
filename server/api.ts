@@ -8,6 +8,7 @@ import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
 import { ActionerJobStore } from './actioner-jobs'
 import { CheckpointActioner } from './checkpoint-actioner'
 import { BranchActioner } from './branch-actioner'
+import { RepairActioner } from './repair-actioner'
 import { PublishActioner } from './publish-actioner'
 import { DeployActioner } from './deploy-actioner'
 import { readActionerRequest } from './actioner-input'
@@ -465,6 +466,35 @@ export function createApiHandler(runtime: ApiRuntime) {
             const currentObservation = await runtime.inspections.inspect(repository)
             assertBranchDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
             const result = await new BranchActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const repairCompatibilityMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/repair-tctbp-script-compatibility$/.exec(url.pathname)
+      if (request.method === 'POST' && repairCompatibilityMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(repairCompatibilityMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertDeployDevelopmentPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'repair-tctbp-script-compatibility')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertDeployDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new RepairActioner().run(
               repository.path,
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),

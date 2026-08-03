@@ -18,6 +18,7 @@ import {
   startCheckpointAction,
   startBranchDevelopmentAction,
   startDeployDevelopmentAction,
+  startRepairCompatibilityAction,
   startPublishAction,
   applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
@@ -131,7 +132,9 @@ function App() {
         ? 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.'
         : workflowId === 'branch-development'
           ? 'Create and switch to the configured development branch? No publish or deployment will occur.'
-          : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
+          : workflowId === 'repair-tctbp-script-compatibility'
+            ? 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.'
+            : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
     if (!window.confirm(confirmation)) return
     setActionBusy(true)
     setActionFeedback(null)
@@ -143,7 +146,9 @@ function App() {
           ? await startPublishAction(selectedId, detail.intentPlan.fingerprint)
           : workflowId === 'branch-development'
             ? await startBranchDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
-            : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
+            : workflowId === 'repair-tctbp-script-compatibility'
+              ? await startRepairCompatibilityAction(selectedId, detail.intentPlan.fingerprint)
+              : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,
@@ -527,6 +532,7 @@ function App() {
             actionBusy={actionBusy}
             actionFeedback={actionFeedback}
             onRunAction={(workflowId) => void runAction(workflowId)}
+            onRepairCompatibility={() => void runAction('repair-tctbp-script-compatibility')}
             intent={intent}
             busy={busy}
             upgradePlan={upgradePlan}

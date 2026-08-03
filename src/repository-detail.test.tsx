@@ -20,6 +20,7 @@ describe('repository detail view', () => {
         actionBusy={false}
         actionFeedback={null}
         onRunAction={() => undefined}
+        onRepairCompatibility={() => undefined}
         detail={{
           observation,
           recommendation,
@@ -82,6 +83,7 @@ describe('repository detail view', () => {
         actionBusy={false}
         actionFeedback={null}
         onRunAction={() => undefined}
+        onRepairCompatibility={() => undefined}
         detail={{
           observation,
           recommendation,

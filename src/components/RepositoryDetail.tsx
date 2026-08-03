@@ -24,6 +24,7 @@ interface RepositoryDetailProps {
   actionBusy: boolean
   actionFeedback: string | null
   onRunAction: (workflowId: import('../../shared/actioner').ActionerWorkflowId) => void
+  onRepairCompatibility: () => void
   intent: RecommendationIntent
   busy: boolean
   upgradePlan: TctbpUpgradePlan | null
@@ -55,6 +56,7 @@ export function RepositoryDetail({
   actionBusy,
   actionFeedback,
   onRunAction,
+  onRepairCompatibility,
   intent,
   busy,
   upgradePlan,
@@ -149,6 +151,7 @@ export function RepositoryDetail({
         actionBusy={actionBusy}
         actionFeedback={actionFeedback}
         onRunAction={onRunAction}
+        onRepairCompatibility={onRepairCompatibility}
       />
       <RepositoryState
         observation={observation}

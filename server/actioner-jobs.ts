@@ -15,7 +15,9 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
         ? 'Publish current branch to origin'
         : workflowId === 'deploy-development'
         ? 'Execute development deployment'
-        : 'Create development branch' },
+        : workflowId === 'branch-development'
+          ? 'Create development branch'
+          : 'Repair TCTBP script compatibility' },
     { id: 'reinspect', label: 'Re-inspect repository state' },
     { id: 'complete', label: workflowId === 'checkpoint'
       ? 'Complete without push'
@@ -23,7 +25,9 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
         ? 'Complete with verified remote state'
         : workflowId === 'deploy-development'
           ? 'Complete with deployment result'
-          : 'Complete with local branch result' },
+          : workflowId === 'branch-development'
+            ? 'Complete with local branch result'
+            : 'Complete with compatibility repair result' },
   ]
 }
 
