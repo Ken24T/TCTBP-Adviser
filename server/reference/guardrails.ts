@@ -1,0 +1,68 @@
+import type { GuardrailReference } from '../../shared/reference'
+
+export const GUARDRAIL_REFERENCES: GuardrailReference[] = [
+  {
+    id: 'git.operation.active',
+    reasonCode: 'active-git-operation',
+    title: 'Git operation active',
+    meaning: 'A merge, rebase, cherry-pick, revert or bisect is in progress.',
+    blocks: ['checkpoint', 'publish', 'resume', 'handover', 'promote', 'ship'],
+    safeResponse: 'Inspect recovery evidence and use abort dry-run guidance.',
+  },
+  {
+    id: 'git.head.detached',
+    reasonCode: 'detached-head',
+    title: 'Detached HEAD',
+    meaning: 'HEAD is not attached to a named branch.',
+    blocks: ['checkpoint', 'publish', 'handover', 'promote', 'deploy', 'ship'],
+    safeResponse: 'Choose and reattach the correct branch explicitly.',
+  },
+  {
+    id: 'git.branch.diverged',
+    reasonCode: 'branch-diverged',
+    title: 'Branch diverged',
+    meaning: 'Local and tracking refs contain different commits.',
+    blocks: ['publish', 'resume', 'handover', 'promote', 'deploy', 'ship'],
+    safeResponse: 'Investigate the branch histories before any mutation.',
+  },
+  {
+    id: 'git.working-tree.dirty-behind',
+    reasonCode: 'working-tree-dirty-and-behind',
+    title: 'Dirty and behind',
+    meaning: 'Uncommitted work exists while the branch is behind.',
+    blocks: ['publish', 'resume', 'handover', 'promote', 'deploy', 'ship'],
+    safeResponse: 'Preserve work first, then inspect reconciliation safely.',
+  },
+  {
+    id: 'git.working-tree.dirty',
+    reasonCode: 'working-tree-dirty',
+    title: 'Working tree dirty',
+    meaning: 'Tracked, staged or untracked work is not checkpointed.',
+    blocks: ['resume', 'branch', 'promote', 'ship'],
+    safeResponse: 'Checkpoint the work before continuing.',
+  },
+  {
+    id: 'git.branch.behind',
+    reasonCode: 'branch-behind',
+    title: 'Branch behind',
+    meaning: 'The local branch is behind its local tracking ref.',
+    blocks: ['publish', 'promote', 'ship'],
+    safeResponse: 'Resume on a clean tree, then inspect again.',
+  },
+  {
+    id: 'git.branch.unpublished',
+    reasonCode: 'branch-unpublished',
+    title: 'Branch unpublished',
+    meaning: 'No upstream tracking branch is available.',
+    blocks: ['promote', 'ship'],
+    safeResponse: 'Publish the current branch before environment workflows.',
+  },
+  {
+    id: 'git.branch.ahead',
+    reasonCode: 'branch-ahead',
+    title: 'Branch ahead',
+    meaning: 'Local commits are not represented by the local tracking ref.',
+    blocks: ['promote', 'ship'],
+    safeResponse: 'Publish the current branch before environment workflows.',
+  },
+]

@@ -1,0 +1,109 @@
+.github-panel {
+  margin-top: 18px;
+  padding: 28px;
+  background: rgb(255 255 255 / 72%);
+  border: 1px solid #dcd7cd;
+  border-radius: 16px;
+}
+
+.github-panel-heading {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.github-panel h2 {
+  margin: 4px 0 6px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.github-panel p {
+  margin-bottom: 0;
+  color: #647177;
+}
+
+.github-panel a,
+.github-link {
+  color: #963f2b;
+  font-weight: 700;
+}
+
+.github-panel-heading > span {
+  color: #6e797e;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.github-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.github-facts > div {
+  display: grid;
+  gap: 6px;
+  min-height: 82px;
+  padding: 14px;
+  background: #f2f0e9;
+  border-radius: 11px;
+}
+
+.github-facts span {
+  color: #778287;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.github-facts strong {
+  overflow-wrap: anywhere;
+  font-size: 0.86rem;
+}
+
+.provider-boundary,
+.provider-partial {
+  padding: 13px 15px;
+  border-radius: 10px;
+}
+
+.provider-boundary {
+  background: #edf1ee;
+}
+
+.provider-partial {
+  margin-top: 14px;
+  color: #743c31;
+  background: #f1ddd6;
+}
+
+.provider-notice small {
+  display: block;
+  margin-top: 10px;
+  color: #6e797e;
+}
+
+.github-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 11px;
+  border: 1px solid #d7a395;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .github-panel-heading {
+    flex-direction: column;
+  }
+
+  .github-facts {
+    grid-template-columns: 1fr;
+  }
+}
