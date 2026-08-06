@@ -10,3 +10,4 @@ coverage/
 *.sqlite3
 .DS_Store
 .github/.tctbp-backups/
+tsconfig.tsbuildinfo
