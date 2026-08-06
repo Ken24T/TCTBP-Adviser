@@ -236,6 +236,99 @@ export function Select({
   )
 }
 
+export function Skeleton({
+  className = '',
+  width,
+  height,
+}: {
+  className?: string
+  width?: string
+  height?: string
+}) {
+  return (
+    <div
+      className={`bg-surface-hover rounded animate-pulse ${className}`}
+      style={{ width, height }}
+    />
+  )
+}
+
+export function SkeletonText({
+  lines = 1,
+  width = '100%',
+  className = '',
+}: {
+  lines?: number
+  width?: string
+  className?: string
+}) {
+  return (
+    <div className={`space-y-2 ${className}`}>
+      {Array.from({ length: lines }).map((_, index) => (
+        <Skeleton key={index} height="0.75rem" width={index === 0 ? width : '80%'} />
+      ))}
+    </div>
+  )
+}
+
+export function SkeletonCard({ children, className = '' }: { children?: ReactNode; className?: string }) {
+  return (
+    <Card className={`p-6 ${className}`}>
+      <div className="animate-pulse space-y-4">
+        {children ?? <SkeletonText lines={3} />}
+      </div>
+    </Card>
+  )
+}
+
+export function MetricCard({
+  label,
+  value,
+  tone = 'neutral',
+  note,
+}: {
+  label: string
+  value: number
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+  note?: string
+}) {
+  const borderClasses = {
+    neutral: 'border-l-ink-400',
+    success: 'border-l-teal-500',
+    warning: 'border-l-amber-500',
+    danger: 'border-l-red-500',
+    info: 'border-l-blue-500',
+    accent: 'border-l-teal-600',
+  }
+  const icon = note ? <span className="text-xs text-text-faint">{note}</span> : null
+
+  return (
+    <Card
+      className={`p-5 border-l-4 ${borderClasses[tone]} flex flex-col justify-between min-h-[6.5rem]`}
+      hover={false}
+    >
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+          {label}
+        </span>
+        {icon}
+      </div>
+      <strong className="text-4xl font-semibold text-text-primary tracking-tight">
+        {value}
+      </strong>
+    </Card>
+  )
+}
+
+export function SkeletonMetric() {
+  return (
+    <SkeletonCard className="flex flex-col justify-between min-h-[6.5rem]">
+      <Skeleton height="0.75rem" width="50%" />
+      <Skeleton height="2.75rem" width="3.5rem" />
+    </SkeletonCard>
+  )
+}
+
 export function KeyValue({
   items,
   className = '',

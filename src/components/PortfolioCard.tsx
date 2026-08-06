@@ -33,8 +33,13 @@ export function PortfolioCard({
     : tone === 'stop' ? 'danger'
     : 'neutral'
 
+  const borderTone = tone === 'healthy' ? 'border-t-teal-500'
+    : tone === 'attention' ? 'border-t-amber-500'
+    : tone === 'stop' ? 'border-t-red-500'
+    : 'border-t-ink-400'
+
   return (
-    <Card className="flex flex-col h-full gap-5" hover={repository.available}>
+    <Card className={`flex flex-col h-full gap-5 border-t-4 ${borderTone}`} hover={repository.available}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold uppercase tracking-widest text-text-muted">

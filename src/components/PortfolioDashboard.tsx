@@ -8,7 +8,7 @@ import type {
   PortfolioPreferences,
 } from '../portfolio-preferences'
 import { formatAge } from '../presentation'
-import { Button, Card, EmptyState, Section } from './primitives'
+import { Button, Card, EmptyState, MetricCard, Section } from './primitives'
 import { PortfolioCard } from './PortfolioCard'
 
 type PortfolioFilter =
@@ -88,17 +88,22 @@ export function PortfolioDashboard({
         </Button>
       </header>
 
-      <section aria-label="Portfolio summary" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-        <Metric label="Discovered" value={snapshot.discovery.repositoryCount} tone="info" />
-        <Metric label="Healthy" value={healthyCount} tone="success" />
-        <Metric label="TCTBP compatible" value={compatibleCount} tone="accent" />
-        <Metric label="GitHub mapped" value={snapshot.github.localMappings} tone="neutral" />
+      <section aria-label="Portfolio summary" className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard
+          label="Discovered"
+          value={snapshot.discovery.repositoryCount}
+          tone="info"
+          note={`${snapshot.discovery.rootCount} configured root${snapshot.discovery.rootCount === 1 ? '' : 's'}`}
+        />
+        <MetricCard label="Healthy" value={healthyCount} tone="success" note="No action needed" />
+        <MetricCard label="TCTBP compatible" value={compatibleCount} tone="accent" note="Ready for advice" />
+        <MetricCard label="GitHub mapped" value={snapshot.github.localMappings} tone="neutral" />
         {snapshot.upgrade?.enabled && (
           <>
-            <Metric label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
-            <Metric label="TCTBP review" value={snapshot.upgrade.reviewRequired} tone="warning" />
-            <Metric label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
-            <Metric label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
+            <MetricCard label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
+            <MetricCard label="TCTBP review" value={snapshot.upgrade.reviewRequired} tone="warning" />
+            <MetricCard label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
+            <MetricCard label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
           </>
         )}
       </section>
@@ -305,27 +310,4 @@ function filterLabel(filter: PortfolioFilter): string {
   return labels[filter]
 }
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: number
-  tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
-}) {
-  const toneClasses = {
-    neutral: 'bg-surface-soft text-text-muted',
-    success: 'bg-green-100 text-green-700 border border-green-200',
-    warning: 'bg-amber-100 text-amber-700 border border-amber-200',
-    danger: 'bg-red-100 text-red-700 border border-red-200',
-    info: 'bg-blue-100 text-blue-700 border border-blue-200',
-    accent: 'bg-teal-100 text-teal-700 border border-teal-200',
-  }
-  return (
-    <div className={`ad-surface p-4 flex flex-col items-center justify-center text-center gap-1 ${toneClasses[tone]}`}>
-      <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">{label}</span>
-      <strong className="text-3xl font-semibold text-text-primary">{value}</strong>
-    </div>
-  )
-}
+

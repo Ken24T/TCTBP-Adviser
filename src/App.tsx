@@ -41,6 +41,7 @@ import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
+import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
 import {
   loadPortfolioPreferences,
   savePortfolioPreferences,
@@ -601,19 +602,27 @@ function App() {
             onPreferenceChange={changePreference}
           />
         ) : !error ? (
-          <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
-            <span
-              aria-hidden="true"
-              className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
-            />
-            <p className="text-sm">
-              {referenceOpen
-                ? 'Loading the pinned TCTBP reference…'
-                : selectedId
-                ? 'Inspecting the selected repository…'
-                : 'Discovering local repositories…'}
-            </p>
-          </section>
+          referenceOpen
+            ? (
+              <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
+                <span
+                  aria-hidden="true"
+                  className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
+                />
+                <p className="text-sm">Loading the pinned TCTBP reference…</p>
+              </section>
+            )
+            : selectedId
+              ? (
+                <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
+                  <span
+                    aria-hidden="true"
+                    className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
+                  />
+                  <p className="text-sm">Inspecting the selected repository…</p>
+                </section>
+              )
+              : <PortfolioDashboardSkeleton />
         ) : null}
       </main>
 
