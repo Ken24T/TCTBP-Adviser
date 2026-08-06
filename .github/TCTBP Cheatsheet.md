@@ -33,7 +33,7 @@ Quick safety notes:
 
 - Preview-first workflows: `checkpoint --dry-run`, `publish --dry-run`, `handover --dry-run`, `abort` (default), `rollback` (default), `status --suggest`, `scaffold --dry-run`.
 - Machine-readable status is explicitly non-fetching: `node scripts/tctbp-run-status.js --json --no-fetch`.
-- Remote mutation workflows: `publish`, `handover`, `promote review`, selected deploy targets, and `ship` on `main`. `promote staging` remains a compatibility alias.
+- Remote mutation workflows: `publish`, `handover`, `promote staging`, selected deploy targets, and `ship` on `main`.
 - `rollback` always uses `git revert`, never history rewrite.
 - `scaffold` creates a new directory/project outside the current repo.
 
@@ -102,6 +102,16 @@ Purpose: Formal shipped version workflow. Reserved for `main`.
 
 Executable path: `node scripts/tctbp-run-ship.js --no-docs-impact "<reason>" --yes`
 
+### `prepare release` with `--resume`
+
+Purpose: Run or resume the staged deploy → promote → ship pipeline with an atomic release journal and commit/tree candidate revalidation.
+
+Executable paths:
+- `node scripts/tctbp-run-release.js --no-docs-impact "<reason>"`
+- `node scripts/tctbp-run-release.js --resume`
+
+The generic runner does not assume DDRE backup, restore, systemd, or runtime-storage behaviour. Downstream projects supply those integrations separately.
+
 ### `publish` / `publish please`
 
 Purpose: Safely publish the current clean branch to `origin` without release semantics.
@@ -126,19 +136,19 @@ Purpose: Restore a safe working baseline after switching machines.
 
 Executable path: `node scripts/tctbp-run-resume.js`
 
-### `promote review` / `promote production` / `promote prod`
+### `promote staging` / `promote production` / `promote prod`
 
 Purpose: Explicit merge between environment branches with code-loss prevention gates.
 
-Executable path: `node scripts/tctbp-run-promote.js <review|production> --no-docs-impact "<reason>"`
+Executable path: `node scripts/tctbp-run-promote.js <staging|production> --no-docs-impact "<reason>"`
 
-### `deploy dev` / `deploy review` / `deploy prod` / `deploy production`
+### `deploy dev` / `deploy staging` / `deploy prod` / `deploy production`
 
 Purpose: Deploy the current environment branch to its mapped runtime environment.
 
 Executable paths:
 - `node scripts/tctbp-run-deploy.js dev --no-docs-impact "<reason>"`
-- `node scripts/tctbp-run-deploy.js review --no-docs-impact "<reason>"`
+- `node scripts/tctbp-run-deploy.js staging --no-docs-impact "<reason>"`
 - `node scripts/tctbp-run-deploy.js production --no-docs-impact "<reason>"`
 
 ### `run tests` / `run lint` / `run build` / `gate test` / `gate lint` / `gate build`
@@ -151,7 +161,7 @@ Executable path: `node scripts/tctbp-run-gate.js <test|lint|build>`
 
 Purpose: Report branch/version/tag alignment.
 
-Executable path: `node scripts/tctbp-run-version.js [--strict]`
+Executable path: `node scripts/tctbp-run-version.js [--strict] [--required-environment <development|staging|production>]`
 
 ### `rollback` / `revert last checkpoint`
 
@@ -171,7 +181,7 @@ When `handover` succeeds:
 
 - the current work branch has been safely reconciled with `origin`
 - relevant tags have been pushed when needed
-- no implicit merge to review or main was performed
+- no implicit merge to staging or main was performed
 - code-loss safeguards were applied to any merge step
 
 ## Docs Impact Reminder
@@ -209,9 +219,9 @@ Review docs when the change touches:
 - Need a durable local-only save without publishing: use `checkpoint`
 - Need to publish the current branch without release side effects: use `publish`
 - Need to stop on one machine and resume on another safely: use `handover`, then `resume` on the next machine
-- Need to merge development into review: use `promote review`
-- Need to merge review into main for release: use `promote production`
-- Need to deploy a branch to its environment: use `deploy <dev|review|production>`
+- Need to merge development into staging: use `promote staging`
+- Need to merge staging into main for release: use `promote production`
+- Need to deploy a branch to its environment: use `deploy <dev|staging|production>`
 - Need a quick repo state check: use `status`
 - Need to recover from partial workflow state: use `abort`
 - Need to undo the last checkpoint: use `rollback`
