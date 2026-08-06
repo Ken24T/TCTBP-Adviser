@@ -9,6 +9,8 @@ export type ActionerWorkflowId =
   | 'handover'
   | 'resume'
   | 'promote-review'
+  | 'promote-production'
+  | 'ship'
 
 export type ActionerIntent = Exclude<RecommendationIntent, 'none'>
 

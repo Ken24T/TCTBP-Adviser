@@ -186,6 +186,44 @@ export async function startPromoteReviewAction(
   )
 }
 
+export async function startPromoteProductionAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/promote-production`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'promote-production',
+        intent: 'prepare-production-release',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startShipAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/ship`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'ship',
+        intent: 'prepare-production-release',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startCheckpointAction(
   repositoryId: string,
   planFingerprint: string,

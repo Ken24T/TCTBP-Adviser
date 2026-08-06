@@ -7,39 +7,35 @@ import type {
 } from '../shared/actioner'
 
 function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerStep, 'id' | 'label'>> {
+  const executeLabels: Record<ActionerWorkflowId, string> = {
+    'checkpoint': 'Create local checkpoint commit',
+    'publish': 'Publish current branch to origin',
+    'deploy-development': 'Execute development deployment',
+    'branch-development': 'Create development branch',
+    'repair-tctbp-script-compatibility': 'Repair TCTBP script compatibility',
+    'handover': 'Run handover workflow',
+    'resume': 'Resume branch state',
+    'promote-review': 'Promote development to review',
+    'promote-production': 'Promote review to main',
+    'ship': 'Run ship release workflow',
+  }
+  const completeLabels: Record<ActionerWorkflowId, string> = {
+    'checkpoint': 'Complete without push',
+    'publish': 'Complete with verified remote state',
+    'deploy-development': 'Complete with deployment result',
+    'branch-development': 'Complete with local branch result',
+    'repair-tctbp-script-compatibility': 'Complete with compatibility repair result',
+    'handover': 'Complete with handover result',
+    'resume': 'Complete with resume result',
+    'promote-review': 'Complete with promote review result',
+    'promote-production': 'Complete with promote production result',
+    'ship': 'Complete with ship result',
+  }
   return [
     { id: 'validate', label: `Validate ${workflowId} plan and target state` },
-    { id: 'execute', label: workflowId === 'checkpoint'
-      ? 'Create local checkpoint commit'
-      : workflowId === 'publish'
-        ? 'Publish current branch to origin'
-        : workflowId === 'deploy-development'
-        ? 'Execute development deployment'
-        : workflowId === 'branch-development'
-          ? 'Create development branch'
-          : workflowId === 'repair-tctbp-script-compatibility'
-            ? 'Repair TCTBP script compatibility'
-            : workflowId === 'handover'
-              ? 'Run handover workflow'
-              : workflowId === 'promote-review'
-                ? 'Promote development to review'
-                : 'Resume branch state' },
+    { id: 'execute', label: executeLabels[workflowId] },
     { id: 'reinspect', label: 'Re-inspect repository state' },
-    { id: 'complete', label: workflowId === 'checkpoint'
-      ? 'Complete without push'
-      : workflowId === 'publish'
-        ? 'Complete with verified remote state'
-        : workflowId === 'deploy-development'
-          ? 'Complete with deployment result'
-          : workflowId === 'branch-development'
-            ? 'Complete with local branch result'
-            : workflowId === 'repair-tctbp-script-compatibility'
-              ? 'Complete with compatibility repair result'
-              : workflowId === 'handover'
-                ? 'Complete with handover result'
-                : workflowId === 'promote-review'
-                  ? 'Complete with promote review result'
-                  : 'Complete with resume result' },
+    { id: 'complete', label: completeLabels[workflowId] },
   ]
 }
 

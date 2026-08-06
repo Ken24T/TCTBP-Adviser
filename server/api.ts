@@ -16,6 +16,7 @@ import { HandoverEvidenceStore } from './handover-evidence'
 import { PublishActioner } from './publish-actioner'
 import { DeployActioner } from './deploy-actioner'
 import { PromoteActioner } from './promote-actioner'
+import { ShipActioner } from './ship-actioner'
 import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
@@ -252,17 +253,19 @@ function assertBranchDevelopmentPlan(
   }
 }
 
-function assertPromoteReviewPlan(
+function assertPromotePlan(
   observation: import('../shared/inspection').RepositoryObservation,
   planFingerprint: string,
+  targetBranch: string,
+  intent: import('../shared/actioner').ActionerIntent,
 ): void {
   const plan = planIntent(
     observation,
     recommend(observation, 'none', new Date()),
-    'prepare-pre-production',
+    intent,
   )
   const promoteStep = plan?.steps.find(
-    (step) => step.workflowId === 'promote' && step.targetBranch === 'review',
+    (step) => step.workflowId === 'promote' && step.targetBranch === targetBranch,
   )
   if (
     !plan
@@ -273,7 +276,33 @@ function assertPromoteReviewPlan(
   ) {
     throw new AdviserError(
       'actioner-plan-stale-or-blocked',
-      'The promote review plan is stale, blocked, or not currently required.',
+      `The promote ${targetBranch} plan is stale, blocked, or not currently required.`,
+    )
+  }
+}
+
+function assertShipPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'prepare-production-release',
+  )
+  const shipStep = plan?.steps.find(
+    (step) => step.workflowId === 'ship',
+  )
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || !shipStep
+    || shipStep.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The ship plan is stale, blocked, or not currently required.',
     )
   }
 }
@@ -694,14 +723,84 @@ export function createApiHandler(runtime: ApiRuntime) {
           decodeURIComponent(promoteReviewMatch[1]),
         )
         const observation = await runtime.inspections.inspect(repository)
-        assertPromoteReviewPlan(observation, actionRequest.planFingerprint)
+        assertPromotePlan(observation, actionRequest.planFingerprint, 'review', 'prepare-pre-production')
         const job = runtime.actionerJobs.create(repository.id, 'promote-review')
         void (async () => {
           try {
             runtime.actionerJobs.start(job.jobId)
             const currentObservation = await runtime.inspections.inspect(repository)
-            assertPromoteReviewPlan(currentObservation, actionRequest.planFingerprint)
-            const result = await new PromoteActioner().run(
+            assertPromotePlan(currentObservation, actionRequest.planFingerprint, 'review', 'prepare-pre-production')
+            const result = await new PromoteActioner({
+              workflowId: 'promote-review',
+              key: 'review',
+              sourceBranch: 'development',
+              targetBranch: 'review',
+              publishTarget: true,
+            }).run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const promoteProductionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/promote-production$/.exec(url.pathname)
+      if (request.method === 'POST' && promoteProductionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(promoteProductionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertPromotePlan(observation, actionRequest.planFingerprint, 'production', 'prepare-production-release')
+        const job = runtime.actionerJobs.create(repository.id, 'promote-production')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertPromotePlan(currentObservation, actionRequest.planFingerprint, 'production', 'prepare-production-release')
+            const result = await new PromoteActioner({
+              workflowId: 'promote-production',
+              key: 'production',
+              sourceBranch: 'review',
+              targetBranch: 'main',
+              publishTarget: false,
+            }).run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const shipMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/ship$/.exec(url.pathname)
+      if (request.method === 'POST' && shipMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(shipMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertShipPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'ship')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertShipPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new ShipActioner().run(
               repository.path,
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),

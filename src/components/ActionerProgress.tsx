@@ -1,13 +1,19 @@
 import type { ActionerJob } from '../../shared/actioner'
 
 function actionerLabel(workflowId: ActionerJob['workflowId']): string {
-  if (workflowId === 'publish') return 'Publish'
-  if (workflowId === 'branch-development') return 'Branch development'
-  if (workflowId === 'deploy-development') return 'Deploy development'
-  if (workflowId === 'promote-review') return 'Promote review'
-  if (workflowId === 'handover') return 'Handover'
-  if (workflowId === 'resume') return 'Resume'
-  return 'Checkpoint'
+  const labels: Record<ActionerJob['workflowId'], string> = {
+    'checkpoint': 'Checkpoint',
+    'publish': 'Publish',
+    'branch-development': 'Branch development',
+    'deploy-development': 'Deploy development',
+    'promote-review': 'Promote review',
+    'promote-production': 'Promote production',
+    'ship': 'Ship',
+    'handover': 'Handover',
+    'resume': 'Resume',
+    'repair-tctbp-script-compatibility': 'Repair TCTBP scripts',
+  }
+  return labels[workflowId]
 }
 
 interface ActionerProgressProps {

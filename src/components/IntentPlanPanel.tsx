@@ -82,13 +82,7 @@ export function IntentPlanPanel({
                 </div>
                 <p>{step.explanation}</p>
                 {step.trigger && <code>{step.trigger}</code>}
-                {(step.workflowId === 'checkpoint'
-                  || step.workflowId === 'publish'
-                  || (step.workflowId === 'branch' && step.targetBranch === 'development')
-                  || step.workflowId === 'handover'
-                  || step.workflowId === 'resume'
-                  || (step.workflowId === 'deploy' && step.targetBranch === 'dev')
-                  || (step.workflowId === 'promote' && step.targetBranch === 'review'))
+                {isActionableStep(step)
                   && step.condition === 'required'
                   && plan.fingerprint
                   && !(actionJob?.workflowId === 'handover' && actionJob.status === 'completed') && (
@@ -96,35 +90,9 @@ export function IntentPlanPanel({
                     className="intent-action-button"
                     disabled={inspectionBusy || actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
                     type="button"
-                    onClick={() => onRunAction(
-                      step.workflowId === 'branch'
-                        ? 'branch-development'
-                        : step.workflowId === 'handover'
-                          ? 'handover'
-                          : step.workflowId === 'resume'
-                            ? 'resume'
-                            : step.workflowId === 'deploy'
-                              ? 'deploy-development'
-                              : step.workflowId === 'promote' && step.targetBranch === 'review'
-                                ? 'promote-review'
-                                : step.workflowId as 'checkpoint' | 'publish',
-                    )}
+                    onClick={() => onRunAction(actionWorkflowForStep(step))}
                   >
-                    {actionBusy
-                      ? 'Starting…'
-                      : step.workflowId === 'checkpoint'
-                        ? 'Run checkpoint'
-                        : step.workflowId === 'publish'
-                          ? 'Publish branch'
-                          : step.workflowId === 'branch'
-                            ? 'Branch development'
-                            : step.workflowId === 'handover'
-                              ? 'Run handover'
-                              : step.workflowId === 'resume'
-                                ? 'Run resume'
-                                : step.workflowId === 'promote' && step.targetBranch === 'review'
-                                  ? 'Promote review'
-                                  : 'Deploy development'}
+                    {actionBusy ? 'Starting…' : actionLabelForStep(step)}
                   </button>
                 )}
               </div>
@@ -158,4 +126,42 @@ function conditionLabel(
 
 function stepLabel(plan: IntentPlan, id: string): string {
   return plan.steps.find((step) => step.id === id)?.label ?? id
+}
+
+function isActionableStep(step: IntentPlan['steps'][number]): boolean {
+  return step.workflowId === 'checkpoint'
+    || step.workflowId === 'publish'
+    || (step.workflowId === 'branch' && step.targetBranch === 'development')
+    || step.workflowId === 'handover'
+    || step.workflowId === 'resume'
+    || (step.workflowId === 'deploy' && step.targetBranch === 'dev')
+    || (step.workflowId === 'promote' && (step.targetBranch === 'review' || step.targetBranch === 'production'))
+    || step.workflowId === 'ship'
+}
+
+function actionWorkflowForStep(step: IntentPlan['steps'][number]): ActionerWorkflowId {
+  if (step.workflowId === 'branch') return 'branch-development'
+  if (step.workflowId === 'handover') return 'handover'
+  if (step.workflowId === 'resume') return 'resume'
+  if (step.workflowId === 'deploy') return 'deploy-development'
+  if (step.workflowId === 'promote' && step.targetBranch === 'review') return 'promote-review'
+  if (step.workflowId === 'promote' && step.targetBranch === 'production') return 'promote-production'
+  if (step.workflowId === 'ship') return 'ship'
+  return step.workflowId as 'checkpoint' | 'publish'
+}
+
+function actionLabelForStep(step: IntentPlan['steps'][number]): string {
+  const labels: Record<ActionerWorkflowId, string> = {
+    checkpoint: 'Run checkpoint',
+    publish: 'Publish branch',
+    'branch-development': 'Branch development',
+    'deploy-development': 'Deploy development',
+    'repair-tctbp-script-compatibility': 'Repair TCTBP scripts',
+    handover: 'Run handover',
+    resume: 'Run resume',
+    'promote-review': 'Promote review',
+    'promote-production': 'Promote production',
+    ship: 'Ship release',
+  }
+  return labels[actionWorkflowForStep(step)]
 }

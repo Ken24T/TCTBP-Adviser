@@ -26,8 +26,8 @@ export async function readActionerRequest(
   }
   const value = body as Record<string, unknown>
   if (
-    !['checkpoint', 'publish', 'deploy-development', 'branch-development', 'repair-tctbp-script-compatibility', 'handover', 'resume', 'promote-review'].includes(String(value.workflowId))
-    || !['preserve-locally', 'preserve-and-publish', 'deploy-current-environment', 'continue-on-another-machine', 'resume-after-machine-change', 'prepare-pre-production'].includes(String(value.intent))
+    !['checkpoint', 'publish', 'deploy-development', 'branch-development', 'repair-tctbp-script-compatibility', 'handover', 'resume', 'promote-review', 'promote-production', 'ship'].includes(String(value.workflowId))
+    || !['preserve-locally', 'preserve-and-publish', 'deploy-current-environment', 'continue-on-another-machine', 'resume-after-machine-change', 'prepare-pre-production', 'prepare-production-release'].includes(String(value.intent))
     || value.confirm !== true
     || typeof value.planFingerprint !== 'string'
     || !/^[0-9a-f]{64}$/.test(value.planFingerprint)
@@ -38,8 +38,8 @@ export async function readActionerRequest(
     )
   }
   return {
-    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development' | 'branch-development' | 'repair-tctbp-script-compatibility' | 'handover' | 'resume' | 'promote-review',
-    intent: value.intent as 'preserve-locally' | 'preserve-and-publish' | 'deploy-current-environment' | 'continue-on-another-machine' | 'resume-after-machine-change' | 'prepare-pre-production',
+    workflowId: value.workflowId as 'checkpoint' | 'publish' | 'deploy-development' | 'branch-development' | 'repair-tctbp-script-compatibility' | 'handover' | 'resume' | 'promote-review' | 'promote-production' | 'ship',
+    intent: value.intent as 'preserve-locally' | 'preserve-and-publish' | 'deploy-current-environment' | 'continue-on-another-machine' | 'resume-after-machine-change' | 'prepare-pre-production' | 'prepare-production-release',
     planFingerprint: value.planFingerprint,
     confirm: true,
   }

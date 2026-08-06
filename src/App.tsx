@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ActionerJob, ActionerWorkflowId } from '../shared/actioner'
+import type { ActionerJob, ActionerJobStart, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -19,6 +19,8 @@ import {
   startBranchDevelopmentAction,
   startDeployDevelopmentAction,
   startPromoteReviewAction,
+  startPromoteProductionAction,
+  startShipAction,
   startHandoverAction,
   startResumeAction,
   startRepairCompatibilityAction,
@@ -129,45 +131,40 @@ function App() {
 
   async function runAction(workflowId: ActionerWorkflowId): Promise<void> {
     if (!selectedId || !detail?.intentPlan?.fingerprint) return
-    const confirmation = workflowId === 'checkpoint'
-      ? 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.'
-      : workflowId === 'publish'
-        ? 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.'
-        : workflowId === 'branch-development'
-          ? 'Create and switch to the configured development branch? No publish or deployment will occur.'
-          : workflowId === 'repair-tctbp-script-compatibility'
-            ? 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.'
-            : workflowId === 'handover'
-              ? 'Create continuation context and publish the current branch for another machine.'
-              : workflowId === 'resume'
-                ? 'Reconcile the clean local branch with its origin state. No force update will occur.'
-                : workflowId === 'promote-review'
-                  ? 'Promote the current development branch into review? This will merge, verify, and publish review. No deployment will occur.'
-                  : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
-    if (!window.confirm(confirmation)) return
+    const confirmations: Record<ActionerWorkflowId, string> = {
+      checkpoint: 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
+      publish: 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.',
+      'branch-development': 'Create and switch to the configured development branch? No publish or deployment will occur.',
+      'repair-tctbp-script-compatibility': 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.',
+      handover: 'Create continuation context and publish the current branch for another machine.',
+      resume: 'Reconcile the clean local branch with its origin state. No force update will occur.',
+      'promote-review': 'Promote the current development branch into review? This will merge, verify, and publish review. No deployment will occur.',
+      'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
+      ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
+      'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
+    }
+    if (!window.confirm(confirmations[workflowId])) return
     setActionBusy(true)
     setActionFeedback(null)
     setError(null)
     try {
-      const startedJob = workflowId === 'checkpoint'
-        ? await startCheckpointAction(
-            selectedId,
-            detail.intentPlan.fingerprint,
-            detail.intentPlan.intent,
-          )
-        : workflowId === 'publish'
-          ? await startPublishAction(selectedId, detail.intentPlan.fingerprint)
-          : workflowId === 'branch-development'
-            ? await startBranchDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
-            : workflowId === 'repair-tctbp-script-compatibility'
-              ? await startRepairCompatibilityAction(selectedId, detail.intentPlan.fingerprint)
-              : workflowId === 'handover'
-                ? await startHandoverAction(selectedId, detail.intentPlan.fingerprint)
-                : workflowId === 'resume'
-                  ? await startResumeAction(selectedId, detail.intentPlan.fingerprint)
-                  : workflowId === 'promote-review'
-                    ? await startPromoteReviewAction(selectedId, detail.intentPlan.fingerprint)
-                    : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
+      const starters: Record<ActionerWorkflowId, () => Promise<ActionerJobStart>> = {
+        checkpoint: () => startCheckpointAction(
+          selectedId,
+          detail.intentPlan!.fingerprint,
+          detail.intentPlan!.intent,
+        ),
+        publish: () => startPublishAction(selectedId, detail.intentPlan!.fingerprint),
+        'branch-development': () => startBranchDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
+        'repair-tctbp-script-compatibility': () => startRepairCompatibilityAction(selectedId, detail.intentPlan!.fingerprint),
+        handover: () => startHandoverAction(selectedId, detail.intentPlan!.fingerprint),
+        resume: () => startResumeAction(selectedId, detail.intentPlan!.fingerprint),
+        'promote-review': () => startPromoteReviewAction(selectedId, detail.intentPlan!.fingerprint),
+        'promote-production': () => startPromoteProductionAction(selectedId, detail.intentPlan!.fingerprint),
+        ship: () => startShipAction(selectedId, detail.intentPlan!.fingerprint),
+        'deploy-development': () => startDeployDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
+      }
+      const startedJob = await starters[workflowId]()
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,
