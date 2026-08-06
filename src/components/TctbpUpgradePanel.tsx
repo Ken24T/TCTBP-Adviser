@@ -1,3 +1,6 @@
+// TCTBP file-size justification: this panel consolidates the TCTBP upgrade
+// plan preview, Jasper AI review, plan export, apply actions, and the nested
+// bootstrap form. Splitting would fragment closely related UI state and props.
 import { useEffect, useState } from 'react'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type {
