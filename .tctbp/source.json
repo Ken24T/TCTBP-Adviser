@@ -1,0 +1,26 @@
+{
+  "sourceRepository": "Ken24T/TCTBP-Web",
+  "sourceRevision": "fec633156f48fed22f4875d9e7e748c59acb7ce5",
+  "sourceVersion": "0.2.0",
+  "installedSchemaVersion": 11,
+  "adviserContract": {
+    "major": 1,
+    "minor": 0,
+    "capabilities": [
+      "inspection.local-v1",
+      "workflow-catalogue.core-v1",
+      "reason-codes.core-v1"
+    ]
+  },
+  "installedAt": "2026-07-30",
+  "managedSurface": [
+    ".github/TCTBP.json",
+    ".github/TCTBP Agent.md",
+    ".github/TCTBP Cheatsheet.md",
+    ".github/agents/TCTBP.agent.md",
+    ".github/hooks/tctbp-safety.json",
+    "scripts/tctbp-*.js",
+    "schemas/tctbp-adviser-inspection-v1.schema.json",
+    "contracts/adviser-v1/fixtures/*.json"
+  ]
+}
