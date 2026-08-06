@@ -3,6 +3,7 @@ import type {
   RepositoryGitHubEvidence,
 } from '../../shared/github'
 import { formatAge } from '../presentation'
+import { EmptyState, Panel, Badge } from './primitives'
 
 export function GitHubPanel({
   evidence,
@@ -42,23 +43,26 @@ export function GitHubPanel({
 
   const repository = evidence.repository
   return (
-    <section className="github-panel" aria-labelledby="github-title">
-      <div className="github-panel-heading">
+    <Panel eyebrow="Separate provider evidence" title="GitHub-visible state">
+      <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between mb-4">
         <div>
-          <p className="eyebrow">Separate provider evidence</p>
-          <h2 id="github-title">GitHub-visible state</h2>
-          <p>
-            <a href={repository.htmlUrl} rel="noreferrer" target="_blank">
+          <p className="text-sm">
+            <a
+              className="font-medium text-teal-700 hover:text-teal-800 hover:underline"
+              href={repository.htmlUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
               {repository.fullName}
             </a>
             {' · '}{repository.visibility}
             {repository.archived ? ' · archived' : ''}
           </p>
         </div>
-        <span>{providerAge(evidence.retrievedAt)}</span>
+        <Badge tone="neutral">{providerAge(evidence.retrievedAt)}</Badge>
       </div>
 
-      <div className="github-facts">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <ProviderFact
           label="Default branch"
           value={branchSummary(evidence)}
@@ -94,11 +98,11 @@ export function GitHubPanel({
       </div>
 
       <ProviderProblems evidence={evidence} />
-      <p className="provider-boundary">
+      <p className="mt-4 text-xs text-text-faint">
         GitHub observations do not replace working-tree or local tracking-ref
         evidence and do not alter the deterministic recommendation.
       </p>
-    </section>
+    </Panel>
   )
 }
 
@@ -112,20 +116,19 @@ function ProviderNotice({
   retrievedAt?: string
 }) {
   return (
-    <section className="github-panel provider-notice">
-      <p className="eyebrow">Separate provider evidence</p>
-      <h2>{title}</h2>
-      <p>{message}</p>
-      {retrievedAt && <small>{providerAge(retrievedAt)}</small>}
-    </section>
+    <EmptyState
+      eyebrow="Separate provider evidence"
+      title={title}
+      description={message}
+    />
   )
 }
 
 function ProviderFact({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="p-3 bg-surface-soft rounded-lg">
+      <span className="block text-xs text-text-muted">{label}</span>
+      <strong className="block mt-0.5 text-sm text-text-primary break-all">{value}</strong>
     </div>
   )
 }
@@ -149,7 +152,7 @@ function ProviderProblems({
   ].filter((section) => section.unavailable)
   if (unavailable.length === 0) return null
   return (
-    <div className="provider-partial">
+    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
       Partial provider evidence: {unavailable.map(({ name }) => name).join(', ')}
       {' '}could not be retrieved.
     </div>

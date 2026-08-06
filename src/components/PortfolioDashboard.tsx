@@ -8,6 +8,7 @@ import type {
   PortfolioPreferences,
 } from '../portfolio-preferences'
 import { formatAge } from '../presentation'
+import { Button, Card, EmptyState, Section } from './primitives'
 import { PortfolioCard } from './PortfolioCard'
 
 type PortfolioFilter =
@@ -68,12 +69,12 @@ export function PortfolioDashboard({
   const cacheStale = snapshot.cache.ageMs > snapshot.cache.ttlMs
 
   return (
-    <>
-      <header className="portfolio-header">
-        <div>
-          <p className="eyebrow">Local repository registry</p>
-          <h1>Repository portfolio</h1>
-          <p>
+    <div className="space-y-8 animate-fade-in">
+      <header className="flex flex-col lg:flex-row lg:items-end gap-6 justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-widest text-teal-600">Local repository registry</p>
+          <h1 className="mt-1 text-5xl font-semibold text-text-primary tracking-tight">Repository portfolio</h1>
+          <p className="mt-3 text-lg text-text-secondary leading-relaxed">
             {snapshot.discovery.repositoryCount} local repositories discovered across{' '}
             {snapshot.discovery.rootCount} configured root
             {snapshot.discovery.rootCount === 1 ? '' : 's'}.
@@ -82,99 +83,119 @@ export function PortfolioDashboard({
               : ''}
           </p>
         </div>
-        <button disabled={busy} type="button" onClick={onRefresh}>
+        <Button disabled={busy} onClick={onRefresh}>
           {busy ? 'Refreshing…' : 'Refresh portfolio'}
-        </button>
+        </Button>
       </header>
 
-      <section className="portfolio-metrics" aria-label="Portfolio summary">
-        <Metric label="Discovered" value={snapshot.discovery.repositoryCount} />
-        <Metric label="Healthy" value={healthyCount} />
-        <Metric label="TCTBP compatible" value={compatibleCount} />
-        <Metric label="GitHub mapped" value={snapshot.github.localMappings} />
+      <section aria-label="Portfolio summary" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <Metric label="Discovered" value={snapshot.discovery.repositoryCount} tone="info" />
+        <Metric label="Healthy" value={healthyCount} tone="success" />
+        <Metric label="TCTBP compatible" value={compatibleCount} tone="accent" />
+        <Metric label="GitHub mapped" value={snapshot.github.localMappings} tone="neutral" />
         {snapshot.upgrade?.enabled && (
           <>
-            <Metric label="TCTBP current" value={snapshot.upgrade.current} />
-            <Metric label="TCTBP review" value={snapshot.upgrade.reviewRequired} />
-            <Metric label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} />
-            <Metric label="TCTBP blocked" value={snapshot.upgrade.blocked} />
+            <Metric label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
+            <Metric label="TCTBP review" value={snapshot.upgrade.reviewRequired} tone="warning" />
+            <Metric label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
+            <Metric label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
           </>
         )}
       </section>
 
-      <section className="portfolio-controls" aria-label="Portfolio filters">
-        <label className="portfolio-search">
-          <span>Search repositories</span>
-          <input
-            type="search"
-            placeholder="Search by repository or custom name"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-          />
-        </label>
-        <div className="filter-buttons">
-          {filterOptions(snapshot).map((option) => (
-            <button
-              className={filter === option ? 'selected' : ''}
-              key={option}
-              type="button"
-              onClick={() => setFilter(option)}
-            >
-              {filterLabel(option)}
-            </button>
-          ))}
-          {hiddenCount > 0 && (
-            <button type="button" onClick={() => setShowHidden(!showHidden)}>
-              {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
-            </button>
-          )}
+      <Card className="p-5 space-y-4">
+        <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between">
+          <label className="block w-full md:max-w-md text-sm text-text-secondary">
+            Search repositories
+            <input
+              className="mt-1 w-full px-4 py-2.5 text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              placeholder="Search by repository or custom name"
+              type="search"
+              value={query}
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            {filterOptions(snapshot).map((option) => (
+              <button
+                className={[
+                  'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
+                  filter === option
+                    ? 'bg-teal-600 text-white shadow-soft'
+                    : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
+                ].join(' ')}
+                key={option}
+                type="button"
+                onClick={() => setFilter(option)}
+              >
+                {filterLabel(option)}
+              </button>
+            ))}
+            {hiddenCount > 0 && (
+              <button
+                className="px-3 py-1.5 text-xs font-medium rounded-full bg-butter-100 text-text-primary hover:bg-butter-200 transition-colors border border-butter-300"
+                type="button"
+                onClick={() => setShowHidden(!showHidden)}
+              >
+                {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
+              </button>
+            )}
+          </div>
         </div>
-      </section>
 
-      <div className={`portfolio-cache-note ${cacheStale ? 'cache-stale' : ''}`}>
-        <span className="status-dot" aria-hidden="true" />
-        {cacheStale
-          ? 'Stale portfolio'
-          : snapshot.cache.status === 'fresh'
-            ? 'Cached portfolio'
-            : 'Freshly inspected'}
-        {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
-      </div>
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <span
+            aria-hidden="true"
+            className={`w-2 h-2 rounded-full ${cacheStale ? 'bg-amber-500' : 'bg-teal-500'}`}
+          />
+          <span>
+            {cacheStale
+              ? 'Stale portfolio'
+              : snapshot.cache.status === 'fresh'
+                ? 'Cached portfolio'
+                : 'Freshly inspected'}
+            {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
+          </span>
+        </div>
+      </Card>
 
       {repositories.length > 0 ? (
-        <section className="portfolio-grid" aria-label="Repositories">
-          {repositories.map((repository) => (
-            <PortfolioCard
-              key={repository.id}
-              repository={repository}
-              preference={preferences[repository.id] ?? emptyPreference()}
-              onOpen={() => onOpen(repository.id)}
-              onPreferenceChange={(patch) => (
-                onPreferenceChange(repository.id, patch)
-              )}
-            />
-          ))}
-        </section>
+        <Section
+          eyebrow={`${repositories.length} matching`}
+          title={filterLabel(filter)}
+        >
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" aria-label="Repositories">
+            {repositories.map((repository) => (
+              <PortfolioCard
+                key={repository.id}
+                repository={repository}
+                preference={preferences[repository.id] ?? emptyPreference()}
+                onOpen={() => onOpen(repository.id)}
+                onPreferenceChange={(patch) => (
+                  onPreferenceChange(repository.id, patch)
+                )}
+              />
+            ))}
+          </div>
+        </Section>
       ) : (
-        <section className="portfolio-empty">
-          <p className="eyebrow">No matches</p>
-          <h2>No repositories match the current view.</h2>
-          <p>Adjust the search, filter, or hidden-repository setting.</p>
-        </section>
+        <EmptyState
+          eyebrow="No matches"
+          title="No repositories match the current view."
+          description="Adjust the search, filter, or hidden-repository setting."
+        />
       )}
 
       {snapshot.discovery.issues.length > 0 && (
-        <section className="discovery-issues" aria-labelledby="issues-title">
-          <p className="eyebrow">Partial discovery</p>
-          <h2 id="issues-title">Some locations were skipped safely</h2>
-          <ul>
+        <Section eyebrow="Partial discovery" title="Some locations were skipped safely">
+          <ul className="ad-surface-soft p-5 space-y-2 text-sm text-text-secondary list-disc list-inside">
             {snapshot.discovery.issues.map((issue, index) => (
               <li key={`${issue.code}-${index}`}>{issue.message}</li>
             ))}
           </ul>
-        </section>
+        </Section>
       )}
-    </>
+    </div>
   )
 }
 
@@ -284,11 +305,27 @@ function filterLabel(filter: PortfolioFilter): string {
   return labels[filter]
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+}) {
+  const toneClasses = {
+    neutral: 'bg-surface-soft text-text-muted',
+    success: 'bg-green-100 text-green-700 border border-green-200',
+    warning: 'bg-amber-100 text-amber-700 border border-amber-200',
+    danger: 'bg-red-100 text-red-700 border border-red-200',
+    info: 'bg-blue-100 text-blue-700 border border-blue-200',
+    accent: 'bg-teal-100 text-teal-700 border border-teal-200',
+  }
   return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className={`ad-surface p-4 flex flex-col items-center justify-center text-center gap-1 ${toneClasses[tone]}`}>
+      <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">{label}</span>
+      <strong className="text-3xl font-semibold text-text-primary">{value}</strong>
     </div>
   )
 }
