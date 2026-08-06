@@ -47,7 +47,8 @@
       "branch",
       "promote",
       "deploy",
-      "ship"
+      "ship",
+      "hotfix"
     ]
   },
   "governance": {
@@ -177,7 +178,15 @@
       "version status",
       "version check",
       "rollback",
-      "revert last checkpoint"
+      "revert last checkpoint",
+      "hotfix",
+      "hotfix please",
+      "hotfix start",
+      "hotfix start please",
+      "hotfix finish",
+      "hotfix finish please",
+      "emergency fix",
+      "emergency fix please"
     ],
     "caseInsensitive": true
   },
