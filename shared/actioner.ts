@@ -8,6 +8,7 @@ export type ActionerWorkflowId =
   | 'repair-tctbp-script-compatibility'
   | 'handover'
   | 'resume'
+  | 'promote-review'
 
 export type ActionerIntent = Exclude<RecommendationIntent, 'none'>
 

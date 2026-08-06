@@ -178,6 +178,40 @@
     ],
     "caseInsensitive": true
   },
+  "promote": {
+    "enabled": true,
+    "preferredTriggers": [
+      "promote",
+      "promote please",
+      "promote review",
+      "promote review please"
+    ],
+    "executionCommand": "node scripts/tctbp-run-promote.js review --no-docs-impact \"<reason>\"",
+    "purpose": "Explicitly merge the current development branch into the review branch with verification gates, safety snapshots, and a mandatory merge deletion audit. Promotion is a merge workflow, not a deploy workflow.",
+    "targets": {
+      "review": {
+        "sourceBranch": "development",
+        "targetBranch": "review",
+        "description": "Promote the current development candidate into review for field testing.",
+        "allowDirtySourceSync": true,
+        "publishSourceWhenNeeded": true,
+        "allowFirstSourcePublish": true,
+        "requireCleanTargetBeforeMerge": true,
+        "allowTargetFastForwardFromOrigin": true,
+        "publishTargetAfterPromotion": true,
+        "allowFirstTargetPublish": true,
+        "returnToSourceBranchAfterPromotion": true,
+        "stopIfVerificationOrBuildChangesWorkingTree": true,
+        "defaultSourceSyncCommitMessage": "chore(promote): sync development before review promotion",
+        "defaultMergeCommitMessage": "chore(review): promote development to review",
+        "postPromotionValidation": [
+          "Confirm origin/review now contains the promoted review candidate.",
+          "Confirm the review environment can pick up the updated review branch state."
+        ],
+        "comment": "Use when the current development candidate should become the field-testing review candidate."
+      }
+    }
+  },
   "deploy": {
     "enabled": false,
     "targets": {}

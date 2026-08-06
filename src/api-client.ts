@@ -167,6 +167,25 @@ export async function startDeployDevelopmentAction(
   )
 }
 
+export async function startPromoteReviewAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/promote-review`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'promote-review',
+        intent: 'prepare-pre-production',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
 export async function startCheckpointAction(
   repositoryId: string,
   planFingerprint: string,

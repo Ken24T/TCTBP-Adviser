@@ -15,6 +15,7 @@ import { DeploymentEvidenceStore } from './deployment-evidence'
 import { HandoverEvidenceStore } from './handover-evidence'
 import { PublishActioner } from './publish-actioner'
 import { DeployActioner } from './deploy-actioner'
+import { PromoteActioner } from './promote-actioner'
 import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
@@ -247,6 +248,32 @@ function assertBranchDevelopmentPlan(
     throw new AdviserError(
       'actioner-plan-stale-or-blocked',
       'The development branch activation plan is stale or blocked.',
+    )
+  }
+}
+
+function assertPromoteReviewPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'prepare-pre-production',
+  )
+  const promoteStep = plan?.steps.find(
+    (step) => step.workflowId === 'promote' && step.targetBranch === 'review',
+  )
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || !promoteStep
+    || promoteStep.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The promote review plan is stale, blocked, or not currently required.',
     )
   }
 }
@@ -650,6 +677,35 @@ export function createApiHandler(runtime: ApiRuntime) {
               runtimeVerification: 'not-verified',
               summary: 'Development deployment workflow completed; runtime health verification is not configured.',
             })
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const promoteReviewMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/promote-review$/.exec(url.pathname)
+      if (request.method === 'POST' && promoteReviewMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(promoteReviewMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertPromoteReviewPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'promote-review')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertPromoteReviewPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new PromoteActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
             runtime.actionerJobs.complete(job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))

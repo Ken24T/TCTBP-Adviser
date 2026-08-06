@@ -18,6 +18,7 @@ import {
   startCheckpointAction,
   startBranchDevelopmentAction,
   startDeployDevelopmentAction,
+  startPromoteReviewAction,
   startHandoverAction,
   startResumeAction,
   startRepairCompatibilityAction,
@@ -140,7 +141,9 @@ function App() {
               ? 'Create continuation context and publish the current branch for another machine.'
               : workflowId === 'resume'
                 ? 'Reconcile the clean local branch with its origin state. No force update will occur.'
-                : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
+                : workflowId === 'promote-review'
+                  ? 'Promote the current development branch into review? This will merge, verify, and publish review. No deployment will occur.'
+                  : 'Deploy the development branch to the configured development environment? No merge or production action will occur.'
     if (!window.confirm(confirmation)) return
     setActionBusy(true)
     setActionFeedback(null)
@@ -162,7 +165,9 @@ function App() {
                 ? await startHandoverAction(selectedId, detail.intentPlan.fingerprint)
                 : workflowId === 'resume'
                   ? await startResumeAction(selectedId, detail.intentPlan.fingerprint)
-                  : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
+                  : workflowId === 'promote-review'
+                    ? await startPromoteReviewAction(selectedId, detail.intentPlan.fingerprint)
+                    : await startDeployDevelopmentAction(selectedId, detail.intentPlan.fingerprint)
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,

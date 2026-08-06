@@ -21,7 +21,9 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
             ? 'Repair TCTBP script compatibility'
             : workflowId === 'handover'
               ? 'Run handover workflow'
-              : 'Resume branch state' },
+              : workflowId === 'promote-review'
+                ? 'Promote development to review'
+                : 'Resume branch state' },
     { id: 'reinspect', label: 'Re-inspect repository state' },
     { id: 'complete', label: workflowId === 'checkpoint'
       ? 'Complete without push'
@@ -35,7 +37,9 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
               ? 'Complete with compatibility repair result'
               : workflowId === 'handover'
                 ? 'Complete with handover result'
-                : 'Complete with resume result' },
+                : workflowId === 'promote-review'
+                  ? 'Complete with promote review result'
+                  : 'Complete with resume result' },
   ]
 }
 
