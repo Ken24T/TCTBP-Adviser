@@ -1,3 +1,4 @@
+import type { ActionerJob } from '../../shared/actioner'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -13,11 +14,17 @@ import { TctbpPanel } from './TctbpPanel'
 import { GitHubPanel } from './GitHubPanel'
 import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
+import { intentForRecommendation } from '../recommended-intent'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
+  actionJob: ActionerJob | null
+  actionBusy: boolean
+  actionFeedback: string | null
+  onRunAction: (workflowId: import('../../shared/actioner').ActionerWorkflowId) => void
+  onRepairCompatibility: () => void
   intent: RecommendationIntent
   busy: boolean
   upgradePlan: TctbpUpgradePlan | null
@@ -45,6 +52,11 @@ interface RepositoryDetailProps {
 
 export function RepositoryDetail({
   detail,
+  actionJob,
+  actionBusy,
+  actionFeedback,
+  onRunAction,
+  onRepairCompatibility,
   intent,
   busy,
   upgradePlan,
@@ -126,8 +138,22 @@ export function RepositoryDetail({
         </div>
       </section>
 
-      <RecommendationPanel recommendation={recommendation} />
-      <IntentPlanPanel plan={detail.intentPlan} />
+      <RecommendationPanel
+        recommendation={recommendation}
+        onReviewPlan={() => {
+          const suggestedIntent = intentForRecommendation(recommendation.primaryAction)
+          if (suggestedIntent) onIntentChange(suggestedIntent)
+        }}
+      />
+      <IntentPlanPanel
+        plan={detail.intentPlan}
+        actionJob={actionJob}
+        actionBusy={actionBusy}
+        inspectionBusy={busy}
+        actionFeedback={actionFeedback}
+        onRunAction={onRunAction}
+        onRepairCompatibility={onRepairCompatibility}
+      />
       <RepositoryState
         observation={observation}
         recommendation={recommendation}

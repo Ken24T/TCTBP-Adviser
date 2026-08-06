@@ -1,4 +1,5 @@
 import type { AiReviewResult } from '../shared/ai-review'
+import type { ActionerIntent, ActionerJob, ActionerJobStart } from '../shared/actioner'
 import type {
   TctbpBootstrapApplyResult,
   TctbpBootstrapJob,
@@ -49,6 +50,206 @@ export async function startTctbpBootstrap(
         request,
       }),
     },
+  )
+}
+
+export async function startPublishAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/publish`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'publish',
+        intent: 'preserve-and-publish',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startBranchDevelopmentAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/branch-development`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'branch-development',
+        intent: 'deploy-current-environment',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startResumeAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/resume`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'resume',
+        intent: 'resume-after-machine-change',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startHandoverAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/handover`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'handover',
+        intent: 'continue-on-another-machine',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startRepairCompatibilityAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/repair-tctbp-script-compatibility`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'repair-tctbp-script-compatibility',
+        intent: 'deploy-current-environment',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startDeployDevelopmentAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/deploy-development`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'deploy-development',
+        intent: 'deploy-current-environment',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startPromoteReviewAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/promote-review`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'promote-review',
+        intent: 'prepare-pre-production',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startPromoteProductionAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/promote-production`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'promote-production',
+        intent: 'prepare-production-release',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startShipAction(
+  repositoryId: string,
+  planFingerprint: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/ship`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'ship',
+        intent: 'prepare-production-release',
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function startCheckpointAction(
+  repositoryId: string,
+  planFingerprint: string,
+  intent: ActionerIntent,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/checkpoint`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'checkpoint',
+        intent,
+        planFingerprint,
+        confirm: true,
+      }),
+    },
+  )
+}
+
+export async function loadActionerJob(
+  repositoryId: string,
+  jobId: string,
+): Promise<ActionerJob> {
+  return requestJson<ActionerJob>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/action-jobs/${encodeURIComponent(jobId)}`,
   )
 }
 

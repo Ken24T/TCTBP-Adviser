@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This agent governs **milestone, checkpointing, shipping, sync, promotion, deployment, and scaffold actions** for repositories that adopt the TCTBP-Web workflow. It exists to safely execute the **TCTBP workflow** with strong guard rails, auditability, human approval at irreversible steps, and deterministic Node.js runners for every workflow.
+This agent governs **milestone, checkpointing, shipping, hotfix, sync, promotion, deployment, and scaffold actions** for repositories that adopt the TCTBP-Web workflow. It exists to safely execute the **TCTBP workflow** with strong guard rails, auditability, human approval at irreversible steps, and deterministic Node.js runners for every workflow.
 
 Primary objective: **no code is ever lost** while keeping local and remote repositories in a validated, recoverable state.
 
-This agent is **not** for exploratory coding or refactoring. It is activated only when the user signals a configured TCTBP trigger (for example `ship`, `checkpoint`, `handover`, `resume`, `promote review`, `promote staging`, `deploy dev`, `run tests`, `ticket create`, `version status`, `rollback`, `release`, or `scaffold`).
+This agent is **not** for exploratory coding or refactoring. It is activated only when the user signals a configured TCTBP trigger (for example `ship`, `checkpoint`, `handover`, `resume`, `promote staging`, `promote review`, `hotfix`, `deploy dev`, `run tests`, `ticket create`, `version status`, `rollback`, `release`, or `scaffold`).
 
 Quick reference: see [TCTBP Cheatsheet.md](TCTBP%20Cheatsheet.md) for the short operator view of triggers, gates, and repo-specific expectations.
 
@@ -94,7 +94,7 @@ This is a **soft warning** (not a hard stop) — the user can proceed with norma
 
 ## Branch-To-Environment Model
 
-This repository supports three branch strategies, configured in `TCTBP.json` under `branchModel.strategy`:
+This repository supports two branch strategies, configured in `TCTBP.json` under `branchModel.strategy`:
 
 ### Simple (`"simple"`)
 
@@ -115,18 +115,6 @@ Important operating rules:
 - `deploy` never merges `development` into `staging` and never merges `staging` into `main`.
 - `ship` is reserved for `main` so version tags remain production release markers.
 - The `branch` convenience workflow closes short-lived task branches into the default branch, not between environment branches.
-
-### Long-lived Environment Branches (`"long-lived-environment-branches"`)
-
-Three named environment branches with explicit promotion and deployment:
-
-- `development` — daily coding and internal verification
-- `review` — user field testing
-- `main` — production release branch
-
-This repository uses this strategy. The pinned TCTBP workflow reference may
-still expose `staging` as a compatibility name for the pre-production deploy
-trigger; it does not change the configured branch name.
 
 ---
 
@@ -206,7 +194,7 @@ Executable path: `node scripts/tctbp-run-publish.js`
 Typical use:
 
 - publish `development` as often as needed during active work
-- publish `review` after promotion when preparing the review environment
+- publish `staging` after promotion when preparing the staging environment
 - publish `main` when syncing released branch state that does not require deployment in the same step
 
 Behaviour (safe and minimal):
@@ -276,7 +264,7 @@ Behaviour:
 6. **Verify sync** — Confirm branch matches origin. Stop on discrepancy.
 7. **Summary** — Render the handover summary table as a standalone Markdown block, followed by a completion line naming the handed-over branch and commit.
 
-Handover never merges into review or main as part of the sync flow. Code-loss safeguards still apply to any merge step within handover.
+Handover never merges into staging or main as part of the sync flow. Code-loss safeguards still apply to any merge step within handover.
 
 ---
 
@@ -301,38 +289,60 @@ Ship is reserved for `main` so version tags remain production release markers. T
 
 Patch bump behaviour is controlled by `versioning.patchEveryShip` and `versioning.patchEveryShipForDocsInfrastructureOnly`. Minor and major bumps are explicit release decisions on `main`.
 
+### Journaled release orchestration
+
+For staged projects, `scripts/tctbp-run-release.js` composes deploy, promote, and ship into a journaled workflow. Each stage records atomic evidence under the configured `releaseState.path`, including the candidate commit and tree. Use `--resume` after an interrupted workflow; resume revalidates the candidate and shipped tag before continuing. The release journal is ignored by Git and must never be treated as a release artefact.
+
+The generic runner does not assume a backup format, service manager, runtime storage layout, or restore rehearsal. Downstream projects must provide those integrations through their own profile and adapters. DDRE-specific backup and restore runners are not part of TCTBP-Web.
+
 ---
 
 ## Promote Workflow
 
-Trigger: `promote review` / `promote production` / `promote prod` (with `promote staging` retained as a compatibility alias)
+Trigger: `promote staging` / `promote production` / `promote prod`
 
 Purpose: explicitly merge the current source branch into the target environment branch with verification gates, safety snapshots, and a mandatory merge deletion audit.
 
-Executable path: `node scripts/tctbp-run-promote.js <review|production> --no-docs-impact "<reason>"`
+Executable path: `node scripts/tctbp-run-promote.js <staging|production> --no-docs-impact "<reason>"`
 
-**`promote review`** (development → review):
-- Verifies and syncs development, creates a safety snapshot of review, merges development into review, runs the deletion audit, verifies and builds review, publishes review to origin, returns to development.
+**`promote staging`** (development → staging):
+- Verifies and syncs development, creates a safety snapshot of staging, merges development into staging, runs the deletion audit, verifies and builds staging, publishes staging to origin, returns to development.
 
-**`promote production`** (review → main):
-- Verifies review, creates a safety snapshot of main, merges review into main, runs the deletion audit, verifies main. Does NOT push main — `ship` and `deploy production` are separate explicit workflows. Stays on main.
-
-For projects using the staged strategy, the equivalent target and branch are
-named `staging`; this repository uses `review`.
+**`promote production`** (staging → main):
+- Verifies staging, creates a safety snapshot of main, merges staging into main, runs the deletion audit, verifies main. Does NOT push main — `ship` and `deploy production` are separate explicit workflows. Stays on main.
 
 Promotion is a merge workflow, not a deploy workflow. When `branchModel.strategy` is `"simple"`, promote is disabled.
 
 ---
 
+## Hotfix Workflow
+
+Trigger: `hotfix` / `hotfix start` / `hotfix finish` / `emergency fix`
+
+Purpose: emergency-lane production fix that bypasses the normal promote-review/promote-production chain. Creates a `hotfix/*` branch from `main`, merges it into `main`, ships a patch release, and backports the new `main` into the pre-production and working branches.
+
+Executable paths:
+- `node scripts/tctbp-run-hotfix.js start <name>` — create `hotfix/<name>` from the production branch
+- `node scripts/tctbp-run-hotfix.js finish --no-docs-impact "<reason>"` — merge, ship, and backport
+
+Notes:
+- `start` requires the current branch to be the production branch with a clean working tree.
+- `finish` requires the current branch to be a `hotfix/*` branch with a clean working tree.
+- `finish` runs verification gates before merging and ships with `--bump patch` by default.
+- `finish` pushes `main` (via `ship`), then backports to the pre-production and working branches and pushes those.
+- After `finish`, the local hotfix branch is deleted and the user is returned to the working branch.
+
+---
+
 ## Deploy Workflow
 
-Trigger: `deploy dev` / `deploy development` / `deploy review` / `deploy prod` / `deploy production` (with `deploy staging` retained as a compatibility alias)
+Trigger: `deploy dev` / `deploy development` / `deploy staging` / `deploy prod` / `deploy production`
 
 Purpose: deploy the current environment branch to its mapped runtime environment. Never promotes code between branches.
 
 Executable paths:
 - `node scripts/tctbp-run-deploy.js dev --no-docs-impact "<reason>"`
-- `node scripts/tctbp-run-deploy.js review --no-docs-impact "<reason>"`
+- `node scripts/tctbp-run-deploy.js staging --no-docs-impact "<reason>"`
 - `node scripts/tctbp-run-deploy.js production --no-docs-impact "<reason>"`
 
 Per-target behaviour:
@@ -340,7 +350,7 @@ Per-target behaviour:
 | Target | Branch | Sync strategy | Can commit? |
 |---|---|---|---|
 | `dev` | `development` | commit-and-publish-current-branch-when-needed | Yes (with explicit dirty-sync confirmation) |
-| `review` | `review` | push-clean-branch-when-needed | No (must already be clean) |
+| `staging` | `staging` | push-clean-branch-when-needed | No (must already be clean) |
 | `production` | `main` | require-already-published-shipped-branch | No |
 
 ---

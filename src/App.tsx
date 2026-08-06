@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { ActionerJob, ActionerJobStart, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -13,6 +14,17 @@ import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
+  loadActionerJob,
+  startCheckpointAction,
+  startBranchDevelopmentAction,
+  startDeployDevelopmentAction,
+  startPromoteReviewAction,
+  startPromoteProductionAction,
+  startShipAction,
+  startHandoverAction,
+  startResumeAction,
+  startRepairCompatibilityAction,
+  startPublishAction,
   applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
   startTctbpBootstrap,
@@ -22,6 +34,7 @@ import {
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
 } from './api-client'
+import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
@@ -36,6 +49,9 @@ import {
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
+  const [actionJob, setActionJob] = useState<ActionerJob | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null)
   const [upgradePlan, setUpgradePlan] = useState<TctbpUpgradePlan | null>(null)
   const [upgradeBusy, setUpgradeBusy] = useState(false)
   const [applyBusy, setApplyBusy] = useState(false)
@@ -86,6 +102,89 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [bootstrapJob, intent, selectedId])
 
+  useEffect(() => {
+    if (
+      !selectedId
+      || !actionJob
+      || actionJob.status === 'completed'
+      || actionJob.status === 'failed'
+    ) return
+    const timer = window.setTimeout(() => {
+      void loadActionerJob(selectedId, actionJob.jobId)
+        .then((nextJob) => {
+          setActionJob(nextJob)
+          if (nextJob.status === 'completed' || nextJob.status === 'failed') {
+            setActionBusy(false)
+            void refreshDetail(selectedId, intent).then((refreshed) => {
+              if (!refreshed) {
+                setActionFeedback(
+                  `${nextJob.workflowId} completed, but the Adviser could not refresh repository state. Refresh manually before continuing.`,
+                )
+              }
+            })
+          }
+        })
+        .catch((cause) => captureError(cause, requestId.current))
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [actionJob, intent, selectedId])
+
+  async function runAction(workflowId: ActionerWorkflowId): Promise<void> {
+    if (!selectedId || !detail?.intentPlan?.fingerprint) return
+    const confirmations: Record<ActionerWorkflowId, string> = {
+      checkpoint: 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
+      publish: 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.',
+      'branch-development': 'Create and switch to the configured development branch? No publish or deployment will occur.',
+      'repair-tctbp-script-compatibility': 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.',
+      handover: 'Create continuation context and publish the current branch for another machine.',
+      resume: 'Reconcile the clean local branch with its origin state. No force update will occur.',
+      'promote-review': 'Promote the current development branch into review? This will merge, verify, and publish review. No deployment will occur.',
+      'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
+      ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
+      'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
+    }
+    if (!window.confirm(confirmations[workflowId])) return
+    setActionBusy(true)
+    setActionFeedback(null)
+    setError(null)
+    try {
+      const starters: Record<ActionerWorkflowId, () => Promise<ActionerJobStart>> = {
+        checkpoint: () => startCheckpointAction(
+          selectedId,
+          detail.intentPlan!.fingerprint,
+          detail.intentPlan!.intent,
+        ),
+        publish: () => startPublishAction(selectedId, detail.intentPlan!.fingerprint),
+        'branch-development': () => startBranchDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
+        'repair-tctbp-script-compatibility': () => startRepairCompatibilityAction(selectedId, detail.intentPlan!.fingerprint),
+        handover: () => startHandoverAction(selectedId, detail.intentPlan!.fingerprint),
+        resume: () => startResumeAction(selectedId, detail.intentPlan!.fingerprint),
+        'promote-review': () => startPromoteReviewAction(selectedId, detail.intentPlan!.fingerprint),
+        'promote-production': () => startPromoteProductionAction(selectedId, detail.intentPlan!.fingerprint),
+        ship: () => startShipAction(selectedId, detail.intentPlan!.fingerprint),
+        'deploy-development': () => startDeployDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
+      }
+      const startedJob = await starters[workflowId]()
+      setActionJob({
+        jobId: startedJob.jobId,
+        repositoryId: selectedId,
+        workflowId,
+        status: 'queued',
+        steps: [],
+        result: null,
+        error: null,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        completedAt: null,
+      })
+    } catch (cause) {
+      setActionBusy(false)
+      const message = cause instanceof Error ? cause.message : 'Action could not start.'
+      setActionFeedback(message)
+      captureError(cause, requestId.current)
+    }
+  }
+
   async function refreshPortfolio(force = false): Promise<void> {
     const currentRequest = ++requestId.current
     setBusy(true)
@@ -103,7 +202,7 @@ function App() {
   async function refreshDetail(
     repositoryId: string,
     selectedIntent: RecommendationIntent,
-  ): Promise<void> {
+  ): Promise<RepositoryDetailResult | null> {
     const currentRequest = ++requestId.current
     setBusy(true)
     setError(null)
@@ -113,8 +212,10 @@ function App() {
         selectedIntent,
       )
       if (currentRequest === requestId.current) setDetail(nextDetail)
+      return nextDetail
     } catch (cause) {
       captureError(cause, currentRequest)
+      return null
     } finally {
       if (currentRequest === requestId.current) setBusy(false)
     }
@@ -307,8 +408,20 @@ function App() {
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
     setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
+    setActionFeedback(null)
     setIntent('none')
-    void refreshDetail(repositoryId, 'none')
+    void (async () => {
+      const nextDetail = await refreshDetail(repositoryId, 'none')
+      const suggestedIntent = intentForRecommendation(
+        nextDetail?.recommendation.primaryAction ?? null,
+      )
+      if (suggestedIntent) {
+        setIntent(suggestedIntent)
+        await refreshDetail(repositoryId, suggestedIntent)
+      }
+    })()
   }
 
   function showPortfolio(): void {
@@ -327,6 +440,9 @@ function App() {
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
     setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
+    setActionFeedback(null)
     setIntent('none')
     setBusy(false)
     setError(null)
@@ -347,6 +463,9 @@ function App() {
     setBootstrapApplyBusy(false)
     setBootstrapApplyFeedback(null)
     setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
+    setActionFeedback(null)
     setIntent('none')
     setReferenceOpen(true)
     setError(null)
@@ -425,6 +544,11 @@ function App() {
         ) : selectedId && detail ? (
           <RepositoryDetail
             detail={detail}
+            actionJob={actionJob}
+            actionBusy={actionBusy}
+            actionFeedback={actionFeedback}
+            onRunAction={(workflowId) => void runAction(workflowId)}
+            onRepairCompatibility={() => void runAction('repair-tctbp-script-compatibility')}
             intent={intent}
             busy={busy}
             upgradePlan={upgradePlan}

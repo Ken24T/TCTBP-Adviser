@@ -5,6 +5,19 @@ import { createAiReviewer, type AiReviewer } from './ai-reviewer'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
+import { ActionerJobStore } from './actioner-jobs'
+import { CheckpointActioner } from './checkpoint-actioner'
+import { BranchActioner } from './branch-actioner'
+import { RepairActioner } from './repair-actioner'
+import { HandoverActioner } from './handover-actioner'
+import { ResumeActioner } from './resume-actioner'
+import { DeploymentEvidenceStore } from './deployment-evidence'
+import { HandoverEvidenceStore } from './handover-evidence'
+import { PublishActioner } from './publish-actioner'
+import { DeployActioner } from './deploy-actioner'
+import { PromoteActioner } from './promote-actioner'
+import { ShipActioner } from './ship-actioner'
+import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
@@ -43,6 +56,9 @@ export interface ApiRuntime {
   readonly aiReviewer: AiReviewer
   readonly aiReviewStore: AiReviewStore
   readonly bootstrapJobs: TctbpBootstrapJobStore
+  readonly actionerJobs: ActionerJobStore
+  readonly deployments: DeploymentEvidenceStore
+  readonly handovers: HandoverEvidenceStore
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
@@ -86,6 +102,9 @@ export function createApiRuntime(
   })
   const aiReviewStore = new AiReviewStore()
   const bootstrapJobs = new TctbpBootstrapJobStore()
+  const actionerJobs = new ActionerJobStore()
+  const deployments = new DeploymentEvidenceStore()
+  const handovers = new HandoverEvidenceStore()
   return {
     sessionToken,
     registry,
@@ -95,6 +114,9 @@ export function createApiRuntime(
     aiReviewer,
     aiReviewStore,
     bootstrapJobs,
+    actionerJobs,
+    deployments,
+    handovers,
     audit,
     configuration: safeConfigurationExport(config),
     portfolio: new PortfolioService(
@@ -105,6 +127,202 @@ export function createApiRuntime(
       tctbpSource,
     ),
   }
+}
+
+function assertCheckpointPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+  intent: import('../shared/actioner').ActionerIntent,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    intent,
+  )
+  const checkpointStep = plan?.steps.find((step) => step.workflowId === 'checkpoint')
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || checkpointStep?.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The checkpoint plan is stale, blocked, or no longer required.',
+    )
+  }
+}
+
+function assertPublishPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'preserve-and-publish',
+  )
+  const publishStep = plan?.steps.find((step) => step.workflowId === 'publish')
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || publishStep?.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The publish plan is stale, blocked, or no longer required.',
+    )
+  }
+}
+
+function assertResumePlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'resume-after-machine-change',
+  )
+  const resumeStep = plan?.steps.find((step) => step.workflowId === 'resume')
+  if (!plan || plan.fingerprint !== planFingerprint || plan.status !== 'ready' || resumeStep?.condition !== 'required') {
+    throw new AdviserError('actioner-plan-stale-or-blocked', 'The resume plan is stale or blocked.')
+  }
+}
+
+function assertHandoverPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'continue-on-another-machine',
+  )
+  const handoverStep = plan?.steps.find((step) => step.workflowId === 'handover')
+  if (!plan || plan.fingerprint !== planFingerprint || plan.status !== 'ready' || handoverStep?.condition !== 'required') {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The handover plan is stale or blocked.',
+    )
+  }
+}
+
+function assertDeployDevelopmentPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'deploy-current-environment',
+  )
+  const deployStep = plan?.steps.find((step) => step.workflowId === 'deploy')
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || deployStep?.condition !== 'required'
+    || deployStep.targetBranch !== 'dev'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The development deployment plan is stale, blocked, or not currently required.',
+    )
+  }
+}
+
+function assertBranchDevelopmentPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'deploy-current-environment',
+  )
+  const branchStep = plan?.steps.find(
+    (step) => step.workflowId === 'branch' && step.targetBranch === 'development',
+  )
+  if (!plan || plan.fingerprint !== planFingerprint || !branchStep || branchStep.condition !== 'required') {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The development branch activation plan is stale or blocked.',
+    )
+  }
+}
+
+function assertPromotePlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+  targetBranch: string,
+  intent: import('../shared/actioner').ActionerIntent,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    intent,
+  )
+  const promoteStep = plan?.steps.find(
+    (step) => step.workflowId === 'promote' && step.targetBranch === targetBranch,
+  )
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || !promoteStep
+    || promoteStep.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      `The promote ${targetBranch} plan is stale, blocked, or not currently required.`,
+    )
+  }
+}
+
+function assertShipPlan(
+  observation: import('../shared/inspection').RepositoryObservation,
+  planFingerprint: string,
+): void {
+  const plan = planIntent(
+    observation,
+    recommend(observation, 'none', new Date()),
+    'prepare-production-release',
+  )
+  const shipStep = plan?.steps.find(
+    (step) => step.workflowId === 'ship',
+  )
+  if (
+    !plan
+    || plan.fingerprint !== planFingerprint
+    || plan.status !== 'ready'
+    || !shipStep
+    || shipStep.condition !== 'required'
+  ) {
+    throw new AdviserError(
+      'actioner-plan-stale-or-blocked',
+      'The ship plan is stale, blocked, or not currently required.',
+    )
+  }
+}
+
+function safeActionerJobError(error: unknown): string {
+  if (error instanceof AdviserError) return `${error.code}: ${error.message}`
+  const value = error as { message?: unknown; stderr?: unknown }
+  const message = typeof value.message === 'string' ? value.message : 'Actioner workflow failed before completion.'
+  const stderr = typeof value.stderr === 'string' ? value.stderr.trim() : ''
+  const detail = sanitiseActionerDetail(stderr || message)
+  return detail.length > 0 ? `Actioner workflow failed: ${detail.slice(0, 800)}` : 'Actioner workflow failed before completion.'
+}
+
+function sanitiseActionerDetail(value: string): string {
+  return value
+    .replace(/https?:\/\/[^\s]+/gi, '[remote-url]')
+    .replace(/Bearer\s+[^\s]+/gi, 'Bearer [redacted]')
+    .replace(/token[=:]\s*[^\s]+/gi, 'token=[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function safeBootstrapJobError(error: unknown): string {
@@ -256,6 +474,343 @@ export function createApiHandler(runtime: ApiRuntime) {
         const result = await runtime.aiReviewer.reviewUpgradePlan(evidence)
         runtime.aiReviewStore.put(result)
         sendJson(response, 200, result)
+        return
+      }
+
+      const actionJobMatch =
+        /^\/api\/repositories\/([^/]+)\/action-jobs\/([^/]+)$/.exec(url.pathname)
+      if (request.method === 'GET' && actionJobMatch) {
+        const repository = await runtime.registry.require(
+          decodeURIComponent(actionJobMatch[1]),
+        )
+        const job = runtime.actionerJobs.get(
+          decodeURIComponent(actionJobMatch[2]),
+          repository.id,
+        )
+        if (!job) throw new AdviserError('actioner-job-not-found', 'Actioner job was not found.')
+        sendJson(response, 200, job)
+        return
+      }
+
+      const checkpointActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/checkpoint$/.exec(url.pathname)
+      if (request.method === 'POST' && checkpointActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(checkpointActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertCheckpointPlan(observation, actionRequest.planFingerprint, actionRequest.intent)
+        const job = runtime.actionerJobs.create(repository.id, 'checkpoint')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertCheckpointPlan(currentObservation, actionRequest.planFingerprint, actionRequest.intent)
+            const result = await new CheckpointActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const publishActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/publish$/.exec(url.pathname)
+      if (request.method === 'POST' && publishActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(publishActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertPublishPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'publish')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertPublishPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new PublishActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const branchDevelopmentMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/branch-development$/.exec(url.pathname)
+      if (request.method === 'POST' && branchDevelopmentMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(branchDevelopmentMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertBranchDevelopmentPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'branch-development')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertBranchDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new BranchActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const handoverActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/handover$/.exec(url.pathname)
+      if (request.method === 'POST' && handoverActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(handoverActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertHandoverPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'handover')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertHandoverPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new HandoverActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            await runtime.handovers.record({
+              repositoryId: repository.id,
+              branch: result.branch ?? 'unknown',
+              commitSha: result.commitSha ?? '',
+              completedAt: new Date().toISOString(),
+              workflow: 'handover',
+              workflowCompleted: true,
+              summary: 'Handover completed; continuation context and branch publication were handled by TCTBP.',
+            })
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const resumeActionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/resume$/.exec(url.pathname)
+      if (request.method === 'POST' && resumeActionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(resumeActionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertResumePlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'resume')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertResumePlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new ResumeActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const repairCompatibilityMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/repair-tctbp-script-compatibility$/.exec(url.pathname)
+      if (request.method === 'POST' && repairCompatibilityMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(repairCompatibilityMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertDeployDevelopmentPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'repair-tctbp-script-compatibility')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertDeployDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new RepairActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const deployDevelopmentMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/deploy-development$/.exec(url.pathname)
+      if (request.method === 'POST' && deployDevelopmentMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(deployDevelopmentMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertDeployDevelopmentPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'deploy-development')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertDeployDevelopmentPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new DeployActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            await runtime.deployments.record({
+              repositoryId: repository.id,
+              environment: 'development',
+              branch: currentObservation.head.branch ?? 'development',
+              commitSha: result.commitSha ?? '',
+              completedAt: new Date().toISOString(),
+              workflow: 'deploy-development',
+              workflowCompleted: true,
+              runtimeVerification: 'not-verified',
+              summary: 'Development deployment workflow completed; runtime health verification is not configured.',
+            })
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const promoteReviewMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/promote-review$/.exec(url.pathname)
+      if (request.method === 'POST' && promoteReviewMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(promoteReviewMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertPromotePlan(observation, actionRequest.planFingerprint, 'review', 'prepare-pre-production')
+        const job = runtime.actionerJobs.create(repository.id, 'promote-review')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertPromotePlan(currentObservation, actionRequest.planFingerprint, 'review', 'prepare-pre-production')
+            const result = await new PromoteActioner({
+              workflowId: 'promote-review',
+              key: 'review',
+              sourceBranch: 'development',
+              targetBranch: 'review',
+              publishTarget: true,
+            }).run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const promoteProductionMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/promote-production$/.exec(url.pathname)
+      if (request.method === 'POST' && promoteProductionMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(promoteProductionMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertPromotePlan(observation, actionRequest.planFingerprint, 'production', 'prepare-production-release')
+        const job = runtime.actionerJobs.create(repository.id, 'promote-production')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertPromotePlan(currentObservation, actionRequest.planFingerprint, 'production', 'prepare-production-release')
+            const result = await new PromoteActioner({
+              workflowId: 'promote-production',
+              key: 'production',
+              sourceBranch: 'review',
+              targetBranch: 'main',
+              publishTarget: false,
+            }).run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+        return
+      }
+
+      const shipMatch =
+        /^\/api\/repositories\/([^/]+)\/actions\/ship$/.exec(url.pathname)
+      if (request.method === 'POST' && shipMatch) {
+        const actionRequest = await readActionerRequest(request)
+        const repository = await runtime.registry.require(
+          decodeURIComponent(shipMatch[1]),
+        )
+        const observation = await runtime.inspections.inspect(repository)
+        assertShipPlan(observation, actionRequest.planFingerprint)
+        const job = runtime.actionerJobs.create(repository.id, 'ship')
+        void (async () => {
+          try {
+            runtime.actionerJobs.start(job.jobId)
+            const currentObservation = await runtime.inspections.inspect(repository)
+            assertShipPlan(currentObservation, actionRequest.planFingerprint)
+            const result = await new ShipActioner().run(
+              repository.path,
+              currentObservation.head.branch,
+              (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+            )
+            runtime.actionerJobs.complete(job.jobId, result)
+          } catch (error) {
+            runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+          }
+        })()
+        sendJson(response, 202, { jobId: job.jobId, status: 'started' })
         return
       }
 
@@ -418,6 +973,17 @@ export function createApiHandler(runtime: ApiRuntime) {
           runtime.inspections.inspect(repository),
           runtime.github.forLocal(repository),
         ])
+        const deploymentEvidence = await runtime.deployments.get(
+          repository.id,
+          'development',
+          observation.head.branch,
+          observation.head.sha,
+        )
+        const handoverEvidence = await runtime.handovers.get(
+          repository.id,
+          observation.head.branch,
+          observation.head.sha,
+        )
         const result: RepositoryDetailResult = {
           observation,
           recommendation: recommend(observation, 'none', new Date()),
@@ -429,6 +995,8 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation,
           result.recommendation,
           intent,
+          deploymentEvidence,
+          handoverEvidence,
         )
         sendJson(response, 200, result)
         return
@@ -538,6 +1106,9 @@ function sendJson(
 function statusForError(error: unknown): number {
   if (!(error instanceof AdviserError)) return 500
   if (error.code === 'repository-not-found') return 404
+  if (error.code === 'actioner-job-not-found') return 404
+  if (error.code === 'actioner-plan-stale-or-blocked') return 409
+  if (error.code === 'actioner-request-invalid') return 400
   if (
     error.code === 'request-host-rejected'
     || error.code === 'request-origin-rejected'

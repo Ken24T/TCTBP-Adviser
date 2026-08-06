@@ -1,4 +1,5 @@
 import type { RecommendationResult } from '../../shared/recommendation'
+import { intentForRecommendation, intentLabel } from '../recommended-intent'
 import {
   actionLabel,
   dispositionLabel,
@@ -8,10 +9,12 @@ import {
 
 interface RecommendationPanelProps {
   recommendation: RecommendationResult
+  onReviewPlan?: () => void
 }
 
 export function RecommendationPanel({
   recommendation,
+  onReviewPlan,
 }: RecommendationPanelProps) {
   const title = recommendation.primaryAction
     ? actionLabel(recommendation.primaryAction)
@@ -47,6 +50,12 @@ export function RecommendationPanel({
           <span>Suggested TCTBP trigger</span>
           <code>{recommendation.trigger}</code>
         </div>
+      )}
+
+      {onReviewPlan && intentForRecommendation(recommendation.primaryAction) && (
+        <button className="review-plan-button" type="button" onClick={onReviewPlan}>
+          Review {intentLabel(intentForRecommendation(recommendation.primaryAction)!)} plan
+        </button>
       )}
 
       {recommendation.steps.length > 0 && (

@@ -16,6 +16,12 @@ describe('repository detail view', () => {
     )
     const markup = renderToStaticMarkup(
       <RepositoryDetail
+        actionJob={null}
+        actionBusy={false}
+
+        actionFeedback={null}
+        onRunAction={() => undefined}
+        onRepairCompatibility={() => undefined}
         detail={{
           observation,
           recommendation,
@@ -74,6 +80,12 @@ describe('repository detail view', () => {
     )
     const markup = renderToStaticMarkup(
       <RepositoryDetail
+        actionJob={null}
+        actionBusy={false}
+
+        actionFeedback={null}
+        onRunAction={() => undefined}
+        onRepairCompatibility={() => undefined}
         detail={{
           observation,
           recommendation,

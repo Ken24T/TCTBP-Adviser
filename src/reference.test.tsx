@@ -34,7 +34,15 @@ describe('intent and reference views', () => {
       'prepare-production-release',
     )
 
-    const markup = renderToStaticMarkup(<IntentPlanPanel plan={plan} />)
+    const markup = renderToStaticMarkup(<IntentPlanPanel
+      plan={plan}
+      actionJob={null}
+      actionBusy={false}
+      inspectionBusy={false}
+      actionFeedback={null}
+      onRunAction={() => undefined}
+      onRepairCompatibility={() => undefined}
+    />)
 
     expect(markup).toContain('Prepare a production release')
     expect(markup).toContain('promote staging please')

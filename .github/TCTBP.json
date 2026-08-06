@@ -47,7 +47,8 @@
       "branch",
       "promote",
       "deploy",
-      "ship"
+      "ship",
+      "hotfix"
     ]
   },
   "governance": {
@@ -103,17 +104,20 @@
       "maxFileLines": {
         "softCeiling": 250,
         "warningThreshold": 400,
-        "hardSplit": 600
+        "hardSplit": 600,
+        "comment": "AI agents and contributors should respect these file-size limits. Files at or above hardSplit must be split before checkpoint. Files above warningThreshold require a justification comment at the top."
       },
       "modularity": {
         "preferModularFiles": true,
         "extractAtFunctionGroupSize": 3,
-        "maxImportsPerModule": 8
+        "maxImportsPerModule": 8,
+        "comment": "Prefer many small single-purpose files over large multi-purpose files. Extract a group of 3+ related functions into a dedicated module. Consider splitting a module when importing more than 8 symbols from it."
       },
       "functionRules": {
         "maxLines": 40,
         "preferPure": true,
-        "noAnyInExportedSignatures": true
+        "noAnyInExportedSignatures": true,
+        "comment": "Keep functions small and focused. Prefer pure functions. Avoid 'any' in exported TypeScript signatures."
       }
     }
   },
@@ -174,9 +178,74 @@
       "version status",
       "version check",
       "rollback",
-      "revert last checkpoint"
+      "revert last checkpoint",
+      "hotfix",
+      "hotfix please",
+      "hotfix start",
+      "hotfix start please",
+      "hotfix finish",
+      "hotfix finish please",
+      "emergency fix",
+      "emergency fix please"
     ],
     "caseInsensitive": true
+  },
+  "promote": {
+    "enabled": true,
+    "preferredTriggers": [
+      "promote",
+      "promote please",
+      "promote review",
+      "promote review please",
+      "promote production",
+      "promote production please"
+    ],
+    "executionCommand": "node scripts/tctbp-run-promote.js <review|production> --no-docs-impact \"<reason>\"",
+    "purpose": "Explicitly merge the current source branch into the target environment branch with verification gates, safety snapshots, and a mandatory merge deletion audit. Promotion is a merge workflow, not a deploy workflow.",
+    "targets": {
+      "review": {
+        "sourceBranch": "development",
+        "targetBranch": "review",
+        "description": "Promote the current development candidate into review for field testing.",
+        "allowDirtySourceSync": true,
+        "publishSourceWhenNeeded": true,
+        "allowFirstSourcePublish": true,
+        "requireCleanTargetBeforeMerge": true,
+        "allowTargetFastForwardFromOrigin": true,
+        "publishTargetAfterPromotion": true,
+        "allowFirstTargetPublish": true,
+        "returnToSourceBranchAfterPromotion": true,
+        "stopIfVerificationOrBuildChangesWorkingTree": true,
+        "defaultSourceSyncCommitMessage": "chore(promote): sync development before review promotion",
+        "defaultMergeCommitMessage": "chore(review): promote development to review",
+        "postPromotionValidation": [
+          "Confirm origin/review now contains the promoted review candidate.",
+          "Confirm the review environment can pick up the updated review branch state."
+        ],
+        "comment": "Use when the current development candidate should become the field-testing review candidate."
+      },
+      "production": {
+        "sourceBranch": "review",
+        "targetBranch": "main",
+        "description": "Promote the current review candidate into main as the next production release candidate.",
+        "allowDirtySourceSync": false,
+        "publishSourceWhenNeeded": true,
+        "allowFirstSourcePublish": true,
+        "requireCleanTargetBeforeMerge": true,
+        "allowTargetFastForwardFromOrigin": true,
+        "publishTargetAfterPromotion": false,
+        "returnToSourceBranchAfterPromotion": false,
+        "requireShipAfterPromotion": true,
+        "stopIfVerificationOrBuildChangesWorkingTree": true,
+        "defaultMergeCommitMessage": "chore(main): promote review to main",
+        "postPromotionValidation": [
+          "Confirm local main now contains the promoted production candidate from review.",
+          "Confirm main is ready for SHIP from a clean local branch.",
+          "Confirm no push or deployment occurred as part of promote production."
+        ],
+        "comment": "Use when the current review candidate should become the next production release candidate on main, but keep SHIP and production deploy as separate explicit workflows."
+      }
+    }
   },
   "deploy": {
     "enabled": false,
@@ -185,6 +254,8 @@
   "codeLossPrevention": {
     "enabled": true,
     "safetyTagsEnabled": true,
+    "safetyTagFormat": "safety/<branch-name>-<YYYYMMDD>",
+    "safetyTagsLocalOnlyByDefault": true,
     "mergeDeletionAudit": {
       "enabled": true,
       "warnThreshold": {
@@ -198,12 +269,16 @@
       "hardStopThreshold": {
         "files": 20,
         "lines": 2000
-      }
+      },
+      "stopMessage": "This merge deletes {files} files ({lines} lines). Type 'confirm deletions' to proceed.",
+      "hardStopMessage": "This looks like a destructive tree reset, not a normal merge. Review carefully before proceeding."
     },
     "prePushNetDeletionCheck": {
       "enabled": true,
-      "mode": "warn"
-    }
+      "mode": "warn",
+      "message": "This push has a net deletion of {net} lines ({added} added, {removed} removed). Confirm this is intentional."
+    },
+    "comment": "Code-loss prevention gates apply to branch closeout merges, promote merges, and any agent-performed merge into a default or environment branch."
   },
   "versioning": {
     "scheme": "semver",
@@ -220,5 +295,65 @@
     "policy": "everyCommit",
     "skipWhenNoBump": true,
     "format": "v{version}"
+  },
+  "candidateGuard": {
+    "enabled": true,
+    "defaultRemote": "origin",
+    "requireFullGitObjectIds": true,
+    "comment": "Promotion and release workflows should bind candidates to both commit and tree identities and revalidate them at approval boundaries."
+  },
+  "promotionSafety": {
+    "enabled": true,
+    "inspectMergePreflight": true,
+    "inspectDeletionImpact": true,
+    "mergeDeleteAudit": {
+      "warnThresholdFiles": 5,
+      "warnThresholdLines": 500,
+      "hardStopThresholdFiles": 20,
+      "hardStopThresholdLines": 2000
+    },
+    "comment": "Use read-only merge preflight and deletion impact checks before a mutating promotion merge."
+  },
+  "releaseState": {
+    "enabled": true,
+    "path": ".tctbp-runtime/release-state.json",
+    "kind": "tctbp-release-state",
+    "atomicWrites": true,
+    "journalPermissions": "0600",
+    "stageOrder": [
+      "preflight-gates",
+      "development-deployed",
+      "staging-promoted",
+      "staging-deployed",
+      "production-promoted",
+      "shipped",
+      "production-deployed",
+      "finalized"
+    ],
+    "candidateStages": {
+      "development": {
+        "stage": "preflight-gates",
+        "evidenceKey": "developmentCandidate",
+        "branch": "development"
+      },
+      "staging": {
+        "stage": "staging-promoted",
+        "evidenceKey": "stagingCandidate",
+        "branch": "staging"
+      },
+      "production": {
+        "stage": "production-promoted",
+        "evidenceKey": "productionCandidate",
+        "branch": "main"
+      }
+    },
+    "comment": "Release journals are generic workflow evidence. Project-specific backup and restore stages must be added by downstream profiles rather than assumed by TCTBP-Web."
+  },
+  "runtimeTransaction": {
+    "enabled": true,
+    "entrypoint": null,
+    "requireServiceHooks": true,
+    "preserveFailedCandidate": true,
+    "comment": "Runtime publication is an injectable atomic bundle transaction. Service lifecycle and health verification belong to the consuming project."
   }
 }

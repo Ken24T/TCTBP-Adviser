@@ -1,4 +1,6 @@
 import type { RepositoryObservation } from '../../shared/inspection'
+import type { DeploymentEvidence } from '../../shared/deployment'
+import type { HandoverEvidence } from '../../shared/handover'
 import type {
   IntentPlan,
   IntentPlanBlock,
@@ -10,6 +12,7 @@ import type {
 } from '../../shared/recommendation'
 import {
   blockedPlan,
+  branchStep,
   completePlan,
   deployStep,
   guidanceStep,
@@ -24,9 +27,11 @@ export function planIntent(
   observation: RepositoryObservation,
   state: RecommendationResult,
   intent: RecommendationIntent,
+  deploymentEvidence: DeploymentEvidence | null = null,
+  handoverEvidence: HandoverEvidence | null = null,
 ): IntentPlan | null {
   if (intent === 'none') return null
-  const context = { observation, state, intent }
+  const context = { observation, state, intent, deploymentEvidence, handoverEvidence }
   if (intent === 'recover-interrupted-workflow') {
     return recoveryPlan(context)
   }
@@ -122,6 +127,18 @@ function preserveAndPublish(context: PlanContext): IntentPlan {
 }
 
 function handover(context: PlanContext): IntentPlan {
+  if (
+    context.handoverEvidence?.workflowCompleted === true
+    && context.handoverEvidence.branch === context.observation.head.branch
+    && context.handoverEvidence.commitSha === context.observation.head.sha
+  ) {
+    return completePlan(
+      context,
+      'Handover already completed for this commit',
+      context.handoverEvidence.summary,
+      [statusStep()],
+    )
+  }
   const steps: IntentPlanStep[] = []
   if (context.observation.localTracking.state === 'behind') {
     steps.push(workflowStep(
@@ -222,10 +239,44 @@ function deployCurrent(context: PlanContext): IntentPlan {
         ? 'dev'
         : null
   if (!target) {
+    const workingBranch = model.workingBranch
+    const activationSteps = workingBranch && branch !== workingBranch
+      ? [
+        branchStep(
+          workingBranch,
+          `Create or switch to the configured working branch '${workingBranch}' before deployment.`,
+        ),
+        workflowStep(
+          'publish-working-branch',
+          'Publish working branch',
+          'publish please',
+          'required',
+          `Publish '${workingBranch}' so the deployment workflow has branch-backed continuity.`,
+          'publish',
+          workingBranch,
+        ),
+        deployStep('dev', 'conditional'),
+      ]
+      : []
     return blockedPlan(context, [{
       code: 'deployment-branch-unmapped',
-      message: 'The current branch has no configured environment role.',
-    }])
+      message: workingBranch
+        ? `The current branch '${branch ?? 'unknown'}' has no environment role. Activate '${workingBranch}' before deploying development.`
+        : 'The current branch has no configured environment role.',
+    }], activationSteps)
+  }
+  if (
+    target === 'dev'
+    && context.deploymentEvidence?.workflowCompleted === true
+    && context.deploymentEvidence.branch === branch
+    && context.deploymentEvidence.commitSha === observation.head.sha
+  ) {
+    return completePlan(
+      context,
+      'Development deployment already completed for this commit',
+      context.deploymentEvidence.summary,
+      [statusStep()],
+    )
   }
   const steps = preservationPrerequisites(observation)
   steps.push(deployStep(target, 'required'))

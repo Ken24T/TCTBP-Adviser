@@ -3,6 +3,7 @@ import type { RecommendationIntent } from './recommendation'
 
 export type IntentWorkflowId =
   | 'status'
+  | 'branch'
   | 'checkpoint'
   | 'publish'
   | 'handover'
@@ -31,6 +32,7 @@ export interface IntentPlanBlock {
 
 export interface IntentPlan {
   source: 'user-intent'
+  fingerprint: string
   intent: Exclude<RecommendationIntent, 'none'>
   status: 'ready' | 'blocked' | 'complete'
   title: string

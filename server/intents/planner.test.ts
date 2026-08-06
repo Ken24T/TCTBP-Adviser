@@ -18,6 +18,38 @@ const WORKFLOWS = [
 ]
 
 describe('intent planner', () => {
+  it('keeps the fingerprint stable across inspection timestamps', () => {
+    const first = buildPlan('preserve-locally', {
+      clean: false,
+      observedAt: '2026-08-03T10:00:00.000Z',
+    })
+    const second = buildPlan('preserve-locally', {
+      clean: false,
+      observedAt: '2026-08-03T10:01:00.000Z',
+    })
+
+    expect(first?.fingerprint).toBe(second?.fingerprint)
+  })
+
+  it('marks development deployment complete for the same commit', () => {
+    const observation = observationFixture({ workflows: WORKFLOWS })
+    const state = recommend(observation, 'none', new Date(observation.observedAt))
+    const plan = planIntent(observation, state, 'deploy-current-environment', {
+      repositoryId: observation.repository.id,
+      environment: 'development',
+      branch: observation.head.branch ?? 'development',
+      commitSha: observation.head.sha ?? '',
+      completedAt: '2026-08-03T00:00:00.000Z',
+      workflow: 'deploy-development',
+      workflowCompleted: true,
+      runtimeVerification: 'not-verified',
+      summary: 'Development deployment workflow completed.',
+    })
+
+    expect(plan?.status).toBe('complete')
+    expect(plan?.title).toContain('Development deployment already completed')
+  })
+
   it('preserves dirty work before publishing it', () => {
     const plan = buildPlan('preserve-and-publish', {
       clean: false,

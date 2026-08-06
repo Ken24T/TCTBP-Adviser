@@ -80,6 +80,8 @@ describe('canonical TCTBP-Web source planning', () => {
     expect(git(target, ['branch', '--show-current'])).toBe('upgrade/tctbp-bootstrap-aaaaaaa')
     await expect(readFile(path.join(target, '.github', 'TCTBP.json'), 'utf8'))
       .resolves.toContain('"name": "target"')
+    await expect(readFile(path.join(target, 'scripts', 'package.json'), 'utf8'))
+      .resolves.toContain('"type": "commonjs"')
     await expect(readFile(path.join(target, '.tctbp', 'source.json'), 'utf8'))
       .resolves.toContain('Ken24T/TCTBP-Web')
   })

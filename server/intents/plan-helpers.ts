@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto'
 import type { RepositoryObservation } from '../../shared/inspection'
+import type { DeploymentEvidence } from '../../shared/deployment'
+import type { HandoverEvidence } from '../../shared/handover'
 import type {
   IntentPlan,
   IntentPlanBlock,
@@ -16,6 +19,8 @@ export interface PlanContext {
   observation: RepositoryObservation
   state: RecommendationResult
   intent: SelectedIntent
+  deploymentEvidence?: DeploymentEvidence | null
+  handoverEvidence?: HandoverEvidence | null
 }
 
 export function readyPlan(
@@ -66,6 +71,18 @@ export function statusStep(): IntentPlanStep {
     targetBranch: null,
     explanation: 'The Adviser has already collected the current observation.',
   }
+}
+
+export function branchStep(target: string, explanation: string): IntentPlanStep {
+  return workflowStep(
+    `branch-${target}`,
+    `Create ${target} branch`,
+    `branch ${target} please`,
+    'required',
+    explanation,
+    'branch',
+    target,
+  )
 }
 
 export function promoteStep(
@@ -148,8 +165,8 @@ function createPlan(
   blockedBy: IntentPlanBlock[],
 ): IntentPlan {
   const likely = steps.find((step) => step.condition === 'required') ?? null
-  return {
-    source: 'user-intent',
+  const plan = {
+    source: 'user-intent' as const,
     intent: context.intent,
     status,
     title,
@@ -165,6 +182,20 @@ function createPlan(
     }],
     branchStrategy: context.observation.tctbp.branchModel.strategy,
     effects: planEffects(steps),
+  }
+  const fingerprintBasis = {
+    ...plan,
+    evidence: plan.evidence.map((evidence) => ({
+      field: evidence.field,
+      value: evidence.value,
+      basis: evidence.basis,
+    })),
+  }
+  return {
+    ...plan,
+    fingerprint: createHash('sha256')
+      .update(JSON.stringify(fingerprintBasis))
+      .digest('hex'),
   }
 }
 

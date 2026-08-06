@@ -4,10 +4,13 @@ const fs = require("fs");
 const { captureBranchSnapshots, printPostTriggerStatusReport } = require("./tctbp-status-report");
 const { resolvePolicyPath, resolveRepoRoot } = require("./tctbp-runtime");
 const {
+  assertSyncedBranchCandidate,
+  captureSyncedBranchCandidate,
   createTimestamp,
   fail,
   getCurrentBranch,
   getHeadCommit,
+  inspectMergePreflight,
   getWorkingTreeStatus,
   gitLocalBranchExists,
   gitRemoteBranchExists,
@@ -51,7 +54,66 @@ if (!options.docsNoteKind || !options.docsNote) {
   printUsage(1);
 }
 
+function buildDefaultPromoteTargets(config) {
+  const branchModel = resolveBranchModel(config);
+  const workingBranch = branchModel.workingBranch;
+  const preProductionBranch = branchModel.preProductionBranch;
+  const productionBranch = branchModel.productionBranch;
+  const targets = {};
+
+  if (preProductionBranch) {
+    targets[preProductionBranch] = {
+      sourceBranch: workingBranch,
+      targetBranch: preProductionBranch,
+      allowDirtySourceSync: true,
+      publishSourceWhenNeeded: true,
+      allowFirstSourcePublish: true,
+      requireCleanTargetBeforeMerge: true,
+      allowTargetFastForwardFromOrigin: true,
+      publishTargetAfterPromotion: true,
+      allowFirstTargetPublish: true,
+      returnToSourceBranchAfterPromotion: true,
+      stopIfVerificationOrBuildChangesWorkingTree: true,
+      defaultSourceSyncCommitMessage: `chore(promote): sync ${workingBranch} before ${preProductionBranch} promotion`,
+      defaultMergeCommitMessage: `chore(${preProductionBranch}): promote ${workingBranch} to ${preProductionBranch}`,
+      postPromotionValidation: [
+        `Confirm origin/${preProductionBranch} now contains the promoted ${preProductionBranch} candidate.`,
+        `Confirm the ${preProductionBranch} environment can pick up the updated ${preProductionBranch} branch state.`,
+      ],
+    };
+  }
+
+  if (productionBranch) {
+    targets.production = {
+      sourceBranch: preProductionBranch || workingBranch,
+      targetBranch: productionBranch,
+      allowDirtySourceSync: false,
+      publishSourceWhenNeeded: true,
+      allowFirstSourcePublish: true,
+      requireCleanTargetBeforeMerge: true,
+      allowTargetFastForwardFromOrigin: true,
+      publishTargetAfterPromotion: false,
+      allowFirstTargetPublish: true,
+      returnToSourceBranchAfterPromotion: false,
+      requireShipAfterPromotion: true,
+      stopIfVerificationOrBuildChangesWorkingTree: true,
+      defaultMergeCommitMessage: `chore(${productionBranch}): promote ${preProductionBranch || workingBranch} to ${productionBranch}`,
+      postPromotionValidation: [
+        `Confirm local ${productionBranch} now contains the promoted production candidate.`,
+        `Confirm ${productionBranch} is ready for SHIP from a clean local branch.`,
+        `Confirm no push or deployment occurred as part of promote production.`,
+      ],
+    };
+  }
+
+  return targets;
+}
+
 const policy = loadPolicy();
+const targets = policy.promote && Object.keys(policy.promote.targets || {}).length > 0
+  ? policy.promote.targets
+  : buildDefaultPromoteTargets(policy);
+policy.promote = { ...(policy.promote || {}), targets };
 const resolvedTarget = resolveTarget(policy.promote.targets, options.target);
 
 if (!resolvedTarget) {
@@ -165,7 +227,39 @@ async function main(config, targetInfo, cliOptions) {
     purposeLabel: `Publish ${sourceBranch} before promotion`
   });
 
+  const sourceCandidate = cliOptions.dryRun
+    ? null
+    : captureSyncedBranchCandidate({ repoRoot, branch: sourceBranch });
+
   prepareTargetBranch(target, cliOptions.dryRun);
+
+  if (sourceCandidate) {
+    assertSyncedBranchCandidate({
+      repoRoot,
+      branch: sourceCandidate.branch,
+      expectedCommit: sourceCandidate.commit,
+      expectedTree: sourceCandidate.tree,
+      remote: sourceCandidate.remote
+    });
+  } else {
+    console.log("[dry-run] Would verify the source commit and tree again before merging.");
+  }
+
+  const mergePreflight = inspectMergePreflight({
+    repoRoot,
+    targetRef: cliOptions.dryRun
+      ? (gitRemoteBranchExists(targetBranch) ? `refs/remotes/origin/${targetBranch}` : `refs/heads/${targetBranch}`)
+      : "HEAD",
+    sourceRef: sourceBranch
+  });
+
+  if (!mergePreflight.mergeable) {
+    fail(
+      `Promotion stopped because the read-only merge preflight found conflicts: ${mergePreflight.conflictLines.join("; ") || "inspect merge-tree output"}.`
+    );
+  }
+
+  console.log(`Merge preflight candidate tree: ${mergePreflight.treeSha}`);
 
   const safetyTag = createSafetySnapshotTag(config, targetBranch, cliOptions.dryRun);
   const preMergeTargetCommit = cliOptions.dryRun ? `refs/heads/${targetBranch}` : getHeadCommit();
@@ -240,7 +334,7 @@ async function main(config, targetInfo, cliOptions) {
         value: safetyTag
       }
     ],
-    nextSteps: getPromotionNextSteps(key)
+    nextSteps: getPromotionNextSteps(key, config)
   });
 }
 
@@ -614,17 +708,22 @@ function getPromotionStatusActions(config, targetKey) {
   return actions;
 }
 
-function getPromotionNextSteps(targetKey) {
-  if (targetKey === "staging" || targetKey === "review") {
+function getPromotionNextSteps(targetKey, config) {
+  const branchModel = resolveBranchModel(config);
+  const workingBranch = branchModel.workingBranch || "development";
+  const preProductionBranch = branchModel.preProductionBranch || "staging";
+  const productionBranch = branchModel.productionBranch;
+
+  if (targetKey === "production") {
     return [
-      "Run deploy review when you want the review local platform target to pick up origin/review.",
-      "Continue development work from the development branch."
+      `Run ship from ${productionBranch} when the promoted production candidate is approved.`,
+      `Do not push ${productionBranch} directly outside the ship workflow.`
     ];
   }
 
   return [
-    "Run ship from local main when the promoted production candidate is approved.",
-    "Do not push main directly outside the ship workflow."
+    `Run deploy ${preProductionBranch} when you want the ${preProductionBranch} local platform target to pick up origin/${preProductionBranch}.`,
+    `Continue development work from the ${workingBranch} branch.`
   ];
 }
 

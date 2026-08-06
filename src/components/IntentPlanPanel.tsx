@@ -1,6 +1,26 @@
+import type { ActionerJob, ActionerWorkflowId } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
+import { ActionerProgress } from './ActionerProgress'
 
-export function IntentPlanPanel({ plan }: { plan: IntentPlan | null }) {
+interface IntentPlanPanelProps {
+  plan: IntentPlan | null
+  actionJob: ActionerJob | null
+  actionBusy: boolean
+  inspectionBusy: boolean
+  actionFeedback: string | null
+  onRunAction: (workflowId: ActionerWorkflowId) => void
+  onRepairCompatibility: () => void
+}
+
+export function IntentPlanPanel({
+  plan,
+  actionJob,
+  actionBusy,
+  inspectionBusy,
+  actionFeedback,
+  onRunAction,
+  onRepairCompatibility,
+}: IntentPlanPanelProps) {
   if (!plan) {
     return (
       <section className="intent-plan intent-plan-empty">
@@ -28,6 +48,14 @@ export function IntentPlanPanel({ plan }: { plan: IntentPlan | null }) {
         <span>{plan.branchStrategy ?? 'Unknown branch strategy'}</span>
       </div>
 
+      {actionJob && (
+        <ActionerProgress
+          job={actionJob}
+          onRepairCompatibility={onRepairCompatibility}
+        />
+      )}
+      {actionFeedback && <p className="empty-state">{actionFeedback}</p>}
+
       {plan.blockedBy.length > 0 && (
         <div className="intent-blocks">
           <strong>Resolve state or policy first</strong>
@@ -54,6 +82,19 @@ export function IntentPlanPanel({ plan }: { plan: IntentPlan | null }) {
                 </div>
                 <p>{step.explanation}</p>
                 {step.trigger && <code>{step.trigger}</code>}
+                {isActionableStep(step)
+                  && step.condition === 'required'
+                  && plan.fingerprint
+                  && !(actionJob?.workflowId === 'handover' && actionJob.status === 'completed') && (
+                  <button
+                    className="intent-action-button"
+                    disabled={inspectionBusy || actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
+                    type="button"
+                    onClick={() => onRunAction(actionWorkflowForStep(step))}
+                  >
+                    {actionBusy ? 'Starting…' : actionLabelForStep(step)}
+                  </button>
+                )}
               </div>
             </li>
           ))}
@@ -85,4 +126,42 @@ function conditionLabel(
 
 function stepLabel(plan: IntentPlan, id: string): string {
   return plan.steps.find((step) => step.id === id)?.label ?? id
+}
+
+function isActionableStep(step: IntentPlan['steps'][number]): boolean {
+  return step.workflowId === 'checkpoint'
+    || step.workflowId === 'publish'
+    || (step.workflowId === 'branch' && step.targetBranch === 'development')
+    || step.workflowId === 'handover'
+    || step.workflowId === 'resume'
+    || (step.workflowId === 'deploy' && step.targetBranch === 'dev')
+    || (step.workflowId === 'promote' && (step.targetBranch === 'review' || step.targetBranch === 'production'))
+    || step.workflowId === 'ship'
+}
+
+function actionWorkflowForStep(step: IntentPlan['steps'][number]): ActionerWorkflowId {
+  if (step.workflowId === 'branch') return 'branch-development'
+  if (step.workflowId === 'handover') return 'handover'
+  if (step.workflowId === 'resume') return 'resume'
+  if (step.workflowId === 'deploy') return 'deploy-development'
+  if (step.workflowId === 'promote' && step.targetBranch === 'review') return 'promote-review'
+  if (step.workflowId === 'promote' && step.targetBranch === 'production') return 'promote-production'
+  if (step.workflowId === 'ship') return 'ship'
+  return step.workflowId as 'checkpoint' | 'publish'
+}
+
+function actionLabelForStep(step: IntentPlan['steps'][number]): string {
+  const labels: Record<ActionerWorkflowId, string> = {
+    checkpoint: 'Run checkpoint',
+    publish: 'Publish branch',
+    'branch-development': 'Branch development',
+    'deploy-development': 'Deploy development',
+    'repair-tctbp-script-compatibility': 'Repair TCTBP scripts',
+    handover: 'Run handover',
+    resume: 'Run resume',
+    'promote-review': 'Promote review',
+    'promote-production': 'Promote production',
+    ship: 'Ship release',
+  }
+  return labels[actionWorkflowForStep(step)]
 }
