@@ -81,10 +81,22 @@ interface UpgradeTargetObservation {
 }
 
 export class CanonicalTctbpSourceService {
+  #sourceRoot: string | null
+
   constructor(
-    readonly sourceRoot: string | null,
+    sourceRoot: string | null,
     readonly executor: GitExecutor,
-  ) {}
+  ) {
+    this.#sourceRoot = sourceRoot
+  }
+
+  get sourceRoot(): string | null {
+    return this.#sourceRoot
+  }
+
+  setSourceRoot(sourceRoot: string | null): void {
+    this.#sourceRoot = sourceRoot
+  }
 
   async bootstrapPlan(
     targetObservation: UpgradeTargetObservation,

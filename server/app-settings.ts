@@ -2,37 +2,51 @@ import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import {
-  DEFAULT_APP_SETTINGS,
-  type AppSettings,
+  DEFAULT_PERSISTED_APP_SETTINGS,
+  type PersistedAppSettings,
 } from '../shared/app-settings'
 
-export async function loadAppSettings(
+function stringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : []
+}
+
+export async function loadPersistedAppSettings(
   environment: NodeJS.ProcessEnv = process.env,
-): Promise<AppSettings> {
+): Promise<PersistedAppSettings> {
   const filePath = appSettingsFilePath(environment)
   try {
-    const parsed = JSON.parse(await readFile(filePath, 'utf8')) as Partial<AppSettings>
+    const parsed = JSON.parse(await readFile(filePath, 'utf8')) as Record<string, unknown>
     return {
-      repositoryRoots: Array.isArray(parsed.repositoryRoots)
-        ? parsed.repositoryRoots.filter(
-          (root): root is string => typeof root === 'string',
-        )
-        : DEFAULT_APP_SETTINGS.repositoryRoots,
+      repositoryRoots: stringList(parsed.repositoryRoots),
+      excludeDirectories: stringList(parsed.excludeDirectories),
+      maximumDepth: typeof parsed.maximumDepth === 'number'
+        && Number.isInteger(parsed.maximumDepth)
+        ? parsed.maximumDepth
+        : null,
+      canonicalTctbpWebRoot: typeof parsed.canonicalTctbpWebRoot === 'string'
+        ? parsed.canonicalTctbpWebRoot
+        : null,
+      githubEnabled: typeof parsed.githubEnabled === 'boolean'
+        ? parsed.githubEnabled
+        : null,
+      githubRepositories: stringList(parsed.githubRepositories),
     }
   } catch {
-    return DEFAULT_APP_SETTINGS
+    return { ...DEFAULT_PERSISTED_APP_SETTINGS }
   }
 }
 
-export async function saveAppSettings(
-  settings: AppSettings,
+export async function savePersistedAppSettings(
+  settings: PersistedAppSettings,
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
   const filePath = appSettingsFilePath(environment)
   await mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 })
   await writeFile(
     filePath,
-    `${JSON.stringify({ repositoryRoots: settings.repositoryRoots }, null, 2)}\n`,
+    `${JSON.stringify(settings, null, 2)}\n`,
     { encoding: 'utf8', mode: 0o600 },
   )
   await chmod(filePath, 0o600)

@@ -1,6 +1,6 @@
 import { AdviserError } from './errors'
 import { loadAiSettings, type AiSettings } from './ai-settings'
-import { loadAppSettings } from './app-settings'
+import { loadPersistedAppSettings } from './app-settings'
 import {
   resolveAllowedRepository,
   resolveAllowedRoot,
@@ -40,10 +40,18 @@ const DEFAULT_EXCLUDES = [
   '.cache',
 ]
 
+function hasEnvironmentValue(
+  environment: NodeJS.ProcessEnv,
+  name: string,
+): boolean {
+  const value = environment[name]
+  return value !== undefined && value !== ''
+}
+
 export async function loadServiceConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<ServiceConfig> {
-  const persistedSettings = await loadAppSettings(environment)
+  const persistedSettings = await loadPersistedAppSettings(environment)
   const configuredRoots = environment.TCTBP_ADVISER_REPOSITORY_ROOTS
     ? jsonStringArray(
       environment.TCTBP_ADVISER_REPOSITORY_ROOTS,
@@ -76,25 +84,66 @@ export async function loadServiceConfig(
       repositoryRoots,
       environment.TCTBP_ADVISER_TCTBP_WEB_ROOT,
     )
-    : null
+    : persistedSettings.canonicalTctbpWebRoot
+      ? await resolveConfiguredRepository(
+        repositoryRoots,
+        persistedSettings.canonicalTctbpWebRoot,
+      )
+      : null
 
-  return {
-    repositoryRoots,
-    canonicalTctbpWebRoot,
-    ai: await loadAiSettings(environment),
-    excludeDirectories: environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES
-      ? safeDirectoryNames(jsonStringArray(
-        environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES,
-        'TCTBP_ADVISER_EXCLUDE_DIRECTORIES',
-      ))
-      : DEFAULT_EXCLUDES,
-    maximumDepth: boundedInteger(
+  const excludeDirectories = environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES
+    ? safeDirectoryNames(jsonStringArray(
+      environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES,
+      'TCTBP_ADVISER_EXCLUDE_DIRECTORIES',
+    ))
+    : persistedSettings.excludeDirectories.length > 0
+      ? safeDirectoryNames(persistedSettings.excludeDirectories)
+      : DEFAULT_EXCLUDES
+
+  const maximumDepth = hasEnvironmentValue(environment, 'TCTBP_ADVISER_MAXIMUM_DEPTH')
+    ? boundedInteger(
       environment.TCTBP_ADVISER_MAXIMUM_DEPTH,
       3,
       0,
       10,
       'TCTBP_ADVISER_MAXIMUM_DEPTH',
-    ),
+    )
+    : persistedSettings.maximumDepth !== null
+      ? boundedInteger(
+        String(persistedSettings.maximumDepth),
+        3,
+        0,
+        10,
+        'persisted maximumDepth',
+      )
+      : 3
+
+  const githubEnabled = hasEnvironmentValue(environment, 'TCTBP_ADVISER_GITHUB_ENABLED')
+    ? booleanValue(
+      environment.TCTBP_ADVISER_GITHUB_ENABLED,
+      false,
+      'TCTBP_ADVISER_GITHUB_ENABLED',
+    )
+    : persistedSettings.githubEnabled !== null
+      ? persistedSettings.githubEnabled
+      : false
+
+  const githubRepositories = environment.TCTBP_ADVISER_GITHUB_REPOSITORIES
+    ? githubRepositoryNames(jsonArray(
+      environment.TCTBP_ADVISER_GITHUB_REPOSITORIES,
+      'TCTBP_ADVISER_GITHUB_REPOSITORIES',
+      true,
+    ))
+    : persistedSettings.githubRepositories.length > 0
+      ? githubRepositoryNames(persistedSettings.githubRepositories)
+      : []
+
+  return {
+    repositoryRoots,
+    canonicalTctbpWebRoot,
+    ai: await loadAiSettings(environment),
+    excludeDirectories,
+    maximumDepth,
     maximumRepositories: boundedInteger(
       environment.TCTBP_ADVISER_MAXIMUM_REPOSITORIES,
       200,
@@ -134,19 +183,9 @@ export async function loadServiceConfig(
       'TCTBP_ADVISER_GIT_MAX_OUTPUT_BYTES',
     ),
     github: {
-      enabled: booleanValue(
-        environment.TCTBP_ADVISER_GITHUB_ENABLED,
-        false,
-        'TCTBP_ADVISER_GITHUB_ENABLED',
-      ),
+      enabled: githubEnabled,
       token: optionalSecret(environment.TCTBP_ADVISER_GITHUB_TOKEN),
-      repositories: environment.TCTBP_ADVISER_GITHUB_REPOSITORIES
-        ? githubRepositoryNames(jsonArray(
-          environment.TCTBP_ADVISER_GITHUB_REPOSITORIES,
-          'TCTBP_ADVISER_GITHUB_REPOSITORIES',
-          true,
-        ))
-        : [],
+      repositories: githubRepositories,
       timeoutMs: boundedInteger(
         environment.TCTBP_ADVISER_GITHUB_TIMEOUT_MS,
         5_000,

@@ -9,8 +9,8 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   appSettingsFilePath,
-  loadAppSettings,
-  saveAppSettings,
+  loadPersistedAppSettings,
+  savePersistedAppSettings,
 } from './app-settings'
 import { createTemporaryDirectory } from '../test/helpers'
 
@@ -31,35 +31,75 @@ async function settingsEnvironment(): Promise<{ TCTBP_ADVISER_SETTINGS_FILE: str
 }
 
 describe('app settings store', () => {
-  it('round-trips persisted repository roots', async () => {
+  it('round-trips persisted settings', async () => {
     const environment = await settingsEnvironment()
-    await saveAppSettings({ repositoryRoots: ['/one', '/two'] }, environment)
-    const loaded = await loadAppSettings(environment)
-    expect(loaded.repositoryRoots).toEqual(['/one', '/two'])
+    await savePersistedAppSettings({
+      repositoryRoots: ['/one', '/two'],
+      excludeDirectories: ['build', 'vendor'],
+      maximumDepth: 4,
+      canonicalTctbpWebRoot: '/one/tctbp-web',
+      githubEnabled: true,
+      githubRepositories: ['owner/repo-a'],
+    }, environment)
+    const loaded = await loadPersistedAppSettings(environment)
+    expect(loaded).toEqual({
+      repositoryRoots: ['/one', '/two'],
+      excludeDirectories: ['build', 'vendor'],
+      maximumDepth: 4,
+      canonicalTctbpWebRoot: '/one/tctbp-web',
+      githubEnabled: true,
+      githubRepositories: ['owner/repo-a'],
+    })
   })
 
-  it('defaults to an empty root list when no file exists', async () => {
+  it('defaults when no file exists', async () => {
     const environment = await settingsEnvironment()
-    const loaded = await loadAppSettings(environment)
-    expect(loaded.repositoryRoots).toEqual([])
+    const loaded = await loadPersistedAppSettings(environment)
+    expect(loaded).toEqual({
+      repositoryRoots: [],
+      excludeDirectories: [],
+      maximumDepth: null,
+      canonicalTctbpWebRoot: null,
+      githubEnabled: null,
+      githubRepositories: [],
+    })
   })
 
-  it('keeps only string entries from a malformed settings file', async () => {
+  it('coerces malformed fields', async () => {
     const environment = await settingsEnvironment()
     await mkdir(path.dirname(environment.TCTBP_ADVISER_SETTINGS_FILE), {
       recursive: true,
     })
     await writeFile(
       environment.TCTBP_ADVISER_SETTINGS_FILE,
-      JSON.stringify({ repositoryRoots: ['/ok', 42, null] }),
+      JSON.stringify({
+        repositoryRoots: ['/ok', 42, null],
+        excludeDirectories: 'not-an-array',
+        maximumDepth: 'deep',
+        canonicalTctbpWebRoot: 7,
+        githubEnabled: 'yes',
+        githubRepositories: [1],
+      }),
     )
-    const loaded = await loadAppSettings(environment)
+    const loaded = await loadPersistedAppSettings(environment)
     expect(loaded.repositoryRoots).toEqual(['/ok'])
+    expect(loaded.excludeDirectories).toEqual([])
+    expect(loaded.maximumDepth).toBeNull()
+    expect(loaded.canonicalTctbpWebRoot).toBeNull()
+    expect(loaded.githubEnabled).toBeNull()
+    expect(loaded.githubRepositories).toEqual([])
   })
 
   it('writes the settings file with restrictive permissions', async () => {
     const environment = await settingsEnvironment()
-    await saveAppSettings({ repositoryRoots: ['/one'] }, environment)
+    await savePersistedAppSettings({
+      repositoryRoots: ['/one'],
+      excludeDirectories: [],
+      maximumDepth: null,
+      canonicalTctbpWebRoot: null,
+      githubEnabled: null,
+      githubRepositories: [],
+    }, environment)
     const info = await stat(environment.TCTBP_ADVISER_SETTINGS_FILE)
     expect(info.mode & 0o777).toBe(0o600)
   })
