@@ -1,7 +1,9 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SafeConfigurationExport } from '../shared/diagnostics'
+import type { AppSettingsResponse } from '../shared/app-settings'
 import { createAiReviewer, type AiReviewer } from './ai-reviewer'
+import { loadAppSettings, saveAppSettings } from './app-settings'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
@@ -25,6 +27,7 @@ import { readTctbpApplyRequest } from './tctbp-apply-input'
 import { readBootstrapRequest } from './tctbp-bootstrap-input'
 import { readBootstrapApplyRequest } from './tctbp-bootstrap-apply-input'
 import { safeConfigurationExport } from './configuration-export'
+import { resolveAllowedRoot } from './security'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
@@ -43,6 +46,7 @@ import { PortfolioService } from './portfolio'
 import { recommend } from './recommendations/engine'
 import { RepositoryRegistry } from './registry'
 import {
+  readJsonBody,
   readRecommendationIntent,
   requireEmptyBody,
 } from './request-input'
@@ -62,11 +66,13 @@ export interface ApiRuntime {
   readonly portfolio: PortfolioService
   readonly audit: InspectionAuditLog
   readonly configuration: SafeConfigurationExport
+  readonly environment: NodeJS.ProcessEnv
 }
 
 export function createApiRuntime(
   config: ServiceConfig,
   sessionToken = randomBytes(32).toString('base64url'),
+  environment: NodeJS.ProcessEnv = process.env,
 ): ApiRuntime {
   const executor = new BoundedGitExecutor(
     config.commandTimeoutMs,
@@ -119,6 +125,7 @@ export function createApiRuntime(
     handovers,
     audit,
     configuration: safeConfigurationExport(config),
+    environment,
     portfolio: new PortfolioService(
       config,
       registry,
@@ -366,6 +373,24 @@ export function createApiHandler(runtime: ApiRuntime) {
 
       if (request.method === 'GET' && url.pathname === '/api/health') {
         sendJson(response, 200, { ok: true })
+        return
+      }
+      if (request.method === 'GET' && url.pathname === '/api/settings') {
+        sendJson(response, 200, await readSettingsResponse(runtime))
+        return
+      }
+      if (request.method === 'PUT' && url.pathname === '/api/settings') {
+        await assertRootsEditable(runtime)
+        const roots = await validateRepositoryRoots(
+          extractRoots(await readJsonBody(request)),
+        )
+        await saveAppSettings({ repositoryRoots: roots }, runtime.environment)
+        runtime.registry.updateRepositoryRoots(roots)
+        sendJson(response, 200, {
+          repositoryRoots: roots,
+          persistedRoots: roots,
+          source: 'settings',
+        })
         return
       }
       if (
@@ -1017,6 +1042,85 @@ export function createApiHandler(runtime: ApiRuntime) {
   }
 }
 
+function settingsSource(runtime: ApiRuntime): 'environment' | 'settings' {
+  const env = runtime.environment
+  return env.TCTBP_ADVISER_REPOSITORY_ROOTS || env.TCTBP_ADVISER_ALLOWED_ROOT
+    ? 'environment'
+    : 'settings'
+}
+
+async function readSettingsResponse(
+  runtime: ApiRuntime,
+): Promise<AppSettingsResponse> {
+  const persisted = await loadAppSettings(runtime.environment)
+  return {
+    repositoryRoots: runtime.registry.discovery.repositoryRoots,
+    persistedRoots: persisted.repositoryRoots,
+    source: settingsSource(runtime),
+  }
+}
+
+async function assertRootsEditable(runtime: ApiRuntime): Promise<void> {
+  if (settingsSource(runtime) === 'environment') {
+    throw new AdviserError(
+      'settings-read-only',
+      'Repository roots are managed by the server environment and cannot be changed from the Adviser.',
+    )
+  }
+}
+
+function extractRoots(body: unknown): unknown {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'Settings request must contain a JSON object.',
+    )
+  }
+  return (body as { repositoryRoots?: unknown }).repositoryRoots
+}
+
+async function validateRepositoryRoots(candidate: unknown): Promise<string[]> {
+  if (!Array.isArray(candidate)) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'repositoryRoots must be an array of absolute directory paths.',
+    )
+  }
+  if (candidate.length === 0) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'At least one repository root is required.',
+    )
+  }
+  if (candidate.length > 10) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'A maximum of 10 repository roots is supported.',
+    )
+  }
+  const roots = new Set<string>()
+  for (const entry of candidate) {
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      throw new AdviserError(
+        'settings-request-invalid',
+        'Each repository root must be a non-empty path.',
+      )
+    }
+    try {
+      roots.add(await resolveAllowedRoot(entry))
+    } catch (error) {
+      throw new AdviserError(
+        'settings-request-invalid',
+        error instanceof Error
+          ? error.message
+          : 'A repository root could not be resolved.',
+        { cause: error },
+      )
+    }
+  }
+  return Array.from(roots)
+}
+
 function enforceRequestTrust(
   request: IncomingMessage,
   expectedToken: string,
@@ -1108,6 +1212,8 @@ function statusForError(error: unknown): number {
   if (error.code === 'repository-not-found') return 404
   if (error.code === 'actioner-job-not-found') return 404
   if (error.code === 'actioner-plan-stale-or-blocked') return 409
+  if (error.code === 'settings-read-only') return 409
+  if (error.code === 'settings-request-invalid') return 400
   if (error.code === 'actioner-request-invalid') return 400
   if (
     error.code === 'request-host-rejected'

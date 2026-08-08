@@ -23,13 +23,25 @@ export interface DiscoverySnapshot {
 }
 
 export class RepositoryDiscovery {
-  constructor(readonly config: ServiceConfig) {}
+  #repositoryRoots: string[]
+
+  constructor(readonly config: ServiceConfig) {
+    this.#repositoryRoots = [...config.repositoryRoots]
+  }
+
+  get repositoryRoots(): string[] {
+    return [...this.#repositoryRoots]
+  }
+
+  setRepositoryRoots(roots: string[]): void {
+    this.#repositoryRoots = [...roots]
+  }
 
   async scan(): Promise<DiscoverySnapshot> {
     const repositories = new Map<string, DiscoveredRepository>()
     const issues: DiscoveryIssue[] = []
     const scan = { visitedDirectories: 0 }
-    for (const root of this.config.repositoryRoots) {
+    for (const root of this.#repositoryRoots) {
       if (repositories.size >= this.config.maximumRepositories) break
       await this.walk(root, root, 0, repositories, issues, scan)
     }

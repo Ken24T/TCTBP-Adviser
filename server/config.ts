@@ -1,5 +1,6 @@
 import { AdviserError } from './errors'
 import { loadAiSettings, type AiSettings } from './ai-settings'
+import { loadAppSettings } from './app-settings'
 import {
   resolveAllowedRepository,
   resolveAllowedRoot,
@@ -42,15 +43,23 @@ const DEFAULT_EXCLUDES = [
 export async function loadServiceConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<ServiceConfig> {
+  const persistedSettings = await loadAppSettings(environment)
   const configuredRoots = environment.TCTBP_ADVISER_REPOSITORY_ROOTS
     ? jsonStringArray(
       environment.TCTBP_ADVISER_REPOSITORY_ROOTS,
       'TCTBP_ADVISER_REPOSITORY_ROOTS',
     )
-    : [requiredValue(
-      environment.TCTBP_ADVISER_ALLOWED_ROOT,
-      'TCTBP_ADVISER_ALLOWED_ROOT',
-    )]
+    : environment.TCTBP_ADVISER_ALLOWED_ROOT
+      ? [requiredValue(
+        environment.TCTBP_ADVISER_ALLOWED_ROOT,
+        'TCTBP_ADVISER_ALLOWED_ROOT',
+      )]
+      : persistedSettings.repositoryRoots.length > 0
+        ? persistedSettings.repositoryRoots
+        : [requiredValue(
+          environment.TCTBP_ADVISER_ALLOWED_ROOT,
+          'TCTBP_ADVISER_ALLOWED_ROOT',
+        )]
   const repositoryRoots = Array.from(new Set(
     await Promise.all(configuredRoots.map(resolveAllowedRoot)),
   ))

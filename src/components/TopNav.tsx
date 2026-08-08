@@ -1,6 +1,12 @@
 import { useRef, useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
-import { CloseIcon, LibraryIcon, RefreshIcon, SearchIcon } from './icons'
+import {
+  CloseIcon,
+  LibraryIcon,
+  RefreshIcon,
+  SearchIcon,
+  SettingsIcon,
+} from './icons'
 
 interface TopNavProps {
   busy: boolean
@@ -9,6 +15,7 @@ interface TopNavProps {
   onRefresh: () => void
   onShowPortfolio: () => void
   onShowReference: () => void
+  onShowSettings: () => void
 }
 
 export function TopNav({
@@ -18,6 +25,7 @@ export function TopNav({
   onRefresh,
   onShowPortfolio,
   onShowReference,
+  onShowSettings,
 }: TopNavProps) {
   const [searchOpen, setSearchOpen] = useState(false)
   const searchButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -107,6 +115,14 @@ export function TopNav({
           <RefreshIcon className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} />
         </button>
         <ThemeToggle />
+        <button
+          aria-label="App settings"
+          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          type="button"
+          onClick={onShowSettings}
+        >
+          <SettingsIcon className="w-5 h-5" />
+        </button>
       </div>
     </nav>
   )
