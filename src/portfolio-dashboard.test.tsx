@@ -17,9 +17,8 @@ describe('portfolio dashboard', () => {
             name: 'Adviser Control Room',
           },
         }}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
       />,
     )
@@ -52,9 +51,8 @@ describe('portfolio dashboard', () => {
             name: '',
           },
         }}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
       />,
     )
@@ -87,9 +85,8 @@ describe('portfolio dashboard', () => {
       <PortfolioDashboard
         snapshot={snapshot}
         preferences={{}}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
       />,
     )
@@ -123,9 +120,8 @@ describe('portfolio dashboard', () => {
       <PortfolioDashboard
         snapshot={snapshot}
         preferences={{}}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
       />,
     )
