@@ -8,7 +8,7 @@ import type {
   PortfolioPreferences,
 } from '../portfolio-preferences'
 import { formatAge } from '../presentation'
-import { Button, Card, EmptyState, MetricCard, Section } from './primitives'
+import { Button, Card, EmptyState, Section } from './primitives'
 import { PortfolioCard } from './PortfolioCard'
 
 type PortfolioFilter =
@@ -89,28 +89,42 @@ export function PortfolioDashboard({
         </Button>
       </header>
 
-      <section aria-label="Portfolio summary" className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard
-          label="Discovered"
-          value={snapshot.discovery.repositoryCount}
-          tone="info"
-          note={`${snapshot.discovery.rootCount} configured root${snapshot.discovery.rootCount === 1 ? '' : 's'}`}
-        />
-        <MetricCard label="Healthy" value={healthyCount} tone="success" note="No action needed" />
-        <MetricCard label="TCTBP compatible" value={compatibleCount} tone="accent" note="Ready for advice" />
-        <MetricCard label="GitHub mapped" value={snapshot.github.localMappings} tone="neutral" />
-        {snapshot.upgrade?.enabled && (
-          <>
-            <MetricCard label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
-            <MetricCard label="TCTBP review" value={snapshot.upgrade.reviewRequired} tone="warning" />
-            <MetricCard label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
-            <MetricCard label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
-          </>
-        )}
-      </section>
-
       <Card className="p-5 space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <MetricChip
+            label="Discovered"
+            value={snapshot.discovery.repositoryCount}
+            tone="info"
+            note={`${snapshot.discovery.rootCount} configured root${snapshot.discovery.rootCount === 1 ? '' : 's'}`}
+          />
+          <MetricChip label="Healthy" value={healthyCount} tone="success" note="No action needed" />
+          <MetricChip label="TCTBP compatible" value={compatibleCount} tone="accent" note="Ready for advice" />
+          <MetricChip label="GitHub mapped" value={snapshot.github.localMappings} tone="neutral" />
+          {snapshot.upgrade?.enabled && (
+            <>
+              <MetricChip label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
+              <MetricChip label="TCTBP review" value={snapshot.upgrade.reviewRequired} tone="warning" />
+              <MetricChip label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
+              <MetricChip label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
+            </>
+          )}
+          <div className="flex items-center gap-2 text-xs text-text-muted ml-auto">
+            <span
+              aria-hidden="true"
+              className={`w-2 h-2 rounded-full ${cacheStale ? 'bg-amber-500' : 'bg-teal-500'}`}
+            />
+            <span>
+              {cacheStale
+                ? 'Stale portfolio'
+                : snapshot.cache.status === 'fresh'
+                  ? 'Cached portfolio'
+                  : 'Freshly inspected'}
+              {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
           {filterOptions(snapshot).map((option) => (
             <button
               className={[
@@ -135,21 +149,6 @@ export function PortfolioDashboard({
               {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
             </button>
           )}
-        </div>
-
-        <div className="flex items-center gap-2 text-xs text-text-muted">
-          <span
-            aria-hidden="true"
-            className={`w-2 h-2 rounded-full ${cacheStale ? 'bg-amber-500' : 'bg-teal-500'}`}
-          />
-          <span>
-            {cacheStale
-              ? 'Stale portfolio'
-              : snapshot.cache.status === 'fresh'
-                ? 'Cached portfolio'
-                : 'Freshly inspected'}
-            {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
-          </span>
         </div>
       </Card>
 
@@ -297,6 +296,37 @@ function filterLabel(filter: PortfolioFilter): string {
     'tctbp-policy': 'Policy drift',
   }
   return labels[filter]
+}
+
+type MetricTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+
+function MetricChip({
+  label,
+  value,
+  tone = 'neutral',
+  note,
+}: {
+  label: string
+  value: number
+  tone?: MetricTone
+  note?: string
+}) {
+  const dotClasses: Record<MetricTone, string> = {
+    neutral: 'bg-ink-400',
+    success: 'bg-teal-500',
+    warning: 'bg-amber-500',
+    danger: 'bg-red-500',
+    info: 'bg-blue-500',
+    accent: 'bg-teal-600',
+  }
+  return (
+    <span className="inline-flex items-center gap-2" title={note}>
+      <span aria-hidden="true" className={`w-2 h-2 rounded-full ${dotClasses[tone]}`} />
+      <strong className="text-lg font-semibold text-text-primary tabular-nums">{value}</strong>
+      <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{label}</span>
+      {note ? <span className="text-xs text-text-faint">· {note}</span> : null}
+    </span>
+  )
 }
 
 

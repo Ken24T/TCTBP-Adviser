@@ -76,6 +76,12 @@ function App() {
   )
   const [query, setQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null)
+  const closeSearch = () => {
+    setQuery('')
+    setSearchOpen(false)
+    searchButtonRef.current?.focus()
+  }
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
@@ -546,6 +552,7 @@ function App() {
             aria-expanded={searchOpen}
             aria-label={searchOpen ? 'Close search' : 'Search repositories'}
             className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            ref={searchButtonRef}
             type="button"
             onClick={() => setSearchOpen(!searchOpen)}
           >
@@ -559,21 +566,37 @@ function App() {
             </svg>
           </button>
           {searchOpen && (
-            <input
-              aria-label="Search repositories"
-              autoFocus
-              className="w-44 bg-white/10 border border-white/25 text-white placeholder-white/60 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent transition-colors"
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  setQuery('')
-                  setSearchOpen(false)
-                }
-              }}
-              placeholder="Search repositories"
-              type="search"
-              value={query}
-            />
+            <div className="relative">
+              <input
+                aria-label="Search repositories"
+                autoFocus
+                className="w-44 pr-8 bg-white/10 border border-white/25 text-white placeholder-white/60 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent transition-colors"
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') closeSearch()
+                }}
+                placeholder="Search repositories"
+                type="text"
+                value={query}
+              />
+              {query.length > 0 && (
+                <button
+                  aria-label="Clear search"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                  type="button"
+                  onClick={closeSearch}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M6 18L18 6M6 6l12 12"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           )}
           <ThemeToggle />
         </div>
