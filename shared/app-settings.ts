@@ -1,12 +1,36 @@
-export interface AppSettings {
+export type AppSettingsSource = 'environment' | 'settings' | 'default'
+
+export interface AppSettingsField<E, P = E> {
+  effective: E
+  persisted: P
+  source: AppSettingsSource
+}
+
+export interface AppSettingsResponse {
+  repositoryRoots: AppSettingsField<string[]>
+  excludeDirectories: AppSettingsField<string[]>
+  maximumDepth: AppSettingsField<number, number | null>
+  canonicalTctbpWebRoot: AppSettingsField<string | null>
+  githubEnabled: AppSettingsField<boolean, boolean | null>
+  githubRepositories: AppSettingsField<string[]>
+}
+
+export interface PersistedAppSettings {
   repositoryRoots: string[]
+  excludeDirectories: string[]
+  maximumDepth: number | null
+  canonicalTctbpWebRoot: string | null
+  githubEnabled: boolean | null
+  githubRepositories: string[]
 }
 
-export interface AppSettingsResponse extends AppSettings {
-  persistedRoots: string[]
-  source: 'environment' | 'settings'
-}
+export type AppSettingsUpdate = Partial<PersistedAppSettings>
 
-export const DEFAULT_APP_SETTINGS: AppSettings = {
+export const DEFAULT_PERSISTED_APP_SETTINGS: PersistedAppSettings = {
   repositoryRoots: [],
+  excludeDirectories: [],
+  maximumDepth: null,
+  canonicalTctbpWebRoot: null,
+  githubEnabled: null,
+  githubRepositories: [],
 }

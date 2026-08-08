@@ -1,9 +1,13 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { SafeConfigurationExport } from '../shared/diagnostics'
-import type { AppSettingsResponse } from '../shared/app-settings'
+import type {
+  AppSettingsResponse,
+  AppSettingsSource,
+  PersistedAppSettings,
+} from '../shared/app-settings'
 import { createAiReviewer, type AiReviewer } from './ai-reviewer'
-import { loadAppSettings, saveAppSettings } from './app-settings'
+import { loadPersistedAppSettings, savePersistedAppSettings } from './app-settings'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
@@ -27,7 +31,7 @@ import { readTctbpApplyRequest } from './tctbp-apply-input'
 import { readBootstrapRequest } from './tctbp-bootstrap-input'
 import { readBootstrapApplyRequest } from './tctbp-bootstrap-apply-input'
 import { safeConfigurationExport } from './configuration-export'
-import { resolveAllowedRoot } from './security'
+import { resolveAllowedRepository, resolveAllowedRoot } from './security'
 import { RepositoryDiscovery } from './discovery'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
@@ -380,17 +384,14 @@ export function createApiHandler(runtime: ApiRuntime) {
         return
       }
       if (request.method === 'PUT' && url.pathname === '/api/settings') {
-        await assertRootsEditable(runtime)
-        const roots = await validateRepositoryRoots(
-          extractRoots(await readJsonBody(request)),
+        const persisted = await loadPersistedAppSettings(runtime.environment)
+        const next = await applySettingsUpdate(
+          runtime,
+          persisted,
+          await readJsonBody(request),
         )
-        await saveAppSettings({ repositoryRoots: roots }, runtime.environment)
-        runtime.registry.updateRepositoryRoots(roots)
-        sendJson(response, 200, {
-          repositoryRoots: roots,
-          persistedRoots: roots,
-          source: 'settings',
-        })
+        await savePersistedAppSettings(next, runtime.environment)
+        sendJson(response, 200, await readSettingsResponse(runtime))
         return
       }
       if (
@@ -1042,41 +1043,196 @@ export function createApiHandler(runtime: ApiRuntime) {
   }
 }
 
-function settingsSource(runtime: ApiRuntime): 'environment' | 'settings' {
-  const env = runtime.environment
-  return env.TCTBP_ADVISER_REPOSITORY_ROOTS || env.TCTBP_ADVISER_ALLOWED_ROOT
-    ? 'environment'
-    : 'settings'
+function environmentHasValue(
+  environment: NodeJS.ProcessEnv,
+  name: string,
+): boolean {
+  const value = environment[name]
+  return value !== undefined && value !== ''
+}
+
+function settingsFieldSource(
+  environment: NodeJS.ProcessEnv,
+  name: string,
+  persistedPresent: boolean,
+): AppSettingsSource {
+  if (environmentHasValue(environment, name)) return 'environment'
+  return persistedPresent ? 'settings' : 'default'
+}
+
+function rootsFieldSource(
+  environment: NodeJS.ProcessEnv,
+  persisted: PersistedAppSettings,
+): AppSettingsSource {
+  if (
+    environmentHasValue(environment, 'TCTBP_ADVISER_REPOSITORY_ROOTS')
+    || environmentHasValue(environment, 'TCTBP_ADVISER_ALLOWED_ROOT')
+  ) return 'environment'
+  return persisted.repositoryRoots.length > 0 ? 'settings' : 'default'
 }
 
 async function readSettingsResponse(
   runtime: ApiRuntime,
 ): Promise<AppSettingsResponse> {
-  const persisted = await loadAppSettings(runtime.environment)
+  const persisted = await loadPersistedAppSettings(runtime.environment)
+  const environment = runtime.environment
   return {
-    repositoryRoots: runtime.registry.discovery.repositoryRoots,
-    persistedRoots: persisted.repositoryRoots,
-    source: settingsSource(runtime),
+    repositoryRoots: {
+      effective: runtime.registry.discovery.repositoryRoots,
+      persisted: persisted.repositoryRoots,
+      source: rootsFieldSource(environment, persisted),
+    },
+    excludeDirectories: {
+      effective: runtime.registry.discovery.excludeDirectories,
+      persisted: persisted.excludeDirectories,
+      source: settingsFieldSource(
+        environment,
+        'TCTBP_ADVISER_EXCLUDE_DIRECTORIES',
+        persisted.excludeDirectories.length > 0,
+      ),
+    },
+    maximumDepth: {
+      effective: runtime.registry.discovery.maximumDepth,
+      persisted: persisted.maximumDepth,
+      source: settingsFieldSource(
+        environment,
+        'TCTBP_ADVISER_MAXIMUM_DEPTH',
+        persisted.maximumDepth !== null,
+      ),
+    },
+    canonicalTctbpWebRoot: {
+      effective: runtime.tctbpSource.sourceRoot,
+      persisted: persisted.canonicalTctbpWebRoot,
+      source: settingsFieldSource(
+        environment,
+        'TCTBP_ADVISER_TCTBP_WEB_ROOT',
+        persisted.canonicalTctbpWebRoot !== null,
+      ),
+    },
+    githubEnabled: {
+      effective: runtime.github.config.enabled,
+      persisted: persisted.githubEnabled,
+      source: settingsFieldSource(
+        environment,
+        'TCTBP_ADVISER_GITHUB_ENABLED',
+        persisted.githubEnabled !== null,
+      ),
+    },
+    githubRepositories: {
+      effective: runtime.github.config.repositories,
+      persisted: persisted.githubRepositories,
+      source: settingsFieldSource(
+        environment,
+        'TCTBP_ADVISER_GITHUB_REPOSITORIES',
+        persisted.githubRepositories.length > 0,
+      ),
+    },
   }
 }
 
-async function assertRootsEditable(runtime: ApiRuntime): Promise<void> {
-  if (settingsSource(runtime) === 'environment') {
-    throw new AdviserError(
-      'settings-read-only',
-      'Repository roots are managed by the server environment and cannot be changed from the Adviser.',
-    )
-  }
-}
-
-function extractRoots(body: unknown): unknown {
+function settingsObject(body: unknown): Record<string, unknown> {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new AdviserError(
       'settings-request-invalid',
       'Settings request must contain a JSON object.',
     )
   }
-  return (body as { repositoryRoots?: unknown }).repositoryRoots
+  return body as Record<string, unknown>
+}
+
+async function applySettingsUpdate(
+  runtime: ApiRuntime,
+  persisted: PersistedAppSettings,
+  body: unknown,
+): Promise<PersistedAppSettings> {
+  const update = settingsObject(body)
+  const next: PersistedAppSettings = { ...persisted }
+  const environment = runtime.environment
+  const changed: Partial<PersistedAppSettings> = {}
+
+  if (
+    !environmentHasValue(environment, 'TCTBP_ADVISER_REPOSITORY_ROOTS')
+    && !environmentHasValue(environment, 'TCTBP_ADVISER_ALLOWED_ROOT')
+    && 'repositoryRoots' in update
+  ) {
+    const roots = await validateRepositoryRoots(update.repositoryRoots)
+    next.repositoryRoots = roots
+    changed.repositoryRoots = roots
+  }
+
+  if (
+    !environmentHasValue(environment, 'TCTBP_ADVISER_EXCLUDE_DIRECTORIES')
+    && 'excludeDirectories' in update
+  ) {
+    const directories = validateDirectoryNames(update.excludeDirectories)
+    next.excludeDirectories = directories
+    changed.excludeDirectories = directories
+  }
+
+  if (
+    !environmentHasValue(environment, 'TCTBP_ADVISER_MAXIMUM_DEPTH')
+    && 'maximumDepth' in update
+  ) {
+    const depth = validateMaximumDepth(update.maximumDepth)
+    if (depth !== null) {
+      next.maximumDepth = depth
+      changed.maximumDepth = depth
+    }
+  }
+
+  if (
+    !environmentHasValue(environment, 'TCTBP_ADVISER_TCTBP_WEB_ROOT')
+    && 'canonicalTctbpWebRoot' in update
+  ) {
+    const root = await validateCanonicalRoot(
+      update.canonicalTctbpWebRoot,
+      next.repositoryRoots,
+    )
+    next.canonicalTctbpWebRoot = root
+    changed.canonicalTctbpWebRoot = root
+  }
+
+  if (
+    !environmentHasValue(environment, 'TCTBP_ADVISER_GITHUB_ENABLED')
+    && 'githubEnabled' in update
+  ) {
+    const enabled = validateBooleanSetting(update.githubEnabled)
+    if (enabled !== null) {
+      next.githubEnabled = enabled
+      changed.githubEnabled = enabled
+    }
+  }
+
+  if (
+    !environmentHasValue(environment, 'TCTBP_ADVISER_GITHUB_REPOSITORIES')
+    && 'githubRepositories' in update
+  ) {
+    const repositories = validateGithubRepositories(update.githubRepositories)
+    next.githubRepositories = repositories
+    changed.githubRepositories = repositories
+  }
+
+  if (changed.repositoryRoots !== undefined) {
+    runtime.registry.updateRepositoryRoots(changed.repositoryRoots)
+  }
+  if (changed.excludeDirectories !== undefined) {
+    runtime.registry.discovery.setExcludeDirectories(changed.excludeDirectories)
+  }
+  if (changed.maximumDepth !== undefined && changed.maximumDepth !== null) {
+    runtime.registry.discovery.setMaximumDepth(changed.maximumDepth)
+  }
+  if (changed.canonicalTctbpWebRoot !== undefined) {
+    runtime.tctbpSource.setSourceRoot(changed.canonicalTctbpWebRoot)
+  }
+  if (changed.githubEnabled !== undefined || changed.githubRepositories !== undefined) {
+    runtime.github.setConfig({
+      ...runtime.github.config,
+      enabled: changed.githubEnabled ?? runtime.github.config.enabled,
+      repositories: changed.githubRepositories ?? runtime.github.config.repositories,
+    })
+  }
+
+  return next
 }
 
 async function validateRepositoryRoots(candidate: unknown): Promise<string[]> {
@@ -1119,6 +1275,116 @@ async function validateRepositoryRoots(candidate: unknown): Promise<string[]> {
     }
   }
   return Array.from(roots)
+}
+
+function validateDirectoryNames(candidate: unknown): string[] {
+  if (!Array.isArray(candidate)) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'excludeDirectories must be an array of directory names.',
+    )
+  }
+  if (candidate.length > 20) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'A maximum of 20 excluded directories is supported.',
+    )
+  }
+  const names = new Set<string>()
+  for (const entry of candidate) {
+    if (
+      typeof entry !== 'string'
+      || entry.trim().length === 0
+      || entry.includes('/')
+      || entry.includes('\\')
+      || entry === '.'
+      || entry === '..'
+    ) {
+      throw new AdviserError(
+        'settings-request-invalid',
+        'Each excluded directory must be a simple directory name.',
+      )
+    }
+    names.add(entry)
+  }
+  return Array.from(names)
+}
+
+function validateMaximumDepth(candidate: unknown): number | null {
+  if (candidate === null) return null
+  if (
+    typeof candidate !== 'number'
+    || !Number.isInteger(candidate)
+    || candidate < 0
+    || candidate > 10
+  ) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'maximumDepth must be an integer between 0 and 10.',
+    )
+  }
+  return candidate
+}
+
+async function validateCanonicalRoot(
+  candidate: unknown,
+  effectiveRoots: string[],
+): Promise<string | null> {
+  if (candidate === null) return null
+  if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'The TCTBP-Web root must be a repository path or null.',
+    )
+  }
+  for (const root of effectiveRoots) {
+    try {
+      return (await resolveAllowedRepository(root, candidate)).repositoryPath
+    } catch {
+      // Try the next configured root.
+    }
+  }
+  throw new AdviserError(
+    'settings-request-invalid',
+    'The TCTBP-Web root must resolve to a repository inside a configured root.',
+  )
+}
+
+function validateBooleanSetting(candidate: unknown): boolean | null {
+  if (candidate === null) return null
+  if (typeof candidate !== 'boolean') {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'githubEnabled must be a boolean or null.',
+    )
+  }
+  return candidate
+}
+
+function validateGithubRepositories(candidate: unknown): string[] {
+  if (!Array.isArray(candidate)) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'githubRepositories must be an array of GitHub repository names.',
+    )
+  }
+  if (candidate.length > 100) {
+    throw new AdviserError(
+      'settings-request-invalid',
+      'A maximum of 100 GitHub repositories is supported.',
+    )
+  }
+  const names = new Set<string>()
+  for (const entry of candidate) {
+    if (typeof entry !== 'string' || entry.trim().length === 0) {
+      throw new AdviserError(
+        'settings-request-invalid',
+        'Each GitHub repository must be a non-empty name.',
+      )
+    }
+    names.add(entry)
+  }
+  return Array.from(names)
 }
 
 function enforceRequestTrust(
@@ -1212,7 +1478,6 @@ function statusForError(error: unknown): number {
   if (error.code === 'repository-not-found') return 404
   if (error.code === 'actioner-job-not-found') return 404
   if (error.code === 'actioner-plan-stale-or-blocked') return 409
-  if (error.code === 'settings-read-only') return 409
   if (error.code === 'settings-request-invalid') return 400
   if (error.code === 'actioner-request-invalid') return 400
   if (

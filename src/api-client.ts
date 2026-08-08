@@ -1,5 +1,8 @@
 import type { AiReviewResult } from '../shared/ai-review'
-import type { AppSettingsResponse } from '../shared/app-settings'
+import type {
+  AppSettingsResponse,
+  AppSettingsUpdate,
+} from '../shared/app-settings'
 import type { ActionerIntent, ActionerJob, ActionerJobStart } from '../shared/actioner'
 import type {
   TctbpBootstrapApplyResult,
@@ -377,12 +380,12 @@ export async function loadAppSettings(): Promise<AppSettingsResponse> {
 }
 
 export async function saveAppSettings(
-  repositoryRoots: string[],
+  update: AppSettingsUpdate,
 ): Promise<AppSettingsResponse> {
   return requestJson<AppSettingsResponse>('/api/settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ repositoryRoots }),
+    body: JSON.stringify(update),
   })
 }
 

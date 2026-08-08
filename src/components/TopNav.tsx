@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
+import { Tooltip } from './Tooltip'
 import {
   CloseIcon,
   LibraryIcon,
@@ -61,24 +62,34 @@ export function TopNav({
         <span className="hidden md:inline text-xs text-white/60 uppercase tracking-widest">
           Local-first repository portfolio
         </span>
-        <button
-          aria-label="TCTBP reference"
-          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-          type="button"
-          onClick={onShowReference}
+        <Tooltip
+          label="TCTBP reference"
+          description="Open the pinned TCTBP contract reference"
         >
-          <LibraryIcon className="w-5 h-5" />
-        </button>
-        <button
-          aria-expanded={searchOpen}
-          aria-label={searchOpen ? 'Close search' : 'Search repositories'}
-          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-          ref={searchButtonRef}
-          type="button"
-          onClick={() => setSearchOpen(!searchOpen)}
+          <button
+            aria-label="TCTBP reference"
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            type="button"
+            onClick={onShowReference}
+          >
+            <LibraryIcon className="w-5 h-5" />
+          </button>
+        </Tooltip>
+        <Tooltip
+          label={searchOpen ? 'Close search' : 'Search repositories'}
+          description="Filter the repository portfolio"
         >
-          <SearchIcon className="w-5 h-5" />
-        </button>
+          <button
+            aria-expanded={searchOpen}
+            aria-label={searchOpen ? 'Close search' : 'Search repositories'}
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            ref={searchButtonRef}
+            type="button"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            <SearchIcon className="w-5 h-5" />
+          </button>
+        </Tooltip>
         {searchOpen && (
           <div className="relative">
             <input
@@ -105,24 +116,34 @@ export function TopNav({
             )}
           </div>
         )}
-        <button
-          aria-label={busy ? 'Refreshing portfolio' : 'Refresh portfolio'}
-          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={busy}
-          type="button"
-          onClick={onRefresh}
+        <Tooltip
+          label={busy ? 'Refreshing portfolio' : 'Refresh portfolio'}
+          description="Re-inspect local repositories"
         >
-          <RefreshIcon className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} />
-        </button>
+          <button
+            aria-label={busy ? 'Refreshing portfolio' : 'Refresh portfolio'}
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={busy}
+            type="button"
+            onClick={onRefresh}
+          >
+            <RefreshIcon className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} />
+          </button>
+        </Tooltip>
         <ThemeToggle />
-        <button
-          aria-label="App settings"
-          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-          type="button"
-          onClick={onShowSettings}
+        <Tooltip
+          label="App settings"
+          description="Configure repository roots and discovery"
         >
-          <SettingsIcon className="w-5 h-5" />
-        </button>
+          <button
+            aria-label="App settings"
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            type="button"
+            onClick={onShowSettings}
+          >
+            <SettingsIcon className="w-5 h-5" />
+          </button>
+        </Tooltip>
       </div>
     </nav>
   )
