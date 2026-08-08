@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button } from './components/primitives'
 import { useTheme } from './theme'
-import { ThemeToggle } from './components/ThemeToggle'
+import { ErrorBanner } from './components/ErrorBanner'
+import { LoadingState } from './components/LoadingState'
+import { TopNav } from './components/TopNav'
 import type { ActionerJob, ActionerJobStart, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
@@ -50,6 +51,11 @@ import {
   type PortfolioPreferences,
 } from './portfolio-preferences'
 
+// File-size note: 587 lines — above the 400-line warning threshold but below the 600-line hard split.
+// App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
+// view routing. The presentational layers are already extracted (TopNav, ErrorBanner, LoadingState,
+// and the view components). Splitting further means extracting the coupled async handlers and state
+// into a custom hook (e.g. useAdviser), which is deferred as a larger, riskier refactor.
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
@@ -75,13 +81,6 @@ function App() {
     loadPortfolioPreferences,
   )
   const [query, setQuery] = useState('')
-  const [searchOpen, setSearchOpen] = useState(false)
-  const searchButtonRef = useRef<HTMLButtonElement | null>(null)
-  const closeSearch = () => {
-    setQuery('')
-    setSearchOpen(false)
-    searchButtonRef.current?.focus()
-  }
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
@@ -520,117 +519,17 @@ function App() {
 
   return (
     <div className={`min-h-screen flex flex-col ${resolved}`}>
-      <nav
-        aria-label="Application"
-        className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 border-b border-teal-700 bg-gradient-to-r from-teal-900 to-teal-700 text-white shadow-md"
-      >
-        <button
-          aria-label="Show repository portfolio"
-          className="flex items-center gap-3 text-left"
-          type="button"
-          onClick={showPortfolio}
-        >
-          <span
-            aria-hidden="true"
-            className="grid w-10 h-10 text-lg font-black leading-none place-items-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-cream-50"
-          >
-            T
-          </span>
-          <span className="leading-tight">
-            <strong className="block text-lg tracking-tight">TCTBP</strong>
-            <small className="block text-xs text-white/60 uppercase tracking-widest">Adviser</small>
-          </span>
-        </button>
-        <div className="flex items-center gap-4">
-          <span className="hidden md:inline text-xs text-white/60 uppercase tracking-widest">
-            Local-first repository portfolio
-          </span>
-          <Button variant="secondary" size="sm" onClick={showReference}>
-            TCTBP reference
-          </Button>
-          <button
-            aria-expanded={searchOpen}
-            aria-label={searchOpen ? 'Close search' : 'Search repositories'}
-            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            ref={searchButtonRef}
-            type="button"
-            onClick={() => setSearchOpen(!searchOpen)}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-          </button>
-          {searchOpen && (
-            <div className="relative">
-              <input
-                aria-label="Search repositories"
-                autoFocus
-                className="w-44 pr-8 bg-white/10 border border-white/25 text-white placeholder-white/60 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent transition-colors"
-                onChange={(event) => setQuery(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') closeSearch()
-                }}
-                placeholder="Search repositories"
-                type="text"
-                value={query}
-              />
-              {query.length > 0 && (
-                <button
-                  aria-label="Clear search"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                  type="button"
-                  onClick={closeSearch}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M6 18L18 6M6 6l12 12"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                    />
-                  </svg>
-                </button>
-              )}
-            </div>
-          )}
-          <button
-            aria-label={busy ? 'Refreshing portfolio' : 'Refresh portfolio'}
-            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={busy}
-            type="button"
-            onClick={() => void refreshPortfolio(true)}
-          >
-            <svg className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-              />
-            </svg>
-          </button>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <TopNav
+        busy={busy}
+        onQueryChange={setQuery}
+        onRefresh={() => void refreshPortfolio(true)}
+        onShowPortfolio={showPortfolio}
+        onShowReference={showReference}
+        query={query}
+      />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
-        {error && (
-          <section className="ad-surface p-8 border-l-4 border-red-500 flex items-end justify-between gap-8" role="alert">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-red-600">Inspection unavailable</p>
-              <h1 className="mt-1 text-3xl font-semibold text-text-primary">The Adviser stopped safely.</h1>
-              <p className="mt-2 text-text-secondary max-w-2xl">{error}</p>
-            </div>
-            <Button variant="primary" onClick={retry}>
-              Try again
-            </Button>
-          </section>
-        )}
+        {error && <ErrorBanner error={error} onRetry={retry} />}
 
         {referenceOpen && catalogue ? (
           <ReferenceExplorer catalogue={catalogue} onBack={showPortfolio} />
@@ -676,25 +575,9 @@ function App() {
           />
         ) : !error ? (
           referenceOpen
-            ? (
-              <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
-                <span
-                  aria-hidden="true"
-                  className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
-                />
-                <p className="text-sm">Loading the pinned TCTBP reference…</p>
-              </section>
-            )
+            ? <LoadingState message="Loading the pinned TCTBP reference…" />
             : selectedId
-              ? (
-                <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
-                  <span
-                    aria-hidden="true"
-                    className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
-                  />
-                  <p className="text-sm">Inspecting the selected repository…</p>
-                </section>
-              )
+              ? <LoadingState message="Inspecting the selected repository…" />
               : <PortfolioDashboardSkeleton />
         ) : null}
       </main>
