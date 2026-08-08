@@ -598,6 +598,22 @@ function App() {
               )}
             </div>
           )}
+          <button
+            aria-label={busy ? 'Refreshing portfolio' : 'Refresh portfolio'}
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={busy}
+            type="button"
+            onClick={() => void refreshPortfolio(true)}
+          >
+            <svg className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </button>
           <ThemeToggle />
         </div>
       </nav>
@@ -654,10 +670,8 @@ function App() {
           <PortfolioDashboard
             snapshot={portfolio}
             preferences={preferences}
-            busy={busy}
             query={query}
             onOpen={openRepository}
-            onRefresh={() => void refreshPortfolio(true)}
             onPreferenceChange={changePreference}
           />
         ) : !error ? (

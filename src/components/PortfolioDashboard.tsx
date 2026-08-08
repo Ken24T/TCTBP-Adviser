@@ -8,7 +8,7 @@ import type {
   PortfolioPreferences,
 } from '../portfolio-preferences'
 import { formatAge } from '../presentation'
-import { Button, Card, EmptyState, Section } from './primitives'
+import { Card, EmptyState, Section } from './primitives'
 import { PortfolioCard } from './PortfolioCard'
 
 type PortfolioFilter =
@@ -27,10 +27,8 @@ type PortfolioFilter =
 interface PortfolioDashboardProps {
   snapshot: PortfolioSnapshot
   preferences: PortfolioPreferences
-  busy: boolean
   query: string
   onOpen: (repositoryId: string) => void
-  onRefresh: () => void
   onPreferenceChange: (
     repositoryId: string,
     patch: Partial<PortfolioPreference>,
@@ -40,10 +38,8 @@ interface PortfolioDashboardProps {
 export function PortfolioDashboard({
   snapshot,
   preferences,
-  busy,
   query,
   onOpen,
-  onRefresh,
   onPreferenceChange,
 }: PortfolioDashboardProps) {
   const [filter, setFilter] = useState<PortfolioFilter>('all')
@@ -84,9 +80,6 @@ export function PortfolioDashboard({
               : ''}
           </p>
         </div>
-        <Button disabled={busy} onClick={onRefresh}>
-          {busy ? 'Refreshing…' : 'Refresh portfolio'}
-        </Button>
       </header>
 
       <Card className="p-5 space-y-4">
