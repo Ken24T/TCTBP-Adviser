@@ -6,6 +6,7 @@ import {
   formatAge,
   reasonLabel,
 } from '../presentation'
+import { Button, Card, Panel } from './primitives'
 
 interface RecommendationPanelProps {
   recommendation: RecommendationResult
@@ -20,59 +21,69 @@ export function RecommendationPanel({
     ? actionLabel(recommendation.primaryAction)
     : dispositionLabel(recommendation.disposition)
 
+  const tone = recommendation.severity === 'healthy' ? 'success'
+    : recommendation.severity === 'attention' ? 'warning'
+    : recommendation.severity === 'stop' ? 'danger'
+    : 'neutral'
+
   return (
-    <section
-      className={`recommendation tone-${recommendation.severity}`}
-      aria-labelledby="recommendation-title"
-    >
-      <div className="recommendation-heading">
+    <Panel eyebrow="State-driven recommendation" title={title}>
+      <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-4">
         <div>
-          <p className="eyebrow">State-driven recommendation</p>
-          <p className="recommendation-disposition">
+          <p className="text-sm text-text-muted">
             {dispositionLabel(recommendation.disposition)}
           </p>
-          <h2 id="recommendation-title">{title}</h2>
+          <div className="flex items-center gap-2 mt-1 text-sm text-text-muted">
+            <span
+              aria-hidden="true"
+              className={`w-2 h-2 rounded-full ${
+                tone === 'success' ? 'bg-teal-500'
+                : tone === 'warning' ? 'bg-amber-500'
+                : tone === 'danger' ? 'bg-red-500'
+                : 'bg-ink-400'
+              }`}
+            />
+            {formatAge(recommendation.freshness.ageMs)}
+          </div>
         </div>
-        <div className="freshness">
-          <span className="status-dot" aria-hidden="true" />
-          {formatAge(recommendation.freshness.ageMs)}
-        </div>
+        {onReviewPlan && intentForRecommendation(recommendation.primaryAction) && (
+          <Button size="sm" onClick={onReviewPlan}>
+            Review {intentLabel(intentForRecommendation(recommendation.primaryAction)!)} plan
+          </Button>
+        )}
       </div>
 
-      <div className="reason-list">
-        {recommendation.reasonCodes.map((reason) => (
-          <p key={reason}>{reasonLabel(reason)}</p>
-        ))}
-      </div>
-
-      {recommendation.trigger && (
-        <div className="trigger">
-          <span>Suggested TCTBP trigger</span>
-          <code>{recommendation.trigger}</code>
+      {recommendation.reasonCodes.length > 0 && (
+        <div className="ad-surface-soft p-4 mb-4 rounded-lg">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Reasons</h3>
+          <ul className="space-y-1 text-sm text-text-secondary list-disc list-inside">
+            {recommendation.reasonCodes.map((reason) => (
+              <li key={reason}>{reasonLabel(reason)}</li>
+            ))}
+          </ul>
         </div>
-      )}
-
-      {onReviewPlan && intentForRecommendation(recommendation.primaryAction) && (
-        <button className="review-plan-button" type="button" onClick={onReviewPlan}>
-          Review {intentLabel(intentForRecommendation(recommendation.primaryAction)!)} plan
-        </button>
       )}
 
       {recommendation.steps.length > 0 && (
-        <div className="workflow" aria-label="Recommended workflow">
-          {recommendation.steps.map((step, index) => (
-            <div className="workflow-step" key={`${step.action}-${index}`}>
-              <span>{index + 1}</span>
-              <div>
-                <strong>{actionLabel(step.action)}</strong>
-                <small>{step.kind}</small>
-              </div>
-            </div>
-          ))}
+        <div className="mb-4" aria-label="Recommended workflow">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">Recommended workflow</h3>
+          <ol className="space-y-3">
+            {recommendation.steps.map((step, index) => (
+              <li key={`${step.action}-${index}`} className="flex items-start gap-3">
+                <span className="flex-none grid w-6 h-6 text-xs font-bold place-items-center rounded-full bg-teal-100 text-teal-800">
+                  {index + 1}
+                </span>
+                <div>
+                  <strong className="block text-sm font-medium text-text-primary">{actionLabel(step.action)}</strong>
+                  <small className="text-xs text-text-muted">{step.kind}</small>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
 
-      <div className="effects-grid">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <EffectList
           title="What this action does"
           items={recommendation.effects.does}
@@ -84,7 +95,7 @@ export function RecommendationPanel({
           variant="does-not"
         />
       </div>
-    </section>
+    </Panel>
   )
 }
 
@@ -96,12 +107,16 @@ interface EffectListProps {
 
 function EffectList({ title, items, variant }: EffectListProps) {
   if (items.length === 0) return null
+  const tone = variant === 'does' ? 'teal' : 'amber'
+  const border = variant === 'does' ? 'border-teal-200' : 'border-amber-200'
+  const bg = variant === 'does' ? 'bg-teal-50' : 'bg-amber-50'
+  const text = variant === 'does' ? 'text-teal-900' : 'text-amber-900'
   return (
-    <div className={`effect-list ${variant}`}>
-      <h3>{title}</h3>
-      <ul>
+    <Card className={`p-4 border ${border} ${bg}`}>
+      <h3 className={`text-sm font-semibold mb-2 ${text}`}>{title}</h3>
+      <ul className="space-y-1.5 text-sm text-text-secondary list-disc list-inside">
         {items.map((item) => <li key={item}>{item}</li>)}
       </ul>
-    </div>
+    </Card>
   )
 }

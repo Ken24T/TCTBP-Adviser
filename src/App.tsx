@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from './components/primitives'
+import { useTheme } from './theme'
+import { ThemeToggle } from './components/ThemeToggle'
 import type { ActionerJob, ActionerJobStart, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
@@ -38,6 +41,7 @@ import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
+import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
 import {
   loadPortfolioPreferences,
   savePortfolioPreferences,
@@ -504,38 +508,53 @@ function App() {
     else void refreshPortfolio(true)
   }
 
+  const { resolved } = useTheme()
+
   return (
-    <div className="app-shell">
-      <nav className="topbar" aria-label="Application">
+    <div className={`min-h-screen flex flex-col ${resolved}`}>
+      <nav
+        aria-label="Application"
+        className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 border-b border-teal-700 bg-gradient-to-r from-teal-900 to-teal-700 text-white shadow-md"
+      >
         <button
-          className="brand"
-          type="button"
           aria-label="Show repository portfolio"
+          className="flex items-center gap-3 text-left"
+          type="button"
           onClick={showPortfolio}
         >
-          <span className="brand-mark" aria-hidden="true">T</span>
-          <span>
-            <strong>TCTBP</strong>
-            <small>Adviser</small>
+          <span
+            aria-hidden="true"
+            className="grid w-10 h-10 text-lg font-black leading-none place-items-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-cream-50"
+          >
+            T
+          </span>
+          <span className="leading-tight">
+            <strong className="block text-lg tracking-tight">TCTBP</strong>
+            <small className="block text-xs text-white/60 uppercase tracking-widest">Adviser</small>
           </span>
         </button>
-        <div className="topbar-actions">
-          <button type="button" onClick={showReference}>TCTBP reference</button>
-          <span className="mode-label">Local-first repository portfolio</span>
+        <div className="flex items-center gap-4">
+          <span className="hidden md:inline text-xs text-white/60 uppercase tracking-widest">
+            Local-first repository portfolio
+          </span>
+          <Button variant="secondary" size="sm" onClick={showReference}>
+            TCTBP reference
+          </Button>
+          <ThemeToggle />
         </div>
       </nav>
 
-      <main>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
         {error && (
-          <section className="error-panel" role="alert">
+          <section className="ad-surface p-8 border-l-4 border-red-500 flex items-end justify-between gap-8" role="alert">
             <div>
-              <p className="eyebrow">Inspection unavailable</p>
-              <h1>The Adviser stopped safely.</h1>
-              <p>{error}</p>
+              <p className="text-xs font-bold uppercase tracking-widest text-red-600">Inspection unavailable</p>
+              <h1 className="mt-1 text-3xl font-semibold text-text-primary">The Adviser stopped safely.</h1>
+              <p className="mt-2 text-text-secondary max-w-2xl">{error}</p>
             </div>
-            <button type="button" onClick={retry}>
+            <Button variant="primary" onClick={retry}>
               Try again
-            </button>
+            </Button>
           </section>
         )}
 
@@ -583,20 +602,31 @@ function App() {
             onPreferenceChange={changePreference}
           />
         ) : !error ? (
-          <section className="loading-panel" aria-live="polite">
-            <span className="loading-ring" aria-hidden="true" />
-            <p>
-              {referenceOpen
-                ? 'Loading the pinned TCTBP reference…'
-                : selectedId
-                ? 'Inspecting the selected repository…'
-                : 'Discovering local repositories…'}
-            </p>
-          </section>
+          referenceOpen
+            ? (
+              <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
+                <span
+                  aria-hidden="true"
+                  className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
+                />
+                <p className="text-sm">Loading the pinned TCTBP reference…</p>
+              </section>
+            )
+            : selectedId
+              ? (
+                <section className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-text-muted" aria-live="polite">
+                  <span
+                    aria-hidden="true"
+                    className="w-10 h-10 border-[3px] border-ink-200 border-t-teal-500 rounded-full animate-spin"
+                  />
+                  <p className="text-sm">Inspecting the selected repository…</p>
+                </section>
+              )
+              : <PortfolioDashboardSkeleton />
         ) : null}
       </main>
 
-      <footer>
+      <footer className="py-8 text-center text-xs text-text-faint uppercase tracking-widest">
         Local evidence remains primary · No Git fetch · No repository mutation
       </footer>
     </div>
