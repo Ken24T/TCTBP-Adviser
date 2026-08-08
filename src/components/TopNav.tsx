@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
-import { Button } from './primitives'
 import { ThemeToggle } from './ThemeToggle'
+import { CloseIcon, LibraryIcon, RefreshIcon, SearchIcon } from './icons'
 
 interface TopNavProps {
   busy: boolean
@@ -53,9 +53,14 @@ export function TopNav({
         <span className="hidden md:inline text-xs text-white/60 uppercase tracking-widest">
           Local-first repository portfolio
         </span>
-        <Button variant="secondary" size="sm" onClick={onShowReference}>
-          TCTBP reference
-        </Button>
+        <button
+          aria-label="TCTBP reference"
+          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          type="button"
+          onClick={onShowReference}
+        >
+          <LibraryIcon className="w-5 h-5" />
+        </button>
         <button
           aria-expanded={searchOpen}
           aria-label={searchOpen ? 'Close search' : 'Search repositories'}
@@ -64,14 +69,7 @@ export function TopNav({
           type="button"
           onClick={() => setSearchOpen(!searchOpen)}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
+          <SearchIcon className="w-5 h-5" />
         </button>
         {searchOpen && (
           <div className="relative">
@@ -94,14 +92,7 @@ export function TopNav({
                 type="button"
                 onClick={closeSearch}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M6 18L18 6M6 6l12 12"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
+                <CloseIcon className="w-4 h-4" />
               </button>
             )}
           </div>
@@ -113,14 +104,7 @@ export function TopNav({
           type="button"
           onClick={onRefresh}
         >
-          <svg className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
+          <RefreshIcon className={`w-5 h-5 ${busy ? 'animate-spin' : ''}`} />
         </button>
         <ThemeToggle />
       </div>
