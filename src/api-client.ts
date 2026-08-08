@@ -1,4 +1,5 @@
 import type { AiReviewResult } from '../shared/ai-review'
+import type { AppSettingsResponse } from '../shared/app-settings'
 import type { ActionerIntent, ActionerJob, ActionerJobStart } from '../shared/actioner'
 import type {
   TctbpBootstrapApplyResult,
@@ -369,6 +370,20 @@ export async function loadPortfolio(
 
 export async function loadReferenceCatalogue(): Promise<ReferenceCatalogue> {
   return requestJson<ReferenceCatalogue>('/api/catalogue')
+}
+
+export async function loadAppSettings(): Promise<AppSettingsResponse> {
+  return requestJson<AppSettingsResponse>('/api/settings')
+}
+
+export async function saveAppSettings(
+  repositoryRoots: string[],
+): Promise<AppSettingsResponse> {
+  return requestJson<AppSettingsResponse>('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repositoryRoots }),
+  })
 }
 
 async function requestJson<T>(

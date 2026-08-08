@@ -53,5 +53,9 @@ function installMiddleware(
 async function createRuntime(
   environment: NodeJS.ProcessEnv,
 ): Promise<ApiRuntime> {
-  return createApiRuntime(await loadServiceConfig(environment))
+  return createApiRuntime(
+    await loadServiceConfig(environment),
+    undefined,
+    environment,
+  )
 }

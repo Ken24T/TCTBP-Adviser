@@ -34,6 +34,7 @@ export async function cleanupApis(): Promise<void> {
 
 export async function startApi(
   includePlainRepository = false,
+  environment: NodeJS.ProcessEnv = process.env,
 ): Promise<RunningApi> {
   const root = await createTemporaryDirectory()
   temporaryDirectories.push(root)
@@ -43,7 +44,7 @@ export async function startApi(
   }
   await writeProfile(repository)
   const token = 'test-session-token'
-  const runtime = createApiRuntime(serviceConfig(root), token)
+  const runtime = createApiRuntime(serviceConfig(root), token, environment)
   const server = createServer(createApiHandler(runtime))
   servers.push(server)
   await new Promise<void>((resolve) => {

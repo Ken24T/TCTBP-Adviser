@@ -42,6 +42,7 @@ import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
+import { SettingsPanel } from './components/SettingsPanel'
 import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
 import {
   loadPortfolioPreferences,
@@ -75,6 +76,7 @@ function App() {
   const [bootstrapJob, setBootstrapJob] = useState<TctbpBootstrapJob | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
   const [intent, setIntent] = useState<RecommendationIntent>('none')
   const [preferences, setPreferences] = useState<PortfolioPreferences>(
@@ -455,6 +457,7 @@ function App() {
     setActionBusy(false)
     setActionFeedback(null)
     setIntent('none')
+    setSettingsOpen(false)
     setBusy(false)
     setError(null)
   }
@@ -478,10 +481,36 @@ function App() {
     setActionBusy(false)
     setActionFeedback(null)
     setIntent('none')
+    setSettingsOpen(false)
     setReferenceOpen(true)
     setError(null)
     if (!catalogue) void refreshCatalogue()
     else setBusy(false)
+  }
+
+  function showSettings(): void {
+    requestId.current += 1
+    setSelectedId(null)
+    setReferenceOpen(false)
+    setSettingsOpen(true)
+    setDetail(null)
+    setUpgradePlan(null)
+    setUpgradeBusy(false)
+    setApplyBusy(false)
+    setUpgradeFeedback(null)
+    setAiReview(null)
+    setAiBusy(false)
+    setBootstrapPlan(null)
+    setBootstrapBusy(false)
+    setBootstrapApplyBusy(false)
+    setBootstrapApplyFeedback(null)
+    setBootstrapJob(null)
+    setActionJob(null)
+    setActionBusy(false)
+    setActionFeedback(null)
+    setIntent('none')
+    setBusy(false)
+    setError(null)
   }
 
   function changeIntent(nextIntent: RecommendationIntent): void {
@@ -525,13 +554,19 @@ function App() {
         onRefresh={() => void refreshPortfolio(true)}
         onShowPortfolio={showPortfolio}
         onShowReference={showReference}
+        onShowSettings={showSettings}
         query={query}
       />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
         {error && <ErrorBanner error={error} onRetry={retry} />}
 
-        {referenceOpen && catalogue ? (
+        {settingsOpen ? (
+          <SettingsPanel
+            onBack={showPortfolio}
+            onSaved={() => void refreshPortfolio(true)}
+          />
+        ) : referenceOpen && catalogue ? (
           <ReferenceExplorer catalogue={catalogue} onBack={showPortfolio} />
         ) : selectedId && detail ? (
           <RepositoryDetail
