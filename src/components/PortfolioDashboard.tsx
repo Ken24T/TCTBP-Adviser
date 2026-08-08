@@ -28,6 +28,7 @@ interface PortfolioDashboardProps {
   snapshot: PortfolioSnapshot
   preferences: PortfolioPreferences
   busy: boolean
+  query: string
   onOpen: (repositoryId: string) => void
   onRefresh: () => void
   onPreferenceChange: (
@@ -40,11 +41,11 @@ export function PortfolioDashboard({
   snapshot,
   preferences,
   busy,
+  query,
   onOpen,
   onRefresh,
   onPreferenceChange,
 }: PortfolioDashboardProps) {
-  const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<PortfolioFilter>('all')
   const [showHidden, setShowHidden] = useState(false)
   const hiddenCount = snapshot.repositories.filter(
@@ -109,43 +110,31 @@ export function PortfolioDashboard({
       </section>
 
       <Card className="p-5 space-y-4">
-        <div className="flex flex-col md:flex-row md:items-end gap-4 justify-between">
-          <label className="block w-full md:max-w-md text-sm text-text-secondary">
-            Search repositories
-            <input
-              className="mt-1 w-full px-4 py-2.5 text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder="Search by repository or custom name"
-              type="search"
-              value={query}
-            />
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            {filterOptions(snapshot).map((option) => (
-              <button
-                className={[
-                  'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
-                  filter === option
-                    ? 'bg-teal-600 text-white shadow-soft'
-                    : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
-                ].join(' ')}
-                key={option}
-                type="button"
-                onClick={() => setFilter(option)}
-              >
-                {filterLabel(option)}
-              </button>
-            ))}
-            {hiddenCount > 0 && (
-              <button
-                className="px-3 py-1.5 text-xs font-medium rounded-full bg-butter-100 text-text-primary hover:bg-butter-200 transition-colors border border-butter-300"
-                type="button"
-                onClick={() => setShowHidden(!showHidden)}
-              >
-                {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
-              </button>
-            )}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {filterOptions(snapshot).map((option) => (
+            <button
+              className={[
+                'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
+                filter === option
+                  ? 'bg-teal-600 text-white shadow-soft'
+                  : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
+              ].join(' ')}
+              key={option}
+              type="button"
+              onClick={() => setFilter(option)}
+            >
+              {filterLabel(option)}
+            </button>
+          ))}
+          {hiddenCount > 0 && (
+            <button
+              className="px-3 py-1.5 text-xs font-medium rounded-full bg-butter-100 text-ink-900 hover:bg-butter-200 transition-colors border border-butter-300"
+              type="button"
+              onClick={() => setShowHidden(!showHidden)}
+            >
+              {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2 text-xs text-text-muted">

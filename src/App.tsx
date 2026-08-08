@@ -74,6 +74,8 @@ function App() {
   const [preferences, setPreferences] = useState<PortfolioPreferences>(
     loadPortfolioPreferences,
   )
+  const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
@@ -540,6 +542,39 @@ function App() {
           <Button variant="secondary" size="sm" onClick={showReference}>
             TCTBP reference
           </Button>
+          <button
+            aria-expanded={searchOpen}
+            aria-label={searchOpen ? 'Close search' : 'Search repositories'}
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            type="button"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+              />
+            </svg>
+          </button>
+          {searchOpen && (
+            <input
+              aria-label="Search repositories"
+              autoFocus
+              className="w-44 bg-white/10 border border-white/25 text-white placeholder-white/60 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent transition-colors"
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setQuery('')
+                  setSearchOpen(false)
+                }
+              }}
+              placeholder="Search repositories"
+              type="search"
+              value={query}
+            />
+          )}
           <ThemeToggle />
         </div>
       </nav>
@@ -597,6 +632,7 @@ function App() {
             snapshot={portfolio}
             preferences={preferences}
             busy={busy}
+            query={query}
             onOpen={openRepository}
             onRefresh={() => void refreshPortfolio(true)}
             onPreferenceChange={changePreference}

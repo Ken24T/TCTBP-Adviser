@@ -18,7 +18,7 @@ export function Button({
   }
   const variantClasses = {
     primary: 'bg-teal-600 text-white hover:bg-teal-700 focus:ring-teal-500 shadow-soft',
-    secondary: 'bg-butter-100 text-text-primary hover:bg-butter-200 focus:ring-butter-400 border border-butter-300',
+    secondary: 'bg-butter-100 text-ink-900 hover:bg-butter-200 focus:ring-butter-400 border border-butter-300',
     tertiary: 'bg-surface-soft text-text-primary hover:bg-surface-hover focus:ring-ink-400 border border-border',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
   }
