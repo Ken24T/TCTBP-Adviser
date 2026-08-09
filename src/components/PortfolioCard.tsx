@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import type { PortfolioRepository } from '../../shared/portfolio'
 import {
   actionLabel,
@@ -6,6 +7,8 @@ import {
   syncSummaryFromState,
 } from '../presentation'
 import type { PortfolioPreference } from '../portfolio-preferences'
+import { cardSurfaceVars } from '../card-surface'
+import { useTheme } from '../theme'
 import { Badge, Button, Card } from './primitives'
 
 interface PortfolioCardProps {
@@ -33,13 +36,25 @@ export function PortfolioCard({
     : tone === 'stop' ? 'danger'
     : 'neutral'
 
-  const borderTone = tone === 'healthy' ? 'border-t-teal-500'
-    : tone === 'attention' ? 'border-t-amber-500'
-    : tone === 'stop' ? 'border-t-red-500'
-    : 'border-t-ink-400'
+  const { resolved } = useTheme()
+  const surface = cardSurfaceVars(statusTone, resolved === 'dark')
 
   return (
-    <Card className={`flex flex-col h-full gap-5 border-t-4 ${borderTone}`} hover={repository.available}>
+    <Card
+      className={[
+        'flex flex-col h-full gap-5 border-t-[3px] border-t-[var(--card-accent)] bg-[var(--card-surface)]',
+        'shadow-[0_2px_8px_rgba(var(--card-accent-rgb),0.15),0_1px_3px_rgba(0,0,0,0.08)]',
+        'hover:bg-[var(--card-surface-hover)] hover:-translate-y-1 hover:scale-[1.01]',
+        'hover:shadow-[0_8px_24px_rgba(var(--card-accent-rgb),0.28),0_4px_12px_rgba(0,0,0,0.12)]',
+        'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--card-accent)]',
+        preference.pinned
+          ? 'border-[var(--card-accent)] shadow-[0_2px_12px_rgba(var(--card-accent-rgb),0.15)] animate-pin-pop'
+          : '',
+        repository.available ? 'cursor-pointer' : '',
+      ].join(' ')}
+      hover={false}
+      style={surface as CSSProperties}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
@@ -54,8 +69,11 @@ export function PortfolioCard({
             <small className="block text-text-faint truncate">{repository.name}</small>
           )}
         </div>
-        <span className="shrink-0 mt-1" aria-hidden="true">
-          <Badge tone={statusTone}>{tone}</Badge>
+        <span
+          className="inline-flex items-center gap-1.5 shrink-0 mt-1 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]"
+        >
+          <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
+          {tone}
         </span>
       </div>
 
@@ -86,7 +104,7 @@ export function PortfolioCard({
         />
       </div>
 
-      <div className="ad-surface-soft p-4 text-sm">
+      <div className="bg-[var(--card-text-block-bg)] p-4 rounded-lg text-sm">
         <div className="flex items-center justify-between gap-2">
           <span className="text-text-muted">Recommendation</span>
           <strong className="text-text-primary text-right">{recommendationTitle(repository)}</strong>

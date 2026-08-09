@@ -9,19 +9,30 @@ interface ThemeContextValue {
   toggle: () => void
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null)
+const DEFAULT_THEME: ThemeContextValue = {
+  mode: 'system',
+  resolved: 'light',
+  setMode: () => undefined,
+  toggle: () => undefined,
+}
+
+const ThemeContext = createContext<ThemeContextValue>(DEFAULT_THEME)
 
 const STORAGE_KEY = 'adviser:theme'
 
 function resolve(mode: ThemeMode): 'light' | 'dark' {
   if (mode === 'system') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return typeof window !== 'undefined'
+      && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
   }
   return mode
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return 'system'
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
     return 'system'
@@ -60,7 +71,5 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 }
 
 export function useTheme(): ThemeContextValue {
-  const context = useContext(ThemeContext)
-  if (!context) throw new Error('useTheme must be used inside <ThemeProvider>')
-  return context
+  return useContext(ThemeContext)
 }
