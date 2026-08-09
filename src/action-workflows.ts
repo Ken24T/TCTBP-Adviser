@@ -53,7 +53,7 @@ export async function startWorkflowAction(
     case 'checkpoint':
       return startCheckpointAction(repositoryId, fingerprint, intent)
     case 'publish':
-      return startPublishAction(repositoryId, fingerprint)
+      return startPublishAction(repositoryId, fingerprint, intent)
     case 'branch-development':
       return startBranchDevelopmentAction(repositoryId, fingerprint)
     case 'repair-tctbp-script-compatibility':
