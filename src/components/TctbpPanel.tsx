@@ -21,27 +21,11 @@ export function TctbpPanel({ observation }: TctbpPanelProps) {
                 : `v${tctbp.contract.major}.${tctbp.contract.minor ?? 0}`,
             },
             { label: 'Advertised workflows', value: String(tctbp.workflows.length) },
+            { label: 'Managed surface', value: `${tctbp.scaffold.managedSurface.length} patterns` },
+            { label: 'Source version', value: tctbp.scaffold.sourceVersion ?? 'Unknown' },
             { label: 'Evidence basis', value: 'Local working copy + local tracking refs' },
           ]}
         />
-      </Panel>
-
-      <Panel eyebrow="Scaffold health" title={scaffoldTitle(tctbp.scaffold.status)}>
-        <KeyValue
-          items={[
-            { label: 'Managed surface', value: `${tctbp.scaffold.managedSurface.length} patterns` },
-            { label: 'Missing patterns', value: String(tctbp.scaffold.missingManagedPatterns.length) },
-            { label: 'Source version', value: tctbp.scaffold.sourceVersion ?? 'Unknown' },
-            { label: 'Source revision', value: tctbp.scaffold.sourceRevision?.slice(0, 10) ?? 'Unknown' },
-          ]}
-        />
-        {tctbp.scaffold.missingManagedPatterns.length > 0 && (
-          <ul className="mt-4 space-y-1.5 text-sm text-text-secondary list-disc list-inside">
-            {tctbp.scaffold.missingManagedPatterns.map((pattern) => (
-              <li key={pattern}><code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{pattern}</code></li>
-            ))}
-          </ul>
-        )}
       </Panel>
 
       <Panel eyebrow="Quality policy" title="Configured gates">
@@ -80,12 +64,6 @@ function KeyValue({ items }: { items: { label: string; value: string }[] }) {
       ))}
     </dl>
   )
-}
-
-function scaffoldTitle(status: 'complete' | 'incomplete' | 'unknown'): string {
-  if (status === 'complete') return 'Managed surface present'
-  if (status === 'incomplete') return 'Managed files missing'
-  return 'Source manifest unavailable'
 }
 
 function gateLabel(id: string): string {

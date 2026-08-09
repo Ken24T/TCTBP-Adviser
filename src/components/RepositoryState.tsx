@@ -2,22 +2,17 @@ import type { RepositoryObservation } from '../../shared/inspection'
 import {
   branchRoles,
   formatAge,
-  formatEvidenceValue,
   syncSummary,
   workingTreeSummary,
 } from '../presentation'
-import type { RecommendationResult } from '../../shared/recommendation'
-import { actionLabel, reasonLabel } from '../presentation'
 import { Card, KeyValue, Panel } from './primitives'
 
 interface RepositoryStateProps {
   observation: RepositoryObservation
-  recommendation: RecommendationResult
 }
 
 export function RepositoryState({
   observation,
-  recommendation,
 }: RepositoryStateProps) {
   const model = observation.tctbp.branchModel
   return (
@@ -57,57 +52,13 @@ export function RepositoryState({
         />
       </section>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        <Panel eyebrow="Branch model" title={model.strategy ?? 'Unknown strategy'}>
-          <KeyValue
-            items={[
-              ...branchRoles(model).map(({ role, branch }) => ({ key: role, value: <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{branch}</code> })),
-              { key: 'Current HEAD', value: <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{observation.head.sha?.slice(0, 8) ?? 'Unavailable'}</code> },
-            ]}
-          />
-        </Panel>
-
-        <Panel eyebrow="Guardrails" title="Blocked alternatives">
-          {recommendation.blockedActions.length > 0 ? (
-            <ul className="space-y-3">
-              {recommendation.blockedActions.map((blocked) => (
-                <li key={blocked.action} className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <strong className="block text-sm font-semibold text-red-900">{actionLabel(blocked.action)}</strong>
-                  <span className="text-sm text-red-700">{blocked.reasonCodes.map(reasonLabel).join('; ')}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-text-secondary">
-              No alternative workflow is blocked by the current recommendation.
-            </p>
-          )}
-        </Panel>
-      </div>
-
-      <Panel eyebrow="Explainability" title="Evidence used">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-text-muted">
-                <th className="pb-2 font-medium">Field</th>
-                <th className="pb-2 font-medium">Value</th>
-                <th className="pb-2 font-medium">Basis</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {recommendation.evidence.map((item) => (
-                <tr key={`${item.field}-${item.basis}`}>
-                  <td className="py-3 pr-4 text-text-secondary">{item.field}</td>
-                  <td className="py-3 pr-4 font-medium text-text-primary">
-                    <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{formatEvidenceValue(item.value)}</code>
-                  </td>
-                  <td className="py-3 text-text-faint">{item.basis}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <Panel eyebrow="Branch model" title={model.strategy ?? 'Unknown strategy'}>
+        <KeyValue
+          items={[
+            ...branchRoles(model).map(({ role, branch }) => ({ key: role, value: <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{branch}</code> })),
+            { key: 'Current HEAD', value: <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{observation.head.sha?.slice(0, 8) ?? 'Unavailable'}</code> },
+          ]}
+        />
       </Panel>
     </>
   )

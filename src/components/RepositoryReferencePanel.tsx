@@ -6,7 +6,6 @@ export function RepositoryReferencePanel({
 }: {
   reference: RepositoryReference
 }) {
-  const active = reference.guardrails.filter((guardrail) => guardrail.active)
   const applicable = reference.workflows.filter(
     (workflow) => workflow.advertised && workflow.applicableToCurrentBranch,
   )
@@ -40,30 +39,11 @@ export function RepositoryReferencePanel({
         <p className="text-text-secondary mb-6">No complete branch-role map is advertised.</p>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <h3 className="text-sm font-semibold text-text-primary mb-2">Applicable workflows</h3>
-          <div className="flex flex-wrap gap-2">
-            {applicable.map((workflow) => (
-              <Badge key={workflow.id} tone="accent">{workflow.displayName}</Badge>
-            ))}
-          </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-text-primary mb-2">Active guardrails</h3>
-          {active.length > 0 ? (
-            <ul className="space-y-2">
-              {active.map((guardrail) => (
-                <li key={guardrail.id} className="text-sm">
-                  <strong className="block text-text-primary">{guardrail.title}</strong>
-                  <span className="text-text-muted">{guardrail.safeResponse}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-text-secondary">No core guardrail is currently active.</p>
-          )}
-        </div>
+      <h3 className="text-sm font-semibold text-text-primary mb-2">Applicable workflows</h3>
+      <div className="flex flex-wrap gap-2">
+        {applicable.map((workflow) => (
+          <Badge key={workflow.id} tone="accent">{workflow.displayName}</Badge>
+        ))}
       </div>
     </section>
   )

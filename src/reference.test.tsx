@@ -64,7 +64,7 @@ describe('intent and reference views', () => {
     expect(markup).toContain('scripts/tctbp-run-checkpoint.js')
   })
 
-  it('renders branch roles and active guardrails for a repository', () => {
+  it('renders branch roles and applicable workflows for a repository', () => {
     const observation = observationFixture({
       clean: false,
       syncState: 'behind',
@@ -78,6 +78,6 @@ describe('intent and reference views', () => {
     expect(markup).toContain('Configured workflow path')
     expect(markup).toContain('development')
     expect(markup).toContain('staging')
-    expect(markup).toContain('Dirty and behind')
+    expect(markup).toContain('Applicable workflows')
   })
 })

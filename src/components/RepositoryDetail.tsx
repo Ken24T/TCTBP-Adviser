@@ -189,10 +189,7 @@ export function RepositoryDetail({
       </Section>
 
       <Section eyebrow="Repository details">
-        <RepositoryState
-          observation={observation}
-          recommendation={recommendation}
-        />
+        <RepositoryState observation={observation} />
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
           <div className="xl:col-span-7 space-y-8">

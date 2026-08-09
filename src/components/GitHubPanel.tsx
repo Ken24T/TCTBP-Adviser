@@ -3,7 +3,7 @@ import type {
   RepositoryGitHubEvidence,
 } from '../../shared/github'
 import { formatAge } from '../presentation'
-import { EmptyState, Panel, Badge } from './primitives'
+import { Panel, Badge } from './primitives'
 
 export function GitHubPanel({
   evidence,
@@ -16,27 +16,23 @@ export function GitHubPanel({
 }) {
   if (evidence.status === 'disabled') {
     return (
-      <ProviderNotice
-        title="GitHub enrichment is disabled"
-        message="Local advice remains available without provider access."
-      />
+      <p className="text-xs text-text-muted">
+        GitHub enrichment is disabled. Local advice is unaffected.
+      </p>
     )
   }
   if (evidence.status === 'not-mapped') {
     return (
-      <ProviderNotice
-        title="No GitHub repository mapping"
-        message="No supported GitHub origin was found for this local repository."
-      />
+      <p className="text-xs text-text-muted">
+        No GitHub repository mapping was found for this local repository.
+      </p>
     )
   }
   if (evidence.status === 'unavailable') {
     return (
-      <ProviderNotice
-        title="GitHub evidence is unavailable"
-        message={`${evidence.error.message} Local advice is unaffected.`}
-        retrievedAt={evidence.retrievedAt}
-      />
+      <p className="text-xs text-text-muted">
+        {evidence.error.message} Local advice is unaffected.
+      </p>
     )
   }
   if (evidence.status !== 'available') return null
@@ -103,24 +99,6 @@ export function GitHubPanel({
         evidence and do not alter the deterministic recommendation.
       </p>
     </Panel>
-  )
-}
-
-function ProviderNotice({
-  title,
-  message,
-  retrievedAt,
-}: {
-  title: string
-  message: string
-  retrievedAt?: string
-}) {
-  return (
-    <EmptyState
-      eyebrow="Separate provider evidence"
-      title={title}
-      description={message}
-    />
   )
 }
 
