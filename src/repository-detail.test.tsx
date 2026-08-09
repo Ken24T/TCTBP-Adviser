@@ -139,7 +139,7 @@ describe('repository detail view', () => {
     expect(markup).toContain('Intent-driven plan')
   })
 
-  it('shows the custom rename on the header, falling back to the directory name', () => {
+  it('shows rename, then display name, then directory name on the header', () => {
     const observation = observationFixture({ clean: false })
     const recommendation = recommend(
       observation,
@@ -155,11 +155,12 @@ describe('repository detail view', () => {
       directoryName: 'Fixture Directory',
     }
 
-    // Without a rename the header shows the on-disk directory name, not the
-    // lowercased repo slug.
-    expect(renderDetail(detail)).toContain('Fixture Directory')
+    // Without a rename the header shows the repository display name (the
+    // TCTBP project name), matching the portfolio card.
+    expect(renderDetail(detail)).toContain('fixture')
+    expect(renderDetail(detail)).not.toContain('Fixture Directory')
 
-    // A rename overrides the directory name in the header.
+    // A rename overrides the display name in the header.
     const renamed = renderDetail(detail, {
       [observation.repository.id]: {
         pinned: false,
@@ -169,6 +170,16 @@ describe('repository detail view', () => {
     })
     expect(renamed).toContain('Fixture Rename')
     expect(renamed).not.toContain('Fixture Directory')
+
+    // With neither a rename nor a display name, the directory name is used.
+    const noName: RepositoryDetailResult = {
+      ...detail,
+      observation: {
+        ...observation,
+        repository: { ...observation.repository, name: '' },
+      },
+    }
+    expect(renderDetail(noName)).toContain('Fixture Directory')
   })
 })
 

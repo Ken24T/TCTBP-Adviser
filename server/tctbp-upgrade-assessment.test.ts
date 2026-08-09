@@ -97,6 +97,36 @@ describe('TCTBP upgrade assessment', () => {
     ])
   })
 
+  it('treats the canonical source repo itself as current when HEAD equals the source revision', () => {
+    // The canonical source repo has no .tctbp/source.json (it is the origin,
+    // not a consumer), so its target source record is empty. Its HEAD SHA
+    // equals the canonical revision, which means its managed surface is the
+    // source surface — it must not recommend "Update TCTBP" for itself.
+    const assessment = assessTctbpUpgrade({
+      source,
+      target: {
+        sourceRepository: null,
+        sourceRevision: null,
+        sourceVersion: null,
+        headSha: source.revision,
+      },
+      drift: drift({ current: 1 }),
+      policy: alignedPolicy,
+      targetState: {
+        detached: false,
+        operationCount: 0,
+        workingTreeClean: true,
+        environmentBranch: false,
+        tctbpInstalled: true,
+        targetPolicyAvailable: true,
+      },
+    })
+
+    expect(assessment.sourceAlignment).toBe('current')
+    expect(assessment.disposition).toBe('current')
+    expect(assessment.blockers).toEqual([])
+  })
+
   it('keeps review-required on an environment branch when work exists', () => {
     const assessment = assessTctbpUpgrade({
       source,
@@ -115,6 +145,33 @@ describe('TCTBP upgrade assessment', () => {
 
     expect(assessment.disposition).toBe('review-required')
     expect(assessment.sourceAlignment).toBe('outdated')
+  })
+
+  it('prefers a recorded source revision over a matching HEAD when aligning', () => {
+    // A target that records an older source revision is outdated even when its
+    // HEAD SHA happens to equal the canonical revision (e.g. a consumer whose
+    // fixture commits coincide) — the recorded revision is the source of truth.
+    const assessment = assessTctbpUpgrade({
+      source,
+      target: {
+        ...target,
+        sourceRevision: 'b'.repeat(40),
+        headSha: source.revision,
+      },
+      drift: drift({ current: 1, review: 1 }),
+      policy: alignedPolicy,
+      targetState: {
+        detached: false,
+        operationCount: 0,
+        workingTreeClean: true,
+        environmentBranch: false,
+        tctbpInstalled: true,
+        targetPolicyAvailable: true,
+      },
+    })
+
+    expect(assessment.sourceAlignment).toBe('outdated')
+    expect(assessment.disposition).toBe('review-required')
   })
 
   it('reports safety blockers separately from review work', () => {
