@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { PortfolioRepository } from '../../shared/portfolio'
-import { actionLabel, dispositionLabel } from '../presentation'
+import {
+  portfolioTone,
+  recommendationTitle,
+  tctbpLabel,
+  upgradeLabel,
+} from '../presentation'
 import type { PortfolioPreference } from '../portfolio-preferences'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
 import { Button, Card } from './primitives'
+import { CardCallout } from './CardCallout'
 import { PortfolioCardMenu } from './PortfolioCardMenu'
 
 /** Matches the Intranet FunctionCard's FLIP_ANIMATION_DURATION (650 ms). */
@@ -37,11 +43,7 @@ export function PortfolioCard({
   startFlipped = false,
 }: PortfolioCardProps) {
   const displayName = preference.name.trim() || repository.name
-  const tone = repository.source === 'github-only'
-    ? repository.github.status === 'available' ? 'healthy' : 'attention'
-    : repository.available
-    ? repository.recommendation?.severity ?? 'attention'
-    : 'stop'
+  const tone = portfolioTone(repository)
 
   const statusTone = severityTone(tone)
 
@@ -59,6 +61,7 @@ export function PortfolioCard({
     startFlipped ? 'return' : null,
   )
   const [renaming, setRenaming] = useState(false)
+  const [calloutOpen, setCalloutOpen] = useState(false)
   const prevToneRef = useRef<string | null>(null)
   const [tonePulse, setTonePulse] = useState(false)
 
@@ -101,7 +104,14 @@ export function PortfolioCard({
   }
 
   return (
-    <div className="flip-card" style={surface}>
+    <div
+      className="flip-card relative"
+      style={surface}
+      onBlur={() => setCalloutOpen(false)}
+      onFocus={() => setCalloutOpen(true)}
+      onMouseEnter={() => setCalloutOpen(true)}
+      onMouseLeave={() => setCalloutOpen(false)}
+    >
       <div
         className={[
           'flip-card-inner',
@@ -160,6 +170,7 @@ export function PortfolioCard({
             githubUrl={githubUrl(repository)}
             hidden={preference.hidden}
             onOpen={activate}
+            onOpenChange={(open) => { if (open) setCalloutOpen(false) }}
             onRefresh={onRefresh}
             onRename={() => setRenaming(true)}
             onToggleHide={() => onPreferenceChange({ hidden: !preference.hidden })}
@@ -213,6 +224,7 @@ export function PortfolioCard({
           <small className="flip-card-back-sub">{displayName}</small>
         </div>
       </div>
+      <CardCallout repository={repository} visible={calloutOpen} />
     </div>
   )
 }
@@ -255,44 +267,10 @@ function RenameRow({
   )
 }
 
-function recommendationTitle(repository: PortfolioRepository): string {
-  if (repository.source === 'github-only') {
-    return repository.github.status === 'available'
-      ? 'Local recommendation unavailable'
-      : 'GitHub evidence unavailable'
-  }
-  if (!repository.available) return 'Inspection unavailable'
-  const recommendation = repository.recommendation
-  if (!recommendation) return 'Recommendation unavailable'
-  if (recommendation.reasonCodes.includes('tctbp-not-installed')) {
-    return 'Install TCTBP'
-  }
-  if (recommendation.reasonCodes.includes('tctbp-contract-incompatible')) {
-    return 'Review TCTBP compatibility'
-  }
-  return recommendation.primaryAction
-    ? actionLabel(recommendation.primaryAction)
-    : dispositionLabel(recommendation.disposition)
-}
-
 function githubUrl(repository: PortfolioRepository): string | null {
   return repository.github.status === 'available'
     ? repository.github.repository.htmlUrl
     : null
-}
-
-function tctbpLabel(repository: PortfolioRepository): string {
-  if (!repository.tctbp) return 'TCTBP unknown'
-  if (!repository.tctbp.installed) return 'TCTBP not installed'
-  if (!repository.tctbp.compatible) return 'TCTBP incompatible'
-  return `TCTBP schema ${repository.tctbp.schemaVersion ?? 'unknown'}`
-}
-
-function upgradeLabel(disposition: NonNullable<PortfolioRepository['upgrade']>['disposition']): string {
-  if (disposition === 'current') return 'TCTBP current'
-  if (disposition === 'bootstrap-required') return 'TCTBP bootstrap required'
-  if (disposition === 'source-unavailable') return 'TCTBP source unavailable'
-  return 'TCTBP review required'
 }
 
 function upgradeTone(disposition: NonNullable<PortfolioRepository['upgrade']>['disposition']): 'success' | 'warning' | 'info' | 'danger' {

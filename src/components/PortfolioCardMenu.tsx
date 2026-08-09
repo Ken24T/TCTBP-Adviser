@@ -19,6 +19,7 @@ interface PortfolioCardMenuProps {
   onOpen: () => void
   onRefresh: () => void
   onRename: () => void
+  onOpenChange?: (open: boolean) => void
 }
 
 const TONE_DOTS: Record<string, string> = {
@@ -53,9 +54,14 @@ export function PortfolioCardMenu({
   onOpen,
   onRefresh,
   onRename,
+  onOpenChange,
 }: PortfolioCardMenuProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    onOpenChange?.(open)
+  }, [onOpenChange, open])
 
   // Actions close the dropdown before running, so the menu never lingers
   // after a selection.

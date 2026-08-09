@@ -7,6 +7,7 @@ import type {
   RecommendationDisposition,
   RecommendationReasonCode,
 } from '../shared/recommendation'
+import type { PortfolioRepository } from '../shared/portfolio'
 
 const ACTION_LABELS: Record<RecommendationAction, string> = {
   'refresh-inspection': 'Refresh inspection',
@@ -122,4 +123,52 @@ export function branchRoles(model: BranchModelObservation) {
     (entry): entry is { role: string; branch: string } =>
       entry.branch !== null,
   )
+}
+
+/** Card severity tone, mirroring the recommendation's colour family. */
+export function portfolioTone(
+  repository: PortfolioRepository,
+): 'action-recommended' | 'attention' | 'stop' | 'healthy' {
+  if (repository.source === 'github-only') {
+    return repository.github.status === 'available' ? 'healthy' : 'attention'
+  }
+  if (!repository.available) return 'stop'
+  return repository.recommendation?.severity ?? 'attention'
+}
+
+/** The one-line "Recommended" action shown on the card face. */
+export function recommendationTitle(repository: PortfolioRepository): string {
+  if (repository.source === 'github-only') {
+    return repository.github.status === 'available'
+      ? 'Local recommendation unavailable'
+      : 'GitHub evidence unavailable'
+  }
+  if (!repository.available) return 'Inspection unavailable'
+  const recommendation = repository.recommendation
+  if (!recommendation) return 'Recommendation unavailable'
+  if (recommendation.reasonCodes.includes('tctbp-not-installed')) {
+    return 'Install TCTBP'
+  }
+  if (recommendation.reasonCodes.includes('tctbp-contract-incompatible')) {
+    return 'Review TCTBP compatibility'
+  }
+  return recommendation.primaryAction
+    ? actionLabel(recommendation.primaryAction)
+    : dispositionLabel(recommendation.disposition)
+}
+
+export function tctbpLabel(repository: PortfolioRepository): string {
+  if (!repository.tctbp) return 'TCTBP unknown'
+  if (!repository.tctbp.installed) return 'TCTBP not installed'
+  if (!repository.tctbp.compatible) return 'TCTBP incompatible'
+  return `TCTBP schema ${repository.tctbp.schemaVersion ?? 'unknown'}`
+}
+
+export function upgradeLabel(
+  disposition: NonNullable<PortfolioRepository['upgrade']>['disposition'],
+): string {
+  if (disposition === 'current') return 'TCTBP current'
+  if (disposition === 'bootstrap-required') return 'TCTBP bootstrap required'
+  if (disposition === 'source-unavailable') return 'TCTBP source unavailable'
+  return 'TCTBP review required'
 }
