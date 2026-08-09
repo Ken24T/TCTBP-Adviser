@@ -188,4 +188,20 @@
       transform: translateY(0);
     }
   }
+
+  .animate-pin-pop {
+    animation: pinPop 0.4s ease-out;
+  }
+
+  @keyframes pinPop {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.04);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
 }

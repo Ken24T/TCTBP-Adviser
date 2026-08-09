@@ -1,4 +1,9 @@
-import { type ButtonHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import {
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react'
 
 export function Button({
   children,
@@ -38,10 +43,12 @@ export function Card({
   children,
   className = '',
   hover = false,
+  style,
 }: {
   children: ReactNode
   className?: string
   hover?: boolean
+  style?: CSSProperties
 }) {
   return (
     <div
@@ -50,6 +57,7 @@ export function Card({
         hover ? 'hover:shadow-lg hover:border-teal-300 cursor-pointer' : '',
         className,
       ].join(' ')}
+      style={style}
     >
       {children}
     </div>
