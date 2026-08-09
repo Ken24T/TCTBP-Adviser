@@ -84,8 +84,17 @@ function resolveSourceAlignment(
     target.sourceRepository
     && target.sourceRepository !== 'Ken24T/TCTBP-Web'
   ) return 'different-source'
-  if (!target.sourceRevision) return 'unknown'
-  return target.sourceRevision === source.revision ? 'current' : 'outdated'
+  // A recorded source revision is the source of truth: the target was
+  // scaffolded from that revision, so compare directly.
+  if (target.sourceRevision) {
+    return target.sourceRevision === source.revision ? 'current' : 'outdated'
+  }
+  // No source record: this is the canonical source repo itself (the origin
+  // does not scaffold from anywhere). When its HEAD equals the canonical
+  // revision, its managed surface is by definition the source surface, so
+  // align it as current instead of reporting an empty-record 'unknown'.
+  if (target.headSha && target.headSha === source.revision) return 'current'
+  return 'unknown'
 }
 
 function countActions(drift: ManagedFileDriftPlan): ManagedFileActionCounts {
