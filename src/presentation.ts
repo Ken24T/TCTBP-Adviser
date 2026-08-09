@@ -146,6 +146,18 @@ export function recommendationTitle(repository: PortfolioRepository): string {
   if (!repository.available) return 'Inspection unavailable'
   const recommendation = repository.recommendation
   if (!recommendation) return 'Recommendation unavailable'
+  return recommendationTitleFor(recommendation)
+}
+
+/** The "Recommended" title derived directly from a recommendation result. */
+export function recommendationTitleFor(
+  recommendation: {
+    disposition: RecommendationDisposition
+    primaryAction: RecommendationAction | null
+    reasonCodes: RecommendationReasonCode[]
+  } | null,
+): string {
+  if (!recommendation) return 'Recommendation unavailable'
   if (recommendation.reasonCodes.includes('tctbp-not-installed')) {
     return 'Install TCTBP'
   }

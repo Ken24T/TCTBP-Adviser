@@ -3,6 +3,7 @@ import type {
   ActionerJobStart,
   ActionerWorkflowId,
 } from '../shared/actioner'
+import type { RecommendationAction } from '../shared/recommendation'
 import {
   startBranchDevelopmentAction,
   startCheckpointAction,
@@ -28,6 +29,17 @@ export const ACTION_CONFIRMATIONS: Record<ActionerWorkflowId, string> = {
   'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
   ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
   'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
+}
+
+/** Maps a state-driven recommendation to the workflow that implements it. */
+export function workflowForRecommendation(
+  action: RecommendationAction | null,
+): ActionerWorkflowId | null {
+  if (action === 'checkpoint') return 'checkpoint'
+  if (action === 'publish') return 'publish'
+  if (action === 'resume') return 'resume'
+  if (action === 'handover') return 'handover'
+  return null
 }
 
 /** Starts a workflow action against the selected repository. */

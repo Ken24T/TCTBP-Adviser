@@ -7,9 +7,12 @@ interface RepositoryDetailHeroProps {
   name: string
   description: string
   severity: 'action-recommended' | 'attention' | 'stop' | 'healthy'
+  recommendedAction?: string | null
   onBack?: () => void
   onRefresh?: () => void
+  onRunRecommended?: () => void
   busy?: boolean
+  runBusy?: boolean
 }
 
 /**
@@ -22,9 +25,12 @@ export function RepositoryDetailHero({
   name,
   description,
   severity,
+  recommendedAction,
   onBack,
   onRefresh,
+  onRunRecommended,
   busy = false,
+  runBusy = false,
 }: RepositoryDetailHeroProps) {
   const { resolved } = useTheme()
   const isDark = resolved === 'dark'
@@ -65,6 +71,12 @@ export function RepositoryDetailHero({
               <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
               {severity}
             </span>
+            {recommendedAction && (
+              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
+                <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
+                Recommended: {recommendedAction}
+              </span>
+            )}
           </div>
           <h1 className="mt-2 text-4xl font-semibold text-text-primary tracking-tight">
             {name}
@@ -80,10 +92,20 @@ export function RepositoryDetailHero({
           <Badge surface style={pillSurfaceVars('success', isDark)}>
             Read-only
           </Badge>
+          {onRunRecommended && recommendedAction && (
+            <Button
+              disabled={busy || runBusy}
+              size="sm"
+              variant="card-primary"
+              onClick={onRunRecommended}
+            >
+              {runBusy ? 'Starting…' : `Run ${recommendedAction}`}
+            </Button>
+          )}
           <Button
             disabled={busy}
             size="sm"
-            variant="card-primary"
+            variant="card-tertiary"
             onClick={onRefresh}
           >
             {busy ? 'Inspecting…' : 'Refresh'}

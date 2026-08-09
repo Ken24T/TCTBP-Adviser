@@ -46,6 +46,7 @@ describe('repository detail view', () => {
         onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
+        onRunRecommended={() => undefined}
         onLoadUpgradePlan={() => undefined}
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
@@ -56,6 +57,8 @@ describe('repository detail view', () => {
 
     expect(markup).toContain('fixture')
     expect(markup).toContain('Checkpoint')
+    expect(markup).toContain('Recommended: Checkpoint')
+    expect(markup).toContain('Run Checkpoint')
     expect(markup).toContain('checkpoint please')
     expect(markup).toContain('1 staged')
     expect(markup).toContain('development')
@@ -111,8 +114,7 @@ describe('repository detail view', () => {
         onPrepareBootstrap={() => undefined}
         onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
-        onRefresh={() => undefined}
-        onLoadUpgradePlan={() => undefined}
+        onRefresh={() => undefined}        onRunRecommended={() => undefined}        onLoadUpgradePlan={() => undefined}
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}

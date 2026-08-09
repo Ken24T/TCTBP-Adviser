@@ -29,7 +29,6 @@ import {
   prepareTctbpBootstrap,
   refreshRepositoryOnServer,
 } from './api-client'
-import { ACTION_CONFIRMATIONS, startWorkflowAction } from './action-workflows'
 import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
@@ -37,14 +36,16 @@ import { ReferenceExplorer } from './components/ReferenceExplorer'
 import { SettingsPanel } from './components/SettingsPanel'
 import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
 import { usePortfolioPreferences } from './use-portfolio-preferences'
+import { useWorkflowActions } from './use-workflow-actions'
 
-// File-size note: 572 lines — above the 400-line warning threshold but below the 600-line hard split.
+// File-size note: under 600 lines — above the 400-line warning threshold but below the 600-line hard split.
 // App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
 // view routing. The presentational layers are already extracted (TopNav, ErrorBanner, LoadingState,
 // and the view components), workflow-action confirmation/start maps live in action-workflows.ts, the
-// shared view reset lives in resetSession(), and the portfolio-preferences state (hydration from the
-// shared server file plus debounced saves) lives in use-portfolio-preferences.ts. Splitting further
-// means extracting the coupled async handlers and state into a custom hook (e.g. useAdviser),
+// shared view reset lives in resetSession(), the portfolio-preferences state (hydration from the
+// shared server file plus debounced saves) lives in use-portfolio-preferences.ts, and the workflow
+// action runner (runAction / runRecommendedAction) lives in use-workflow-actions.ts. Splitting
+// further means extracting the remaining coupled async handlers into a custom hook (e.g. useAdviser),
 // deferred as a larger, riskier refactor.
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
@@ -78,6 +79,18 @@ function App() {
   const started = useRef(false)
   const mutatedRef = useRef(false)
   const returningIdRef = useRef<string | null>(null)
+  const { runAction, runRecommendedAction } = useWorkflowActions({
+    detail,
+    intent,
+    refreshDetail,
+    reportError: (cause) => captureError(cause, requestId.current),
+    selectedId,
+    setActionBusy,
+    setActionFeedback,
+    setActionJob,
+    setError,
+    setIntent,
+  })
 
   useEffect(() => {
     if (
@@ -134,39 +147,6 @@ function App() {
     }, 500)
     return () => window.clearTimeout(timer)
   }, [actionJob, intent, selectedId])
-
-  async function runAction(workflowId: ActionerWorkflowId): Promise<void> {
-    if (!selectedId || !detail?.intentPlan?.fingerprint) return
-    if (!window.confirm(ACTION_CONFIRMATIONS[workflowId])) return
-    setActionBusy(true)
-    setActionFeedback(null)
-    setError(null)
-    try {
-      const startedJob = await startWorkflowAction(
-        workflowId,
-        selectedId,
-        detail.intentPlan.fingerprint,
-        detail.intentPlan.intent,
-      )
-      setActionJob({
-        jobId: startedJob.jobId,
-        repositoryId: selectedId,
-        workflowId,
-        status: 'queued',
-        steps: [],
-        result: null,
-        error: null,
-        startedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        completedAt: null,
-      })
-    } catch (cause) {
-      setActionBusy(false)
-      const message = cause instanceof Error ? cause.message : 'Action could not start.'
-      setActionFeedback(message)
-      captureError(cause, requestId.current)
-    }
-  }
 
   async function refreshPortfolio(force = false): Promise<void> {
     const currentRequest = ++requestId.current
@@ -535,6 +515,7 @@ function App() {
             actionBusy={actionBusy}
             actionFeedback={actionFeedback}
             onRunAction={(workflowId) => void runAction(workflowId)}
+            onRunRecommended={() => void runRecommendedAction()}
             onRepairCompatibility={() => void runAction('repair-tctbp-script-compatibility')}
             intent={intent}
             busy={busy}

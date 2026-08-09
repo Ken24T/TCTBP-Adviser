@@ -10,6 +10,8 @@ import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import { Panel, Select } from './primitives'
 import { cardSurfaceVars, severityTone } from '../card-surface'
+import { recommendationTitleFor } from '../presentation'
+import { workflowForRecommendation } from '../action-workflows'
 import { useTheme } from '../theme'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
 import { RecommendationPanel } from './RecommendationPanel'
@@ -47,6 +49,7 @@ interface RepositoryDetailProps {
   onBack?: () => void
   onIntentChange: (intent: RecommendationIntent) => void
   onRefresh: () => void
+  onRunRecommended: () => void
   onLoadUpgradePlan: () => void
   onReviewAi: () => void
   onApplyAdditions: () => void
@@ -79,6 +82,7 @@ export function RepositoryDetail({
   onBack,
   onIntentChange,
   onRefresh,
+  onRunRecommended,
   onLoadUpgradePlan,
   onReviewAi,
   onApplyAdditions,
@@ -88,6 +92,11 @@ export function RepositoryDetail({
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
     ?? 'No project description is available in the TCTBP profile.'
+  const recommendedAction = recommendationTitleFor(recommendation)
+  const canRunRecommended = Boolean(
+    recommendation.primaryAction
+    && workflowForRecommendation(recommendation.primaryAction),
+  )
 
   const { resolved } = useTheme()
   const surface = cardSurfaceVars(
@@ -103,6 +112,9 @@ export function RepositoryDetail({
         name={observation.repository.name}
         onBack={onBack}
         onRefresh={onRefresh}
+        onRunRecommended={canRunRecommended ? onRunRecommended : undefined}
+        recommendedAction={recommendedAction}
+        runBusy={actionBusy}
         severity={recommendation.severity}
       />
 
