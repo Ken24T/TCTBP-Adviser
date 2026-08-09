@@ -102,7 +102,7 @@ function App() {
     ) return
     const timer = window.setTimeout(() => {
       void loadTctbpBootstrapJob(selectedId, bootstrapJob.jobId)
-        .then((nextJob) => {
+        .then(async (nextJob) => {
           setBootstrapJob(nextJob)
           if (nextJob.status === 'completed') {
             mutatedRef.current = true
@@ -110,10 +110,14 @@ function App() {
             setBootstrapApplyFeedback(
               `Bootstrap completed on ${nextJob.result?.branch ?? 'the dedicated branch'} with ${nextJob.result?.appliedPaths.length ?? 0} file(s). Review and checkpoint before publishing.`,
             )
-            void refreshDetail(selectedId, intent)
+            await refreshDetail(selectedId, intent)
             // The bootstrap changes the working tree — refresh the upgrade
-            // plan too so the panel never shows a stale plan.
-            if (upgradePlan) void refreshUpgradePlan(selectedId)
+            // plan too so the panel never shows a stale plan. Run it only
+            // after the detail refresh has settled: both share
+            // requestId.current, so starting them concurrently makes
+            // refreshUpgradePlan invalidate refreshDetail's result — the
+            // detail stays stale and its busy flag never clears.
+            if (upgradePlan) await refreshUpgradePlan(selectedId)
           } else if (nextJob.status === 'failed') {
             setBootstrapApplyBusy(false)
             setBootstrapApplyFeedback(nextJob.error ?? 'Bootstrap failed before completion.')
@@ -133,22 +137,25 @@ function App() {
     ) return
     const timer = window.setTimeout(() => {
       void loadActionerJob(selectedId, actionJob.jobId)
-        .then((nextJob) => {
+        .then(async (nextJob) => {
           setActionJob(nextJob)
           if (nextJob.status === 'completed' || nextJob.status === 'failed') {
             if (nextJob.status === 'completed') mutatedRef.current = true
             setActionBusy(false)
-            void refreshDetail(selectedId, intent).then((refreshed) => {
-              if (!refreshed) {
-                setActionFeedback(
-                  `${nextJob.workflowId} completed, but the Adviser could not refresh repository state. Refresh manually before continuing.`,
-                )
-              }
-            })
+            const refreshed = await refreshDetail(selectedId, intent)
+            if (!refreshed) {
+              setActionFeedback(
+                `${nextJob.workflowId} completed, but the Adviser could not refresh repository state. Refresh manually before continuing.`,
+              )
+            }
             // Checkpoint/publish/apply change the repository state — refresh
-            // the upgrade plan so it never shows a stale plan after an action.
+            // the upgrade plan so it never shows a stale plan after an
+            // action. Run it only after the detail refresh has settled:
+            // both share requestId.current, so starting them concurrently
+            // makes refreshUpgradePlan invalidate refreshDetail's result —
+            // the detail stays stale and its busy flag never clears.
             if (nextJob.status === 'completed' && upgradePlan) {
-              void refreshUpgradePlan(selectedId)
+              await refreshUpgradePlan(selectedId)
             }
           }
         })

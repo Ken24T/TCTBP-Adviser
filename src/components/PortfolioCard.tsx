@@ -22,6 +22,8 @@ const CALLOUT_WIDTH_PX = 288
 const CALLOUT_HEIGHT_ESTIMATE_PX = 320
 /** Gap between the card and its callout. */
 const CALLOUT_GAP_PX = 8
+/** Wait before showing the callout so a quick mouse pass doesn't flash it. */
+const CALLOUT_OPEN_DELAY_MS = 300
 /** Allow crossing the gap between card and callout without closing. */
 const CALLOUT_CLOSE_DELAY_MS = 180
 
@@ -74,6 +76,7 @@ export function PortfolioCard({
   const [calloutPlacement, setCalloutPlacement] = useState<CardCalloutPlacement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const calloutCloseTimerRef = useRef<number | null>(null)
+  const calloutOpenTimerRef = useRef<number | null>(null)
   const prevToneRef = useRef<string | null>(null)
   const [tonePulse, setTonePulse] = useState(false)
 
@@ -100,6 +103,9 @@ export function PortfolioCard({
   useEffect(() => () => {
     if (calloutCloseTimerRef.current !== null) {
       window.clearTimeout(calloutCloseTimerRef.current)
+    }
+    if (calloutOpenTimerRef.current !== null) {
+      window.clearTimeout(calloutOpenTimerRef.current)
     }
   }, [])
 
@@ -132,7 +138,17 @@ export function PortfolioCard({
     return { left, top }
   }
 
+  /** Cancel a pending (not yet shown) callout open. */
+  function cancelPendingOpen(): void {
+    if (calloutOpenTimerRef.current !== null) {
+      window.clearTimeout(calloutOpenTimerRef.current)
+      calloutOpenTimerRef.current = null
+    }
+  }
+
+  /** Show the callout immediately (keyboard focus, or mouse already over it). */
   function openCallout(): void {
+    cancelPendingOpen()
     if (calloutCloseTimerRef.current !== null) {
       window.clearTimeout(calloutCloseTimerRef.current)
       calloutCloseTimerRef.current = null
@@ -143,8 +159,18 @@ export function PortfolioCard({
     }
   }
 
+  /** Show the callout after a short delay so a quick mouse pass doesn't flash it. */
+  function scheduleOpenCallout(): void {
+    if (calloutOpen || calloutOpenTimerRef.current !== null) return
+    calloutOpenTimerRef.current = window.setTimeout(() => {
+      calloutOpenTimerRef.current = null
+      openCallout()
+    }, CALLOUT_OPEN_DELAY_MS)
+  }
+
   /** Close after a short delay so moving across the gap stays open. */
   function scheduleCloseCallout(): void {
+    cancelPendingOpen()
     if (calloutCloseTimerRef.current !== null) return
     calloutCloseTimerRef.current = window.setTimeout(() => {
       calloutCloseTimerRef.current = null
@@ -154,6 +180,7 @@ export function PortfolioCard({
   }
 
   function closeCallout(): void {
+    cancelPendingOpen()
     if (calloutCloseTimerRef.current !== null) {
       window.clearTimeout(calloutCloseTimerRef.current)
       calloutCloseTimerRef.current = null
@@ -187,7 +214,7 @@ export function PortfolioCard({
       style={surface}
       onBlur={closeCallout}
       onFocus={openCallout}
-      onMouseEnter={openCallout}
+      onMouseEnter={scheduleOpenCallout}
       onMouseLeave={scheduleCloseCallout}
     >
       <div
