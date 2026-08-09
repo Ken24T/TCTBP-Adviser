@@ -41,6 +41,23 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Opening repository')
   })
 
+  it('shows the inspecting state on the card back face while refreshing', () => {
+    const snapshot = portfolioFixture()
+    const markup = renderToStaticMarkup(
+      <PortfolioDashboard
+        busy
+        snapshot={snapshot}
+        preferences={{}}
+        query=""
+        onOpen={() => undefined}
+        onPreferenceChange={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Inspecting repository')
+    expect(markup).not.toContain('Opening repository')
+  })
+
   it('omits hidden repositories from the initial view', () => {
     const snapshot = portfolioFixture()
     const markup = renderToStaticMarkup(

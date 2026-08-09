@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { pillSurfaceVars } from '../card-surface'
 import { useTheme } from '../theme'
 import { Badge, Button } from './primitives'
@@ -27,9 +28,24 @@ export function RepositoryDetailHero({
 }: RepositoryDetailHeroProps) {
   const { resolved } = useTheme()
   const isDark = resolved === 'dark'
+  const prevSeverity = useRef(severity)
+  const [pulse, setPulse] = useState(false)
+
+  useEffect(() => {
+    if (prevSeverity.current === severity) return
+    prevSeverity.current = severity
+    setPulse(true)
+    const timer = window.setTimeout(() => setPulse(false), 700)
+    return () => window.clearTimeout(timer)
+  }, [severity])
 
   return (
-    <section className="bg-[var(--card-surface)] border-t-[3px] border-t-[var(--card-accent)] rounded-2xl p-6 lg:p-8 shadow-[0_2px_12px_rgba(var(--card-accent-rgb),0.15)]">
+    <section
+      className={[
+        'bg-[var(--card-surface)] border-t-[3px] border-t-[var(--card-accent)] rounded-2xl p-6 lg:p-8 shadow-[0_2px_12px_rgba(var(--card-accent-rgb),0.15)]',
+        pulse ? 'animate-tone-pulse' : '',
+      ].join(' ')}
+    >
       <div className="flex flex-col lg:flex-row lg:items-start gap-6 justify-between">
         <div className="max-w-3xl">
           {onBack && (

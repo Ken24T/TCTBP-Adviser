@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { PortfolioRepository } from '../../shared/portfolio'
 import {
   actionLabel,
@@ -14,11 +14,19 @@ import { Badge, Button, Card } from './primitives'
 /** Matches the Intranet FunctionCard's FLIP_ANIMATION_DURATION (650 ms). */
 const FLIP_DURATION_MS = 650
 
+/**
+ * Session-scoped last-seen tone per repository, so a card can pulse when its
+ * severity changes even across portfolio remounts (e.g. returning after an
+ * action refreshed the snapshot).
+ */
+const lastSeenTone = new Map<string, string>()
+
 interface PortfolioCardProps {
   repository: PortfolioRepository
   preference: PortfolioPreference
   onOpen: () => void
   onPreferenceChange: (patch: Partial<PortfolioPreference>) => void
+  busy?: boolean
 }
 
 export function PortfolioCard({
@@ -26,6 +34,7 @@ export function PortfolioCard({
   preference,
   onOpen,
   onPreferenceChange,
+  busy = false,
 }: PortfolioCardProps) {
   const displayName = preference.name.trim() || repository.name
   const tone = repository.source === 'github-only'
@@ -41,6 +50,20 @@ export function PortfolioCard({
   const surface = cardSurfaceVars(statusTone, isDark)
   const canOpen = repository.available && repository.source === 'local'
   const [flipping, setFlipping] = useState(false)
+  const prevToneRef = useRef<string | null>(null)
+  const [tonePulse, setTonePulse] = useState(false)
+
+  useEffect(() => {
+    const previous = prevToneRef.current ?? lastSeenTone.get(repository.id)
+    prevToneRef.current = tone
+    lastSeenTone.set(repository.id, tone)
+    if (previous !== undefined && previous !== tone) {
+      setTonePulse(true)
+      const timer = window.setTimeout(() => setTonePulse(false), 700)
+      return () => window.clearTimeout(timer)
+    }
+    return undefined
+  }, [repository.id, tone])
 
   function activate(): void {
     if (!canOpen || flipping) return
@@ -77,6 +100,7 @@ export function PortfolioCard({
             preference.pinned
               ? 'border-[var(--card-accent)] shadow-[0_2px_12px_rgba(var(--card-accent-rgb),0.15)] animate-pin-pop'
               : '',
+            tonePulse ? 'animate-tone-pulse' : '',
             canOpen ? 'cursor-pointer' : '',
           ].join(' ')}
           hover={false}
@@ -230,7 +254,9 @@ export function PortfolioCard({
         </Card>
         <div className="flip-card-face flip-card-back" aria-hidden="true">
           <span className="flip-card-back-dot" />
-          <strong className="flip-card-back-title">Opening repository…</strong>
+          <strong className="flip-card-back-title">
+            {busy ? 'Inspecting repository…' : 'Opening repository…'}
+          </strong>
           <small className="flip-card-back-sub">{displayName}</small>
         </div>
       </div>

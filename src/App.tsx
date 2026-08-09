@@ -3,7 +3,7 @@ import { useTheme } from './theme'
 import { ErrorBanner } from './components/ErrorBanner'
 import { LoadingState } from './components/LoadingState'
 import { TopNav } from './components/TopNav'
-import type { ActionerJob, ActionerJobStart, ActionerWorkflowId } from '../shared/actioner'
+import type { ActionerJob, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -19,16 +19,6 @@ import {
   loadPortfolio,
   loadReferenceCatalogue,
   loadActionerJob,
-  startCheckpointAction,
-  startBranchDevelopmentAction,
-  startDeployDevelopmentAction,
-  startPromoteReviewAction,
-  startPromoteProductionAction,
-  startShipAction,
-  startHandoverAction,
-  startResumeAction,
-  startRepairCompatibilityAction,
-  startPublishAction,
   applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
   startTctbpBootstrap,
@@ -38,6 +28,7 @@ import {
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
 } from './api-client'
+import { ACTION_CONFIRMATIONS, startWorkflowAction } from './action-workflows'
 import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
@@ -52,11 +43,12 @@ import {
   type PortfolioPreferences,
 } from './portfolio-preferences'
 
-// File-size note: 587 lines — above the 400-line warning threshold but below the 600-line hard split.
+// File-size note: 577 lines — above the 400-line warning threshold but below the 600-line hard split.
 // App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
 // view routing. The presentational layers are already extracted (TopNav, ErrorBanner, LoadingState,
-// and the view components). Splitting further means extracting the coupled async handlers and state
-// into a custom hook (e.g. useAdviser), which is deferred as a larger, riskier refactor.
+// and the view components), workflow-action confirmation/start maps live in action-workflows.ts, and
+// the shared view reset lives in resetSession(). Splitting further means extracting the coupled async
+// handlers and state into a custom hook (e.g. useAdviser), deferred as a larger, riskier refactor.
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
@@ -147,40 +139,17 @@ function App() {
 
   async function runAction(workflowId: ActionerWorkflowId): Promise<void> {
     if (!selectedId || !detail?.intentPlan?.fingerprint) return
-    const confirmations: Record<ActionerWorkflowId, string> = {
-      checkpoint: 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
-      publish: 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.',
-      'branch-development': 'Create and switch to the configured development branch? No publish or deployment will occur.',
-      'repair-tctbp-script-compatibility': 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.',
-      handover: 'Create continuation context and publish the current branch for another machine.',
-      resume: 'Reconcile the clean local branch with its origin state. No force update will occur.',
-      'promote-review': 'Promote the current development branch into review? This will merge, verify, and publish review. No deployment will occur.',
-      'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
-      ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
-      'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
-    }
-    if (!window.confirm(confirmations[workflowId])) return
+    if (!window.confirm(ACTION_CONFIRMATIONS[workflowId])) return
     setActionBusy(true)
     setActionFeedback(null)
     setError(null)
     try {
-      const starters: Record<ActionerWorkflowId, () => Promise<ActionerJobStart>> = {
-        checkpoint: () => startCheckpointAction(
-          selectedId,
-          detail.intentPlan!.fingerprint,
-          detail.intentPlan!.intent,
-        ),
-        publish: () => startPublishAction(selectedId, detail.intentPlan!.fingerprint),
-        'branch-development': () => startBranchDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
-        'repair-tctbp-script-compatibility': () => startRepairCompatibilityAction(selectedId, detail.intentPlan!.fingerprint),
-        handover: () => startHandoverAction(selectedId, detail.intentPlan!.fingerprint),
-        resume: () => startResumeAction(selectedId, detail.intentPlan!.fingerprint),
-        'promote-review': () => startPromoteReviewAction(selectedId, detail.intentPlan!.fingerprint),
-        'promote-production': () => startPromoteProductionAction(selectedId, detail.intentPlan!.fingerprint),
-        ship: () => startShipAction(selectedId, detail.intentPlan!.fingerprint),
-        'deploy-development': () => startDeployDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
-      }
-      const startedJob = await starters[workflowId]()
+      const startedJob = await startWorkflowAction(
+        workflowId,
+        selectedId,
+        detail.intentPlan.fingerprint,
+        detail.intentPlan.intent,
+      )
       setActionJob({
         jobId: startedJob.jobId,
         repositoryId: selectedId,
@@ -441,10 +410,8 @@ function App() {
     })()
   }
 
-  function showPortfolio(): void {
-    requestId.current += 1
+  function resetSession(): void {
     setSelectedId(null)
-    setReferenceOpen(false)
     setDetail(null)
     setUpgradePlan(null)
     setUpgradeBusy(false)
@@ -461,6 +428,12 @@ function App() {
     setActionBusy(false)
     setActionFeedback(null)
     setIntent('none')
+  }
+
+  function showPortfolio(): void {
+    requestId.current += 1
+    resetSession()
+    setReferenceOpen(false)
     setSettingsOpen(false)
     setBusy(false)
     setError(null)
@@ -472,23 +445,7 @@ function App() {
 
   function showReference(): void {
     requestId.current += 1
-    setSelectedId(null)
-    setDetail(null)
-    setUpgradePlan(null)
-    setUpgradeBusy(false)
-    setApplyBusy(false)
-    setUpgradeFeedback(null)
-    setAiReview(null)
-    setAiBusy(false)
-    setBootstrapPlan(null)
-    setBootstrapBusy(false)
-    setBootstrapApplyBusy(false)
-    setBootstrapApplyFeedback(null)
-    setBootstrapJob(null)
-    setActionJob(null)
-    setActionBusy(false)
-    setActionFeedback(null)
-    setIntent('none')
+    resetSession()
     setSettingsOpen(false)
     setReferenceOpen(true)
     setError(null)
@@ -498,25 +455,9 @@ function App() {
 
   function showSettings(): void {
     requestId.current += 1
-    setSelectedId(null)
+    resetSession()
     setReferenceOpen(false)
     setSettingsOpen(true)
-    setDetail(null)
-    setUpgradePlan(null)
-    setUpgradeBusy(false)
-    setApplyBusy(false)
-    setUpgradeFeedback(null)
-    setAiReview(null)
-    setAiBusy(false)
-    setBootstrapPlan(null)
-    setBootstrapBusy(false)
-    setBootstrapApplyBusy(false)
-    setBootstrapApplyFeedback(null)
-    setBootstrapJob(null)
-    setActionJob(null)
-    setActionBusy(false)
-    setActionFeedback(null)
-    setIntent('none')
     setBusy(false)
     setError(null)
   }
@@ -610,6 +551,7 @@ function App() {
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard
+            busy={busy}
             snapshot={portfolio}
             preferences={preferences}
             query={query}

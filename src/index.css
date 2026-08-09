@@ -293,4 +293,17 @@
       transform: scale(1);
     }
   }
+
+  .animate-tone-pulse {
+    animation: tonePulse 0.7s ease-out;
+  }
+
+  @keyframes tonePulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(var(--card-accent-rgb), 0.45);
+    }
+    100% {
+      box-shadow: 0 0 0 14px rgba(var(--card-accent-rgb), 0);
+    }
+  }
 }

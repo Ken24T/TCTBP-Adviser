@@ -28,6 +28,7 @@ interface PortfolioDashboardProps {
   snapshot: PortfolioSnapshot
   preferences: PortfolioPreferences
   query: string
+  busy?: boolean
   onOpen: (repositoryId: string) => void
   onPreferenceChange: (
     repositoryId: string,
@@ -39,6 +40,7 @@ export function PortfolioDashboard({
   snapshot,
   preferences,
   query,
+  busy = false,
   onOpen,
   onPreferenceChange,
 }: PortfolioDashboardProps) {
@@ -153,6 +155,7 @@ export function PortfolioDashboard({
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" aria-label="Repositories">
             {repositories.map((repository) => (
               <PortfolioCard
+                busy={busy}
                 key={repository.id}
                 repository={repository}
                 preference={preferences[repository.id] ?? emptyPreference()}
