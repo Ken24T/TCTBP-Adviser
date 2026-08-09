@@ -5,6 +5,7 @@ interface PortfolioCardMenuProps {
   pinned: boolean
   hidden: boolean
   canOpen: boolean
+  canRefresh: boolean
   githubUrl: string | null
   repositoryName: string
   tctbpStatus: string
@@ -16,6 +17,7 @@ interface PortfolioCardMenuProps {
   onTogglePin: () => void
   onToggleHide: () => void
   onOpen: () => void
+  onRefresh: () => void
   onRename: () => void
 }
 
@@ -37,6 +39,7 @@ export function PortfolioCardMenu({
   pinned,
   hidden,
   canOpen,
+  canRefresh,
   githubUrl,
   repositoryName,
   tctbpStatus,
@@ -48,6 +51,7 @@ export function PortfolioCardMenu({
   onTogglePin,
   onToggleHide,
   onOpen,
+  onRefresh,
   onRename,
 }: PortfolioCardMenuProps) {
   const [open, setOpen] = useState(false)
@@ -105,6 +109,7 @@ export function PortfolioCardMenu({
         <MenuItem label={hidden ? 'Show repository' : 'Hide repository'} onClick={runAndClose(onToggleHide)} />
         <MenuItem disabled={!canOpen} label="View repository" onClick={runAndClose(onOpen)} />
         {githubUrl && <MenuItem href={githubUrl} label="View on GitHub" />}
+        <MenuItem disabled={!canRefresh} label="Refresh" onClick={runAndClose(onRefresh)} />
         <MenuItem label="Rename…" onClick={runAndClose(onRename)} />
         <div className="my-1.5 h-px bg-[var(--ad-border)]" role="separator" />
         <InfoRow label="TCTBP" tone={null} value={tctbpStatus} />

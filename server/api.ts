@@ -502,6 +502,21 @@ export function createApiHandler(runtime: ApiRuntime) {
         return
       }
 
+      const refreshMatch = /^\/api\/repositories\/([^/]+)\/refresh$/.exec(
+        url.pathname,
+      )
+      if (request.method === 'POST' && refreshMatch) {
+        await requireEmptyBody(request)
+        sendJson(
+          response,
+          200,
+          await runtime.portfolio.refreshRepository(
+            decodeURIComponent(refreshMatch[1]),
+          ),
+        )
+        return
+      }
+
       const faviconMatch = /^\/api\/repositories\/([^/]+)\/favicon$/.exec(
         url.pathname,
       )

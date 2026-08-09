@@ -20,6 +20,7 @@ describe('portfolio dashboard', () => {
         query=""
         onOpen={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -41,7 +42,8 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Opening repository')
     expect(markup).toContain('Actions for TCTBP-Adviser')
     expect(markup).toContain('Pin to top')
-    expect(markup).toContain('Recommended next action')
+    expect(markup).toContain('Refresh')
+    expect(markup).toContain('Recommended')
     expect(markup).toContain('/api/repositories/AAAAAAAAAAAAAAAAAAAAAAAA/favicon')
     expect(markup).toContain('>tctbp-adviser<')
   })
@@ -56,6 +58,7 @@ describe('portfolio dashboard', () => {
         returningId={'A'.repeat(24)}
         onOpen={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -73,6 +76,7 @@ describe('portfolio dashboard', () => {
         query=""
         onOpen={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -95,6 +99,7 @@ describe('portfolio dashboard', () => {
         query=""
         onOpen={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -129,6 +134,7 @@ describe('portfolio dashboard', () => {
         query=""
         onOpen={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -164,6 +170,7 @@ describe('portfolio dashboard', () => {
         query=""
         onOpen={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { PortfolioRepository } from '../../shared/portfolio'
-import { actionLabel, dispositionLabel, formatAge } from '../presentation'
+import { actionLabel, dispositionLabel } from '../presentation'
 import type { PortfolioPreference } from '../portfolio-preferences'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
@@ -22,6 +22,7 @@ interface PortfolioCardProps {
   preference: PortfolioPreference
   onOpen: () => void
   onPreferenceChange: (patch: Partial<PortfolioPreference>) => void
+  onRefresh: () => void
   busy?: boolean
   startFlipped?: boolean
 }
@@ -31,6 +32,7 @@ export function PortfolioCard({
   preference,
   onOpen,
   onPreferenceChange,
+  onRefresh,
   busy = false,
   startFlipped = false,
 }: PortfolioCardProps) {
@@ -154,9 +156,11 @@ export function PortfolioCard({
         <div className="shrink-0 mt-1">
           <PortfolioCardMenu
             canOpen={canOpen}
+            canRefresh={repository.source === 'local'}
             githubUrl={githubUrl(repository)}
             hidden={preference.hidden}
             onOpen={activate}
+            onRefresh={onRefresh}
             onRename={() => setRenaming(true)}
             onToggleHide={() => onPreferenceChange({ hidden: !preference.hidden })}
             onTogglePin={() => onPreferenceChange({ pinned: !preference.pinned })}
@@ -182,15 +186,9 @@ export function PortfolioCard({
 
       <div className="mt-auto bg-[var(--card-text-block-bg)] p-4 rounded-lg text-sm">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-text-muted">Recommended next action</span>
+          <span className="text-text-muted">Recommended</span>
           <strong className="text-text-primary text-right">{recommendationTitle(repository)}</strong>
         </div>
-        <small className="block mt-1 text-text-faint">
-          {repository.observedAt
-            ? formatAge(Math.max(0, Date.now() - Date.parse(repository.observedAt)))
-            : githubAge(repository) ?? repository.error?.message
-              ?? 'No observation available'}
-        </small>
       </div>
 
       {renaming && (
@@ -275,15 +273,6 @@ function recommendationTitle(repository: PortfolioRepository): string {
   return recommendation.primaryAction
     ? actionLabel(recommendation.primaryAction)
     : dispositionLabel(recommendation.disposition)
-}
-
-function githubAge(repository: PortfolioRepository): string | null {
-  const retrievedAt = repository.github.retrievedAt
-  return retrievedAt
-    ? `GitHub retrieved ${formatAge(
-      Math.max(0, Date.now() - Date.parse(retrievedAt)),
-    )}`
-    : null
 }
 
 function githubUrl(repository: PortfolioRepository): string | null {

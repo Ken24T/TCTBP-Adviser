@@ -372,6 +372,15 @@ export async function loadPortfolio(
   )
 }
 
+export async function refreshRepositoryOnServer(
+  repositoryId: string,
+): Promise<PortfolioSnapshot> {
+  return requestJson<PortfolioSnapshot>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/refresh`,
+    { method: 'POST' },
+  )
+}
+
 export async function loadReferenceCatalogue(): Promise<ReferenceCatalogue> {
   return requestJson<ReferenceCatalogue>('/api/catalogue')
 }

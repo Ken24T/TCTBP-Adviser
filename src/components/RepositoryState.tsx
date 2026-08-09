@@ -1,6 +1,7 @@
 import type { RepositoryObservation } from '../../shared/inspection'
 import {
   branchRoles,
+  formatAge,
   formatEvidenceValue,
   syncSummary,
   workingTreeSummary,
@@ -21,7 +22,7 @@ export function RepositoryState({
   const model = observation.tctbp.branchModel
   return (
     <>
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Repository state">
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" aria-label="Repository state">
         <StateCard
           label="Current branch"
           value={observation.head.branch ?? 'Detached HEAD'}
@@ -48,6 +49,11 @@ export function RepositoryState({
             ? `${observation.workingTree.counts.conflicted} conflicts`
             : 'No operation guardrail active'}
           tone={observation.operations.length === 0 ? 'good' : 'stop'}
+        />
+        <StateCard
+          label="Observation"
+          value={formatAge(Math.max(0, Date.now() - Date.parse(observation.observedAt)))}
+          note={observation.fetchPerformed ? 'Git fetch performed' : 'No Git fetch performed'}
         />
       </section>
 

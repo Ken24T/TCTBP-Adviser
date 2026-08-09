@@ -52,6 +52,46 @@ export class PortfolioService {
     this.#cached = null
   }
 
+  /**
+   * Re-inspects a single registered repository and swaps its summary into the
+   * cached snapshot, recomputing the aggregate counts. Used for the per-card
+   * "Refresh" action on the portfolio dashboard.
+   */
+  async refreshRepository(repositoryId: string): Promise<PortfolioSnapshot> {
+    const repository = await this.registry.require(repositoryId)
+    const refreshed = await this.summarise(repository, true)
+    const base = this.#cached ?? await this.get(true)
+    const repositories = base.repositories.map((candidate) => (
+      candidate.id === repositoryId ? refreshed : candidate
+    ))
+    const snapshot: PortfolioSnapshot = {
+      ...base,
+      generatedAt: new Date().toISOString(),
+      cache: {
+        status: 'refreshed',
+        ageMs: 0,
+        ttlMs: this.config.portfolioCacheTtlMs,
+      },
+      github: {
+        enabled: this.config.github.enabled,
+        localMappings: repositories.filter(
+          (candidate) => candidate.github.status === 'available'
+            || candidate.github.status === 'unavailable',
+        ).length,
+        githubOnly: repositories.filter(
+          (candidate) => candidate.source === 'github-only',
+        ).length,
+        unavailable: repositories.filter(
+          (candidate) => candidate.github.status === 'unavailable',
+        ).length,
+      },
+      upgrade: summarizePortfolioUpgrades(repositories),
+      repositories,
+    }
+    this.#cached = snapshot
+    return snapshot
+  }
+
   private async refresh(forceDiscovery: boolean): Promise<PortfolioSnapshot> {
     const registry = await this.registry.snapshot(forceDiscovery)
     const repositories = await mapWithConcurrency(

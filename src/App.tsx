@@ -27,6 +27,7 @@ import {
   loadTctbpBootstrapReview,
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
+  refreshRepositoryOnServer,
 } from './api-client'
 import { ACTION_CONFIRMATIONS, startWorkflowAction } from './action-workflows'
 import { intentForRecommendation } from './recommended-intent'
@@ -173,6 +174,20 @@ function App() {
     setError(null)
     try {
       const nextPortfolio = await loadPortfolio(force)
+      if (currentRequest === requestId.current) setPortfolio(nextPortfolio)
+    } catch (cause) {
+      captureError(cause, currentRequest)
+    } finally {
+      if (currentRequest === requestId.current) setBusy(false)
+    }
+  }
+
+  async function refreshRepositoryCard(repositoryId: string): Promise<void> {
+    const currentRequest = ++requestId.current
+    setBusy(true)
+    setError(null)
+    try {
+      const nextPortfolio = await refreshRepositoryOnServer(repositoryId)
       if (currentRequest === requestId.current) setPortfolio(nextPortfolio)
     } catch (cause) {
       captureError(cause, currentRequest)
@@ -554,6 +569,9 @@ function App() {
             query={query}
             onOpen={openRepository}
             onPreferenceChange={changePreference}
+            onRefreshRepository={(repositoryId) => (
+              void refreshRepositoryCard(repositoryId)
+            )}
           />
         ) : !error ? (
           referenceOpen

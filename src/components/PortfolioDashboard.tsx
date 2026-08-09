@@ -35,6 +35,7 @@ interface PortfolioDashboardProps {
     repositoryId: string,
     patch: Partial<PortfolioPreference>,
   ) => void
+  onRefreshRepository: (repositoryId: string) => void
 }
 
 export function PortfolioDashboard({
@@ -45,6 +46,7 @@ export function PortfolioDashboard({
   returningId = null,
   onOpen,
   onPreferenceChange,
+  onRefreshRepository,
 }: PortfolioDashboardProps) {
   const [filter, setFilter] = useState<PortfolioFilter>('all')
   const [showHidden, setShowHidden] = useState(false)
@@ -169,6 +171,7 @@ export function PortfolioDashboard({
                 onPreferenceChange={(patch) => (
                   onPreferenceChange(repository.id, patch)
                 )}
+                onRefresh={() => onRefreshRepository(repository.id)}
               />
             ))}
           </div>
