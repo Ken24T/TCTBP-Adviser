@@ -54,6 +54,7 @@ import {
 } from './reference/catalogue'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import { PortfolioService } from './portfolio'
+import { summarizeUpgradePlan } from './tctbp-portfolio'
 import { recommend } from './recommendations/engine'
 import type { ActionerResult } from '../shared/actioner'
 import { RepositoryRegistry } from './registry'
@@ -1090,9 +1091,22 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation.head.branch,
           observation.head.sha,
         )
+        // The detail recommendation is consistent with the portfolio card:
+        // both consider the managed-surface upgrade summary.
+        const upgrade = runtime.tctbpSource?.sourceRoot
+          ? await runtime.tctbpSource.plan(repository.path, observation)
+            .then(summarizeUpgradePlan)
+            .catch(() => null)
+          : null
         const result: RepositoryDetailResult = {
           observation,
-          recommendation: recommend(observation, 'none', new Date()),
+          recommendation: recommend(
+            observation,
+            'none',
+            new Date(),
+            undefined,
+            upgrade,
+          ),
           intentPlan: null,
           reference: repositoryReference(observation),
           github,
@@ -1113,6 +1127,12 @@ export function createApiHandler(runtime: ApiRuntime) {
       })
     } catch (error) {
       const status = statusForError(error)
+      if (status >= 500) {
+        console.error(
+          `[adviser-api] ${request.method} ${request.url} failed:`,
+          error,
+        )
+      }
       sendJson(response, status, {
         error: {
           code: errorCode(error),
@@ -1505,10 +1525,43 @@ function sendJson(
   response.end(content)
 }
 
+const ACTIONER_CONFLICT_CODES = new Set([
+  'actioner-plan-stale-or-blocked',
+])
+
+// State conflicts the caller must resolve before retrying: regenerate a
+// stale plan, commit local changes, switch branches, or re-request a fresh
+// Jasper review. These are expected workflow blocks, not server failures.
+const CONFLICT_CODES = new Set([
+  ...ACTIONER_CONFLICT_CODES,
+  'upgrade-plan-stale',
+  'upgrade-apply-blocked',
+  'upgrade-environment-branch',
+  'upgrade-source-changed',
+  'upgrade-source-unavailable',
+  'upgrade-source-file-unavailable',
+  'upgrade-policy-merge-unavailable',
+  'bootstrap-plan-stale',
+  'bootstrap-apply-blocked',
+  'ai-review-acknowledgement-required',
+  'ai-review-stale-or-unavailable',
+])
+
+// Malformed or unapproved apply requests — the caller sent something that
+// cannot be honoured as-is.
+const INVALID_REQUEST_CODES = new Set([
+  'upgrade-path-not-managed',
+  'upgrade-deletion-not-managed',
+  'upgrade-deletion-confirmation-required',
+  'bootstrap-branch-invalid',
+  'bootstrap-policy-invalid',
+])
+
 function statusForError(error: unknown): number {
   if (!(error instanceof AdviserError)) return 500
   if (error.code === 'repository-not-found') return 404
   if (error.code === 'actioner-job-not-found') return 404
+  if (error.code === 'bootstrap-job-not-found') return 404
   if (error.code === 'actioner-plan-stale-or-blocked') return 409
   if (error.code === 'settings-request-invalid') return 400
   if (error.code === 'actioner-request-invalid') return 400
@@ -1518,6 +1571,8 @@ function statusForError(error: unknown): number {
     || error.code === 'session-token-invalid'
   ) return 403
   if (error.code.startsWith('request-')) return 400
+  if (INVALID_REQUEST_CODES.has(error.code)) return 400
+  if (CONFLICT_CODES.has(error.code)) return 409
   return 500
 }
 

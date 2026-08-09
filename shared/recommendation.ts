@@ -33,6 +33,7 @@ export type RecommendationAction =
   | 'reattach-branch'
   | 'install-tctbp'
   | 'review-compatibility'
+  | 'update-tctbp'
 
 export type RecommendationReasonCode =
   | 'active-git-operation'
@@ -48,6 +49,7 @@ export type RecommendationReasonCode =
   | 'handover-ready'
   | 'tctbp-not-installed'
   | 'tctbp-contract-incompatible'
+  | 'tctbp-update-available'
   | 'inspection-required'
   | 'no-action-required'
 

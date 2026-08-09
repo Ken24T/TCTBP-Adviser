@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<RecommendationAction, string> = {
   'reattach-branch': 'Reattach a branch',
   'install-tctbp': 'Install TCTBP',
   'review-compatibility': 'Review compatibility',
+  'update-tctbp': 'Update TCTBP',
 }
 
 const REASON_LABELS: Record<RecommendationReasonCode, string> = {
@@ -37,6 +38,7 @@ const REASON_LABELS: Record<RecommendationReasonCode, string> = {
   'handover-ready': 'The repository is ready for a machine handover',
   'tctbp-not-installed': 'TCTBP is not installed',
   'tctbp-contract-incompatible': 'The Adviser contract is incompatible',
+  'tctbp-update-available': 'TCTBP infrastructure update available',
   'inspection-required': 'Fresh or compatible evidence is required',
   'no-action-required': 'The repository is healthy and in sync',
 }

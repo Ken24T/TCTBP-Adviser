@@ -285,6 +285,5 @@ function githubUrl(repository: PortfolioRepository): string | null {
 function upgradeTone(disposition: NonNullable<PortfolioRepository['upgrade']>['disposition']): 'success' | 'warning' | 'info' | 'danger' {
   if (disposition === 'current') return 'success'
   if (disposition === 'bootstrap-required') return 'danger'
-  if (disposition === 'source-unavailable') return 'warning'
-  return 'info'
+  return 'warning'
 }

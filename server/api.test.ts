@@ -195,6 +195,39 @@ describe('same-origin inspection API', () => {
     })
   })
 
+  it('maps a stale or unavailable Jasper review to a 409 conflict', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-apply`,
+      running,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          confirm: true,
+          aiReviewId: 'missing-review',
+          aiReviewAcknowledged: true,
+          planFingerprint: 'a'.repeat(64),
+          mode: 'additions-only',
+          approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        }),
+      },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      error: { code: 'ai-review-stale-or-unavailable' },
+    })
+  })
+
   it('rejects browser-supplied inspection input', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(

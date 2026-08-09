@@ -7,6 +7,8 @@ import type {
   RecommendationReasonCode,
   RecommendationResult,
 } from '../../shared/recommendation'
+import type { TctbpUpgradeDisposition } from '../../shared/tctbp-upgrade'
+import type { ManagedFileActionCounts } from '../../shared/tctbp-upgrade'
 
 const BLOCKABLE_WORKFLOWS: RecommendationAction[] = [
   'checkpoint',
@@ -14,6 +16,11 @@ const BLOCKABLE_WORKFLOWS: RecommendationAction[] = [
   'resume',
   'handover',
 ]
+
+export interface UpgradeSummaryLike {
+  disposition: TctbpUpgradeDisposition
+  actionCounts?: ManagedFileActionCounts
+}
 
 export interface ResultDefinition {
   disposition: RecommendationResult['disposition']
@@ -35,6 +42,7 @@ export interface EvaluationContext {
   maxAgeMs: number
   ageMs: number | null
   stale: boolean
+  upgrade: UpgradeSummaryLike | null
 }
 
 export function resolveDefinition(
@@ -92,6 +100,12 @@ export function resolveDefinition(
   }
   if (observation.localTracking.state === 'ahead') {
     return workflowAction(context, 'publish', 'branch-ahead')
+  }
+  // The repository is otherwise healthy but its TCTBP managed surface is
+  // behind the canonical source — surface that as an update recommendation
+  // instead of claiming nothing needs doing.
+  if (context.upgrade?.disposition === 'review-required') {
+    return tctbpUpdateAvailable(context)
   }
   return noAction(context)
 }
@@ -367,6 +381,41 @@ function noAction(context: EvaluationContext): ResultDefinition {
       evidence(context, 'localTracking.state',
         context.observation.localTracking.state),
     ],
+  }
+}
+
+/**
+ * The repository is safe to operate (compatible contract, clean tree, in
+ * sync) but its managed TCTBP surface is behind the canonical source. This is
+ * a maintenance recommendation, not a safety stop — amber attention, with the
+ * upgrade panel as the action surface.
+ */
+function tctbpUpdateAvailable(context: EvaluationContext): ResultDefinition {
+  const counts = context.upgrade?.actionCounts
+  const evidenceRows: RecommendationEvidence[] = [
+    evidence(
+      context,
+      'upgrade.disposition',
+      context.upgrade?.disposition ?? null,
+    ),
+  ]
+  if ((counts?.add ?? 0) > 0) {
+    evidenceRows.push(
+      evidence(context, 'upgrade.actionCounts.add', counts?.add ?? 0),
+    )
+  }
+  if ((counts?.review ?? 0) > 0) {
+    evidenceRows.push(
+      evidence(context, 'upgrade.actionCounts.review', counts?.review ?? 0),
+    )
+  }
+  return {
+    disposition: 'action',
+    primaryAction: 'update-tctbp',
+    reasonCodes: ['tctbp-update-available'],
+    severity: 'attention',
+    actions: ['update-tctbp'],
+    evidence: evidenceRows,
   }
 }
 

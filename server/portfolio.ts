@@ -207,7 +207,7 @@ function availableSummary(
   upgrade: PortfolioRepository['upgrade'],
   options: { directoryName: string; faviconPath: string | null },
 ): PortfolioRepository {
-  const recommendation = recommend(observation, 'none', new Date())
+  const recommendation = recommend(observation, 'none', new Date(), undefined, upgrade)
   return {
     id: observation.repository.id,
     name: observation.repository.name,

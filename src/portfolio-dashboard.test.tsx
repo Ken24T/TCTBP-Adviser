@@ -28,7 +28,8 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Adviser Control Room')
     expect(markup).toContain('TCTBP-Adviser')
     expect(markup).toContain('TCTBP schema 11')
-    expect(markup).toContain('TCTBP review')
+    expect(markup).toContain('TCTBP update')
+    expect(markup).toContain('Update TCTBP')
     expect(markup).toContain('TCTBP review required')
     expect(markup).toContain('TCTBP blocked')
     expect(markup).toContain('Filters')
@@ -221,10 +222,10 @@ function portfolioFixture(): PortfolioSnapshot {
         localTracking: { state: 'in-sync', ahead: 0, behind: 0 },
         tctbp: { installed: true, compatible: true, schemaVersion: 11 },
         recommendation: {
-          disposition: 'none',
-          primaryAction: null,
-          reasonCodes: ['no-action-required'],
-          severity: 'healthy',
+          disposition: 'action',
+          primaryAction: 'update-tctbp',
+          reasonCodes: ['tctbp-update-available'],
+          severity: 'attention',
         },
         error: null,
         directoryName: 'tctbp-adviser',

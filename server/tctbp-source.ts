@@ -291,7 +291,7 @@ export class CanonicalTctbpSourceService {
     if (plan.blockers.length > 0 || plan.disposition !== 'review-required') {
       throw new AdviserError(
         'upgrade-apply-blocked',
-        'The upgrade plan is not eligible for application.',
+        'The upgrade plan is blocked — resolve any blockers (e.g. uncommitted local changes) before applying.',
       )
     }
     if (!targetObservation.head.branch || isEnvironmentBranch(targetObservation)) {

@@ -95,7 +95,7 @@ export function PortfolioDashboard({
           {snapshot.upgrade?.enabled && (
             <>
               <MetricChip label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
-              <MetricChip label="TCTBP review" value={snapshot.upgrade.reviewRequired} tone="warning" />
+              <MetricChip label="TCTBP update" value={snapshot.upgrade.reviewRequired} tone="warning" />
               <MetricChip label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
               <MetricChip label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
             </>
@@ -283,7 +283,7 @@ function filterLabel(filter: PortfolioFilter): string {
     healthy: 'Healthy',
     'non-tctbp': 'Without TCTBP',
     'tctbp-current': 'TCTBP current',
-    'tctbp-review': 'TCTBP review',
+    'tctbp-review': 'TCTBP update',
     'tctbp-bootstrap': 'Bootstrap required',
     'tctbp-blocked': 'TCTBP blocked',
   }
