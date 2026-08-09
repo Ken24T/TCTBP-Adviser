@@ -5,7 +5,7 @@ import type {
   TctbpApplyMode,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
-import { applyTctbpUpgradePlan } from './api-client'
+import { applyTctbpUpgradePlan } from './api'
 
 export interface ApplyStepDefinition {
   mode: TctbpApplyMode

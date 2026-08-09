@@ -27,7 +27,7 @@ import {
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
   refreshRepositoryOnServer,
-} from './api-client'
+} from './api'
 import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'

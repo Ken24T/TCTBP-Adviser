@@ -15,7 +15,7 @@ import {
   startRepairCompatibilityAction,
   startResumeAction,
   startShipAction,
-} from './api-client'
+} from './api'
 
 /** User-facing confirmation prompts for each workflow action. */
 export const ACTION_CONFIRMATIONS: Record<ActionerWorkflowId, string> = {

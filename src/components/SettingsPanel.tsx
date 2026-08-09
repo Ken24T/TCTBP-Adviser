@@ -7,7 +7,7 @@ import type {
   AppSettingsResponse,
   AppSettingsSource,
 } from '../../shared/app-settings'
-import { loadAppSettings, saveAppSettings } from '../api-client'
+import { loadAppSettings, saveAppSettings } from '../api'
 import { Button, Card, PageHeader } from './primitives'
 import { CloseIcon } from './icons'
 import { CardVisibilitySettings } from './CardVisibilitySettings'
