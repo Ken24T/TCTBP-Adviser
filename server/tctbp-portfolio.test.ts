@@ -60,6 +60,7 @@ describe('portfolio TCTBP upgrade summaries', () => {
   it('counts current, review, and unavailable local repositories', () => {
     const repositories = [
       repository('current', 'current'),
+      repository('current-on-environment-branch', 'current', 1),
       repository('review', 'review-required'),
       repository('blocked', 'review-required', 1),
       repository('unavailable', 'source-unavailable'),
@@ -68,7 +69,7 @@ describe('portfolio TCTBP upgrade summaries', () => {
 
     expect(summarizePortfolioUpgrades(repositories)).toEqual({
       enabled: true,
-      current: 1,
+      current: 2,
       reviewRequired: 2,
       bootstrapRequired: 0,
       blocked: 1,
