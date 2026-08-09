@@ -106,11 +106,13 @@ export function RepositoryDetail({
     recommendation.primaryAction
     && workflowForRecommendation(recommendation.primaryAction),
   )
-  // The header shows the custom rename when set, falling back to the on-disk
-  // directory name (never the lowercased repo slug).
+  // The header mirrors the portfolio card's display name: custom rename when
+  // set, otherwise the repository's display name (TCTBP project name), with
+  // the on-disk directory name only as a last resort — never the raw path
+  // slug when a friendly name exists.
   const headerName = preferences[observation.repository.id]?.name?.trim()
-    || detail.directoryName
     || observation.repository.name
+    || detail.directoryName
 
   const { resolved } = useTheme()
   const surface = cardSurfaceVars(
