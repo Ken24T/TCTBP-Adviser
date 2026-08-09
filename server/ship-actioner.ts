@@ -12,7 +12,12 @@ export class ShipActioner {
   constructor(
     readonly productionBranch = 'main',
     readonly bump: 'patch' | 'minor' | 'major' = 'patch',
-    readonly timeoutMs = 300_000,
+    // Ship runs the repo's release gates and builds, which for release-heavy
+    // projects (e.g. Rust LTO links at 10+ minutes) legitimately exceed a
+    // short timeout. 30 minutes matches PromoteActioner so a slow release
+    // build cannot silently fail the release workflow (observed on
+    // rust-calendar).
+    readonly timeoutMs = 1_800_000,
     readonly maxOutputBytes = 2 * 1024 * 1024,
   ) {}
 

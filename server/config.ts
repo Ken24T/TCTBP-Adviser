@@ -1,5 +1,6 @@
 import { AdviserError } from './errors'
 import { loadAiSettings, type AiSettings } from './ai-settings'
+import { loadPersistedAppSettings } from './app-settings'
 import {
   resolveAllowedRepository,
   resolveAllowedRoot,
@@ -39,18 +40,34 @@ const DEFAULT_EXCLUDES = [
   '.cache',
 ]
 
+function hasEnvironmentValue(
+  environment: NodeJS.ProcessEnv,
+  name: string,
+): boolean {
+  const value = environment[name]
+  return value !== undefined && value !== ''
+}
+
 export async function loadServiceConfig(
   environment: NodeJS.ProcessEnv = process.env,
 ): Promise<ServiceConfig> {
-  const configuredRoots = environment.TCTBP_ADVISER_REPOSITORY_ROOTS
-    ? jsonStringArray(
-      environment.TCTBP_ADVISER_REPOSITORY_ROOTS,
-      'TCTBP_ADVISER_REPOSITORY_ROOTS',
-    )
-    : [requiredValue(
-      environment.TCTBP_ADVISER_ALLOWED_ROOT,
-      'TCTBP_ADVISER_ALLOWED_ROOT',
-    )]
+  const persistedSettings = await loadPersistedAppSettings(environment)
+  const configuredRoots = persistedSettings.repositoryRoots.length > 0
+    ? persistedSettings.repositoryRoots
+    : environment.TCTBP_ADVISER_REPOSITORY_ROOTS
+      ? jsonStringArray(
+        environment.TCTBP_ADVISER_REPOSITORY_ROOTS,
+        'TCTBP_ADVISER_REPOSITORY_ROOTS',
+      )
+      : environment.TCTBP_ADVISER_ALLOWED_ROOT
+        ? [requiredValue(
+          environment.TCTBP_ADVISER_ALLOWED_ROOT,
+          'TCTBP_ADVISER_ALLOWED_ROOT',
+        )]
+        : [requiredValue(
+          environment.TCTBP_ADVISER_ALLOWED_ROOT,
+          'TCTBP_ADVISER_ALLOWED_ROOT',
+        )]
   const repositoryRoots = Array.from(new Set(
     await Promise.all(configuredRoots.map(resolveAllowedRoot)),
   ))
@@ -62,30 +79,71 @@ export async function loadServiceConfig(
     )
   }
 
-  const canonicalTctbpWebRoot = environment.TCTBP_ADVISER_TCTBP_WEB_ROOT
+  const canonicalTctbpWebRoot = persistedSettings.canonicalTctbpWebRoot
     ? await resolveConfiguredRepository(
       repositoryRoots,
-      environment.TCTBP_ADVISER_TCTBP_WEB_ROOT,
+      persistedSettings.canonicalTctbpWebRoot,
     )
-    : null
+    : environment.TCTBP_ADVISER_TCTBP_WEB_ROOT
+      ? await resolveConfiguredRepository(
+        repositoryRoots,
+        environment.TCTBP_ADVISER_TCTBP_WEB_ROOT,
+      )
+      : null
+
+  const excludeDirectories = persistedSettings.excludeDirectories.length > 0
+    ? safeDirectoryNames(persistedSettings.excludeDirectories)
+    : environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES
+      ? safeDirectoryNames(jsonStringArray(
+        environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES,
+        'TCTBP_ADVISER_EXCLUDE_DIRECTORIES',
+      ))
+      : DEFAULT_EXCLUDES
+
+  const maximumDepth = persistedSettings.maximumDepth !== null
+    ? boundedInteger(
+      String(persistedSettings.maximumDepth),
+      3,
+      0,
+      10,
+      'persisted maximumDepth',
+    )
+    : hasEnvironmentValue(environment, 'TCTBP_ADVISER_MAXIMUM_DEPTH')
+      ? boundedInteger(
+        environment.TCTBP_ADVISER_MAXIMUM_DEPTH,
+        3,
+        0,
+        10,
+        'TCTBP_ADVISER_MAXIMUM_DEPTH',
+      )
+      : 3
+
+  const githubEnabled = persistedSettings.githubEnabled !== null
+    ? persistedSettings.githubEnabled
+    : hasEnvironmentValue(environment, 'TCTBP_ADVISER_GITHUB_ENABLED')
+      ? booleanValue(
+        environment.TCTBP_ADVISER_GITHUB_ENABLED,
+        false,
+        'TCTBP_ADVISER_GITHUB_ENABLED',
+      )
+      : false
+
+  const githubRepositories = persistedSettings.githubRepositories.length > 0
+    ? githubRepositoryNames(persistedSettings.githubRepositories)
+    : environment.TCTBP_ADVISER_GITHUB_REPOSITORIES
+      ? githubRepositoryNames(jsonArray(
+        environment.TCTBP_ADVISER_GITHUB_REPOSITORIES,
+        'TCTBP_ADVISER_GITHUB_REPOSITORIES',
+        true,
+      ))
+      : []
 
   return {
     repositoryRoots,
     canonicalTctbpWebRoot,
     ai: await loadAiSettings(environment),
-    excludeDirectories: environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES
-      ? safeDirectoryNames(jsonStringArray(
-        environment.TCTBP_ADVISER_EXCLUDE_DIRECTORIES,
-        'TCTBP_ADVISER_EXCLUDE_DIRECTORIES',
-      ))
-      : DEFAULT_EXCLUDES,
-    maximumDepth: boundedInteger(
-      environment.TCTBP_ADVISER_MAXIMUM_DEPTH,
-      3,
-      0,
-      10,
-      'TCTBP_ADVISER_MAXIMUM_DEPTH',
-    ),
+    excludeDirectories,
+    maximumDepth,
     maximumRepositories: boundedInteger(
       environment.TCTBP_ADVISER_MAXIMUM_REPOSITORIES,
       200,
@@ -125,19 +183,9 @@ export async function loadServiceConfig(
       'TCTBP_ADVISER_GIT_MAX_OUTPUT_BYTES',
     ),
     github: {
-      enabled: booleanValue(
-        environment.TCTBP_ADVISER_GITHUB_ENABLED,
-        false,
-        'TCTBP_ADVISER_GITHUB_ENABLED',
-      ),
+      enabled: githubEnabled,
       token: optionalSecret(environment.TCTBP_ADVISER_GITHUB_TOKEN),
-      repositories: environment.TCTBP_ADVISER_GITHUB_REPOSITORIES
-        ? githubRepositoryNames(jsonArray(
-          environment.TCTBP_ADVISER_GITHUB_REPOSITORIES,
-          'TCTBP_ADVISER_GITHUB_REPOSITORIES',
-          true,
-        ))
-        : [],
+      repositories: githubRepositories,
       timeoutMs: boundedInteger(
         environment.TCTBP_ADVISER_GITHUB_TIMEOUT_MS,
         5_000,

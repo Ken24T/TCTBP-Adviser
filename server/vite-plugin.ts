@@ -4,9 +4,9 @@ import type {
   PreviewServer,
   ViteDevServer,
 } from 'vite'
-import { createApiHandler, createApiRuntime } from './api'
+import { createApiHandler } from './api'
+import { createApiRuntime, type ApiRuntime } from './api-runtime'
 import { loadServiceConfig } from './config'
-import type { ApiRuntime } from './api'
 
 export function createAdviserPlugin(
   environment: NodeJS.ProcessEnv = process.env,
@@ -53,5 +53,9 @@ function installMiddleware(
 async function createRuntime(
   environment: NodeJS.ProcessEnv,
 ): Promise<ApiRuntime> {
-  return createApiRuntime(await loadServiceConfig(environment))
+  return createApiRuntime(
+    await loadServiceConfig(environment),
+    undefined,
+    environment,
+  )
 }

@@ -4,6 +4,7 @@ import type {
   RecommendationDisposition,
   RecommendationReasonCode,
 } from '../../shared/recommendation'
+import type { UpgradeSummaryLike } from './rules'
 import {
   observationFixture,
   type ObservationOptions,
@@ -15,6 +16,7 @@ const NOW = new Date('2026-07-30T01:00:01.000Z')
 interface RuleCase {
   name: string
   options?: ObservationOptions
+  upgrade?: UpgradeSummaryLike | null
   disposition: RecommendationDisposition
   action: RecommendationAction | null
   reason: RecommendationReasonCode
@@ -47,6 +49,24 @@ const RULE_CASES: RuleCase[] = [
     disposition: 'action',
     action: 'publish',
     reason: 'branch-unpublished',
+  },
+  {
+    name: 'clean and unpublished without a remote origin',
+    options: { syncState: 'unpublished', remoteOrigin: null },
+    disposition: 'inspect',
+    action: null,
+    reason: 'remote-origin-missing',
+  },
+  {
+    name: 'clean without a remote origin but with a TCTBP update available',
+    options: { syncState: 'unpublished', remoteOrigin: null },
+    upgrade: {
+      disposition: 'review-required',
+      actionCounts: { preserve: 0, add: 1, review: 1, unavailable: 0 },
+    },
+    disposition: 'action',
+    action: 'update-tctbp',
+    reason: 'tctbp-update-available',
   },
   {
     name: 'clean and behind',
@@ -112,6 +132,37 @@ const RULE_CASES: RuleCase[] = [
     reason: 'tctbp-contract-incompatible',
   },
   {
+    name: 'contract incompatible with local changes',
+    options: { tctbpCompatible: false, clean: false },
+    disposition: 'sequence',
+    action: 'checkpoint',
+    reason: 'working-tree-dirty',
+  },
+  {
+    name: 'contract incompatible with conflicts stays a stop',
+    options: { tctbpCompatible: false, clean: false, conflicted: 1 },
+    disposition: 'stop',
+    action: null,
+    reason: 'tctbp-contract-incompatible',
+  },
+  {
+    name: 'TCTBP update available',
+    upgrade: {
+      disposition: 'review-required',
+      actionCounts: { preserve: 0, add: 43, review: 6, unavailable: 0 },
+    },
+    disposition: 'action',
+    action: 'update-tctbp',
+    reason: 'tctbp-update-available',
+  },
+  {
+    name: 'TCTBP current stays no-action',
+    upgrade: { disposition: 'current' },
+    disposition: 'none',
+    action: null,
+    reason: 'no-action-required',
+  },
+  {
     name: 'tracking state unknown',
     options: { syncState: 'unknown' },
     disposition: 'inspect',
@@ -123,11 +174,13 @@ const RULE_CASES: RuleCase[] = [
 describe('deterministic recommendation engine', () => {
   it.each(RULE_CASES)(
     '$name -> $disposition/$action',
-    ({ options, disposition, action, reason }) => {
+    ({ options, upgrade, disposition, action, reason }) => {
       const result = recommend(
         observationFixture(options),
         'none',
         NOW,
+        undefined,
+        upgrade ?? null,
       )
 
       expect(result.disposition).toBe(disposition)
@@ -142,6 +195,77 @@ describe('deterministic recommendation engine', () => {
       expect(result.observationIds).toHaveLength(1)
     },
   )
+
+  it('never offers publish when no remote origin is configured', () => {
+    const result = recommend(
+      observationFixture({ syncState: 'unpublished', remoteOrigin: null }),
+      'none',
+      NOW,
+    )
+
+    expect(result.primaryAction).not.toBe('publish')
+    expect(result.reasonCodes).toContain('remote-origin-missing')
+    expect(result.blockedActions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'publish' }),
+      expect.objectContaining({ action: 'handover' }),
+    ]))
+  })
+
+  it('prefers an actionable TCTBP update over the missing-remote notice', () => {
+    const result = recommend(
+      observationFixture({
+        syncState: 'unpublished',
+        remoteOrigin: null,
+      }),
+      'none',
+      NOW,
+      undefined,
+      { disposition: 'review-required' },
+    )
+
+    expect(result.primaryAction).toBe('update-tctbp')
+    expect(result.reasonCodes).toContain('tctbp-update-available')
+    expect(result.reasonCodes).not.toContain('remote-origin-missing')
+  })
+
+  it('recommends a TCTBP update for an otherwise-healthy but out-of-date repo', () => {
+    const result = recommend(
+      observationFixture(),
+      'none',
+      NOW,
+      undefined,
+      {
+        disposition: 'review-required',
+        actionCounts: { preserve: 0, add: 43, review: 6, unavailable: 0 },
+      },
+    )
+
+    expect(result.disposition).toBe('action')
+    expect(result.primaryAction).toBe('update-tctbp')
+    expect(result.severity).toBe('attention')
+    expect(result.reasonCodes).toEqual(['tctbp-update-available'])
+    expect(result.steps.map((step) => step.action)).toEqual(['update-tctbp'])
+    expect(result.likelyNextActions).toEqual([])
+    expect(result.blockedActions).toEqual([])
+    expect(result.evidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'upgrade.disposition', value: 'review-required' }),
+      expect.objectContaining({ field: 'upgrade.actionCounts.add', value: 43 }),
+      expect.objectContaining({ field: 'upgrade.actionCounts.review', value: 6 }),
+    ]))
+  })
+
+  it('keeps dirty work ahead of an available TCTBP update', () => {
+    const result = recommend(
+      observationFixture({ clean: false }),
+      'none',
+      NOW,
+      undefined,
+      { disposition: 'review-required' },
+    )
+
+    expect(result.primaryAction).toBe('checkpoint')
+    expect(result.reasonCodes).toContain('working-tree-dirty')
+  })
 
   it('makes dirty-plus-behind a preservation and inspection sequence', () => {
     const result = recommend(
@@ -158,6 +282,37 @@ describe('deterministic recommendation engine', () => {
     expect(result.blockedActions).toEqual(expect.arrayContaining([
       expect.objectContaining({ action: 'resume' }),
       expect.objectContaining({ action: 'publish' }),
+      expect.objectContaining({ action: 'handover' }),
+    ]))
+  })
+
+  it('makes incompatible-with-local-changes a checkpoint-first sequence', () => {
+    // Incompatible contracts advertise no workflows, so this must not depend
+    // on checkpoint appearing in the advertised list.
+    const result = recommend(
+      observationFixture({
+        tctbpCompatible: false,
+        clean: false,
+        workflows: [],
+      }),
+      'none',
+      NOW,
+    )
+
+    expect(result.disposition).toBe('sequence')
+    expect(result.primaryAction).toBe('checkpoint')
+    expect(result.reasonCodes).toEqual([
+      'working-tree-dirty',
+      'tctbp-contract-incompatible',
+    ])
+    expect(result.steps.map((step) => step.action)).toEqual([
+      'checkpoint',
+      'review-compatibility',
+    ])
+    expect(result.likelyNextActions).toEqual(['review-compatibility'])
+    expect(result.blockedActions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'publish' }),
+      expect.objectContaining({ action: 'resume' }),
       expect.objectContaining({ action: 'handover' }),
     ]))
   })

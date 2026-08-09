@@ -1,6 +1,7 @@
 import type { ActionerJob, ActionerWorkflowId } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
-import { ActionerProgress } from './ActionerProgress'
+import { blockerHint } from '../presentation'
+import { Button, Panel } from './primitives'
 
 interface IntentPlanPanelProps {
   plan: IntentPlan | null
@@ -9,7 +10,6 @@ interface IntentPlanPanelProps {
   inspectionBusy: boolean
   actionFeedback: string | null
   onRunAction: (workflowId: ActionerWorkflowId) => void
-  onRepairCompatibility: () => void
 }
 
 export function IntentPlanPanel({
@@ -19,81 +19,85 @@ export function IntentPlanPanel({
   inspectionBusy,
   actionFeedback,
   onRunAction,
-  onRepairCompatibility,
 }: IntentPlanPanelProps) {
   if (!plan) {
     return (
-      <section className="intent-plan intent-plan-empty">
-        <p className="eyebrow">Intent-driven plan</p>
-        <h2>No additional intent selected</h2>
-        <p>
+      <Panel eyebrow="Intent-driven plan" title="No additional intent selected">
+        <p className="text-text-secondary leading-relaxed">
           The state-driven recommendation above is based only on repository
           evidence. Select an outcome to see a conditional workflow sequence.
         </p>
-      </section>
+      </Panel>
     )
   }
 
   return (
-    <section
-      className={`intent-plan intent-plan-${plan.status}`}
-      aria-labelledby="intent-plan-title"
+    <Panel
+      eyebrow={`Intent-driven plan · ${plan.status}`}
+      title={plan.title}
     >
-      <div className="intent-plan-heading">
-        <div>
-          <p className="eyebrow">Intent-driven plan · {plan.status}</p>
-          <h2 id="intent-plan-title">{plan.title}</h2>
-          <p>{plan.summary}</p>
-        </div>
-        <span>{plan.branchStrategy ?? 'Unknown branch strategy'}</span>
+      <p className="text-text-secondary mb-4">{plan.summary}</p>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-xs font-bold uppercase tracking-widest text-text-muted">Branch strategy</span>
+        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-surface-soft text-text-primary border border-border">
+          {plan.branchStrategy ?? 'Unknown branch strategy'}
+        </span>
       </div>
 
-      {actionJob && (
-        <ActionerProgress
-          job={actionJob}
-          onRepairCompatibility={onRepairCompatibility}
-        />
+      {actionFeedback && (
+        <p className="mt-4 p-4 text-sm bg-surface-soft border border-border rounded-lg text-text-secondary">
+          {actionFeedback}
+        </p>
       )}
-      {actionFeedback && <p className="empty-state">{actionFeedback}</p>}
 
       {plan.blockedBy.length > 0 && (
-        <div className="intent-blocks">
-          <strong>Resolve state or policy first</strong>
-          <ul>
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <strong className="block text-sm font-semibold text-red-900 mb-1">Resolve state or policy first</strong>
+          <ul className="space-y-2 text-sm text-red-800">
             {plan.blockedBy.map((block) => (
-              <li key={`${block.code}-${block.message}`}>{block.message}</li>
+              <li key={`${block.code}-${block.message}`}>
+                <p>{block.message}</p>
+                {blockerHint(block.code) && (
+                  <p className="mt-0.5 text-xs text-red-700">How to resolve: {blockerHint(block.code)}</p>
+                )}
+              </li>
             ))}
           </ul>
         </div>
       )}
 
       {plan.steps.length > 0 && (
-        <ol className="intent-sequence">
+        <ol className="mt-4 space-y-3">
           {plan.steps.map((step) => (
             <li
-              className={`intent-step intent-step-${step.condition}`}
               key={step.id}
+              className="flex items-start gap-4 p-4 bg-surface-soft border border-border rounded-lg"
             >
-              <span className="intent-step-number" aria-hidden="true" />
-              <div>
-                <div className="intent-step-heading">
-                  <strong>{step.label}</strong>
-                  <small>{conditionLabel(step.condition)}</small>
+              <StepIndicator condition={step.condition} />
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 justify-between">
+                  <strong className="text-text-primary">{step.label}</strong>
+                  <ConditionBadge condition={step.condition} />
                 </div>
-                <p>{step.explanation}</p>
-                {step.trigger && <code>{step.trigger}</code>}
+                <p className="mt-1 text-sm text-text-secondary">{step.explanation}</p>
+                {step.trigger && (
+                  <code className="mt-2 inline-block px-2 py-1 text-xs bg-surface-inset rounded text-text-primary">
+                    {step.trigger}
+                  </code>
+                )}
                 {isActionableStep(step)
                   && step.condition === 'required'
                   && plan.fingerprint
                   && !(actionJob?.workflowId === 'handover' && actionJob.status === 'completed') && (
-                  <button
-                    className="intent-action-button"
+                  <Button
+                    className="mt-3"
+                    size="sm"
                     disabled={inspectionBusy || actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
-                    type="button"
                     onClick={() => onRunAction(actionWorkflowForStep(step))}
                   >
                     {actionBusy ? 'Starting…' : actionLabelForStep(step)}
-                  </button>
+                  </Button>
                 )}
               </div>
             </li>
@@ -102,17 +106,56 @@ export function IntentPlanPanel({
       )}
 
       {plan.likelyNextStepId && (
-        <div className="likely-next">
-          <span>Likely next action</span>
-          <strong>{stepLabel(plan, plan.likelyNextStepId)}</strong>
+        <div className="mt-4 p-4 border border-dashed border-border rounded-lg flex items-center gap-2 text-sm">
+          <span className="text-text-muted">Likely next action</span>
+          <strong className="text-text-primary">{stepLabel(plan, plan.likelyNextStepId)}</strong>
         </div>
       )}
 
-      <p className="intent-boundary">
+      <p className="mt-4 text-xs text-text-faint">
         This is policy-grounded guidance only. Nothing displayed here is
         executed by the Adviser.
       </p>
-    </section>
+    </Panel>
+  )
+}
+
+function StepIndicator({ condition }: { condition: IntentPlan['steps'][number]['condition'] }) {
+  const classes = condition === 'satisfied'
+    ? 'bg-teal-100 text-teal-700 border-teal-200'
+    : condition === 'conditional'
+    ? 'bg-amber-100 text-amber-700 border-amber-200'
+    : 'bg-ink-100 text-text-primary border-border'
+
+  const icon = condition === 'satisfied' ? '✓'
+    : condition === 'conditional' ? '?'
+    : '●'
+
+  return (
+    <span className={`shrink-0 grid w-8 h-8 text-sm font-bold place-items-center rounded-full border ${classes}`}>
+      {icon}
+    </span>
+  )
+}
+
+function ConditionBadge({ condition }: { condition: IntentPlan['steps'][number]['condition'] }) {
+  const tone = condition === 'satisfied' ? 'success'
+    : condition === 'conditional' ? 'warning'
+    : 'info'
+  const label = condition === 'satisfied' ? 'Already satisfied'
+    : condition === 'conditional' ? 'Conditional'
+    : 'Required'
+
+  const toneClasses = {
+    success: 'bg-teal-100 text-teal-800',
+    warning: 'bg-amber-100 text-amber-800',
+    info: 'bg-blue-100 text-blue-800',
+  }
+
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${toneClasses[tone]}`}>
+      {label}
+    </span>
   )
 }
 

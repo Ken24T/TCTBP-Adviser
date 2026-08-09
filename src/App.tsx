@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ActionerJob, ActionerJobStart, ActionerWorkflowId } from '../shared/actioner'
+import { useTheme } from './theme'
+import { ErrorBanner } from './components/ErrorBanner'
+import { LoadingState } from './components/LoadingState'
+import { TopNav } from './components/TopNav'
+import type { ActionerJob, ActionerWorkflowId } from '../shared/actioner'
 import type { AiReviewResult } from '../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -15,17 +19,6 @@ import {
   loadPortfolio,
   loadReferenceCatalogue,
   loadActionerJob,
-  startCheckpointAction,
-  startBranchDevelopmentAction,
-  startDeployDevelopmentAction,
-  startPromoteReviewAction,
-  startPromoteProductionAction,
-  startShipAction,
-  startHandoverAction,
-  startResumeAction,
-  startRepairCompatibilityAction,
-  startPublishAction,
-  applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
   startTctbpBootstrap,
   loadRepositoryDetail,
@@ -33,19 +26,28 @@ import {
   loadTctbpBootstrapReview,
   loadTctbpUpgradeReview,
   prepareTctbpBootstrap,
-} from './api-client'
+  refreshRepositoryOnServer,
+} from './api'
 import { intentForRecommendation } from './recommended-intent'
 import { PortfolioDashboard } from './components/PortfolioDashboard'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
-import {
-  loadPortfolioPreferences,
-  savePortfolioPreferences,
-  updatePortfolioPreference,
-  type PortfolioPreference,
-  type PortfolioPreferences,
-} from './portfolio-preferences'
+import { SettingsPanel } from './components/SettingsPanel'
+import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
+import { usePortfolioPreferences } from './use-portfolio-preferences'
+import { useWorkflowActions } from './use-workflow-actions'
+import { useUpgradeApply } from './use-upgrade-apply'
 
+// File-size note: under 600 lines — above the 400-line warning threshold but below the 600-line hard split.
+// App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
+// view routing. The presentational layers are already extracted (TopNav, ErrorBanner, LoadingState,
+// and the view components), workflow-action confirmation/start maps live in action-workflows.ts, the
+// shared view reset lives in resetSession(), the portfolio-preferences state (hydration from the
+// shared server file plus debounced saves) lives in use-portfolio-preferences.ts, the workflow
+// action runner (runAction / runRecommendedAction) lives in use-workflow-actions.ts, and the
+// upgrade apply handlers (applyAdditions / applyPolicy / applyDeleteObsolete / applyInOrder) live
+// in use-upgrade-apply.ts. Splitting further means extracting the remaining coupled async handlers
+// into a custom hook (e.g. useAdviser), deferred as a larger, riskier refactor.
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
@@ -65,15 +67,31 @@ function App() {
   const [bootstrapJob, setBootstrapJob] = useState<TctbpBootstrapJob | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceOpen, setReferenceOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
   const [intent, setIntent] = useState<RecommendationIntent>('none')
-  const [preferences, setPreferences] = useState<PortfolioPreferences>(
-    loadPortfolioPreferences,
+  const [query, setQuery] = useState('')
+  const { changePreference, preferences } = usePortfolioPreferences(
+    (cause) => captureError(cause, requestId.current),
   )
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const started = useRef(false)
+  const mutatedRef = useRef(false)
+  const returningIdRef = useRef<string | null>(null)
+  const { runAction, runRecommendedAction } = useWorkflowActions({
+    detail,
+    intent,
+    refreshDetail,
+    reportError: (cause) => captureError(cause, requestId.current),
+    selectedId,
+    setActionBusy,
+    setActionFeedback,
+    setActionJob,
+    setError,
+    setIntent,
+  })
 
   useEffect(() => {
     if (
@@ -84,14 +102,22 @@ function App() {
     ) return
     const timer = window.setTimeout(() => {
       void loadTctbpBootstrapJob(selectedId, bootstrapJob.jobId)
-        .then((nextJob) => {
+        .then(async (nextJob) => {
           setBootstrapJob(nextJob)
           if (nextJob.status === 'completed') {
+            mutatedRef.current = true
             setBootstrapApplyBusy(false)
             setBootstrapApplyFeedback(
               `Bootstrap completed on ${nextJob.result?.branch ?? 'the dedicated branch'} with ${nextJob.result?.appliedPaths.length ?? 0} file(s). Review and checkpoint before publishing.`,
             )
-            void refreshDetail(selectedId, intent)
+            await refreshDetail(selectedId, intent)
+            // The bootstrap changes the working tree — refresh the upgrade
+            // plan too so the panel never shows a stale plan. Run it only
+            // after the detail refresh has settled: both share
+            // requestId.current, so starting them concurrently makes
+            // refreshUpgradePlan invalidate refreshDetail's result — the
+            // detail stays stale and its busy flag never clears.
+            if (upgradePlan) await refreshUpgradePlan(selectedId)
           } else if (nextJob.status === 'failed') {
             setBootstrapApplyBusy(false)
             setBootstrapApplyFeedback(nextJob.error ?? 'Bootstrap failed before completion.')
@@ -100,7 +126,7 @@ function App() {
         .catch((cause) => captureError(cause, requestId.current))
     }, 500)
     return () => window.clearTimeout(timer)
-  }, [bootstrapJob, intent, selectedId])
+  }, [bootstrapJob, intent, selectedId, upgradePlan])
 
   useEffect(() => {
     if (
@@ -111,79 +137,32 @@ function App() {
     ) return
     const timer = window.setTimeout(() => {
       void loadActionerJob(selectedId, actionJob.jobId)
-        .then((nextJob) => {
+        .then(async (nextJob) => {
           setActionJob(nextJob)
           if (nextJob.status === 'completed' || nextJob.status === 'failed') {
+            if (nextJob.status === 'completed') mutatedRef.current = true
             setActionBusy(false)
-            void refreshDetail(selectedId, intent).then((refreshed) => {
-              if (!refreshed) {
-                setActionFeedback(
-                  `${nextJob.workflowId} completed, but the Adviser could not refresh repository state. Refresh manually before continuing.`,
-                )
-              }
-            })
+            const refreshed = await refreshDetail(selectedId, intent)
+            if (!refreshed) {
+              setActionFeedback(
+                `${nextJob.workflowId} completed, but the Adviser could not refresh repository state. Refresh manually before continuing.`,
+              )
+            }
+            // Checkpoint/publish/apply change the repository state — refresh
+            // the upgrade plan so it never shows a stale plan after an
+            // action. Run it only after the detail refresh has settled:
+            // both share requestId.current, so starting them concurrently
+            // makes refreshUpgradePlan invalidate refreshDetail's result —
+            // the detail stays stale and its busy flag never clears.
+            if (nextJob.status === 'completed' && upgradePlan) {
+              await refreshUpgradePlan(selectedId)
+            }
           }
         })
         .catch((cause) => captureError(cause, requestId.current))
     }, 500)
     return () => window.clearTimeout(timer)
-  }, [actionJob, intent, selectedId])
-
-  async function runAction(workflowId: ActionerWorkflowId): Promise<void> {
-    if (!selectedId || !detail?.intentPlan?.fingerprint) return
-    const confirmations: Record<ActionerWorkflowId, string> = {
-      checkpoint: 'Create a local checkpoint commit? No push, branch switch, merge, or deployment will occur.',
-      publish: 'Publish the current branch to origin? No merge, tag, deploy, or release will occur.',
-      'branch-development': 'Create and switch to the configured development branch? No publish or deployment will occur.',
-      'repair-tctbp-script-compatibility': 'Add scripts/package.json to scope TCTBP CommonJS scripts without committing or publishing.',
-      handover: 'Create continuation context and publish the current branch for another machine.',
-      resume: 'Reconcile the clean local branch with its origin state. No force update will occur.',
-      'promote-review': 'Promote the current development branch into review? This will merge, verify, and publish review. No deployment will occur.',
-      'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
-      ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
-      'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
-    }
-    if (!window.confirm(confirmations[workflowId])) return
-    setActionBusy(true)
-    setActionFeedback(null)
-    setError(null)
-    try {
-      const starters: Record<ActionerWorkflowId, () => Promise<ActionerJobStart>> = {
-        checkpoint: () => startCheckpointAction(
-          selectedId,
-          detail.intentPlan!.fingerprint,
-          detail.intentPlan!.intent,
-        ),
-        publish: () => startPublishAction(selectedId, detail.intentPlan!.fingerprint),
-        'branch-development': () => startBranchDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
-        'repair-tctbp-script-compatibility': () => startRepairCompatibilityAction(selectedId, detail.intentPlan!.fingerprint),
-        handover: () => startHandoverAction(selectedId, detail.intentPlan!.fingerprint),
-        resume: () => startResumeAction(selectedId, detail.intentPlan!.fingerprint),
-        'promote-review': () => startPromoteReviewAction(selectedId, detail.intentPlan!.fingerprint),
-        'promote-production': () => startPromoteProductionAction(selectedId, detail.intentPlan!.fingerprint),
-        ship: () => startShipAction(selectedId, detail.intentPlan!.fingerprint),
-        'deploy-development': () => startDeployDevelopmentAction(selectedId, detail.intentPlan!.fingerprint),
-      }
-      const startedJob = await starters[workflowId]()
-      setActionJob({
-        jobId: startedJob.jobId,
-        repositoryId: selectedId,
-        workflowId,
-        status: 'queued',
-        steps: [],
-        result: null,
-        error: null,
-        startedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        completedAt: null,
-      })
-    } catch (cause) {
-      setActionBusy(false)
-      const message = cause instanceof Error ? cause.message : 'Action could not start.'
-      setActionFeedback(message)
-      captureError(cause, requestId.current)
-    }
-  }
+  }, [actionJob, intent, selectedId, upgradePlan])
 
   async function refreshPortfolio(force = false): Promise<void> {
     const currentRequest = ++requestId.current
@@ -191,6 +170,20 @@ function App() {
     setError(null)
     try {
       const nextPortfolio = await loadPortfolio(force)
+      if (currentRequest === requestId.current) setPortfolio(nextPortfolio)
+    } catch (cause) {
+      captureError(cause, currentRequest)
+    } finally {
+      if (currentRequest === requestId.current) setBusy(false)
+    }
+  }
+
+  async function refreshRepositoryCard(repositoryId: string): Promise<void> {
+    const currentRequest = ++requestId.current
+    setBusy(true)
+    setError(null)
+    try {
+      const nextPortfolio = await refreshRepositoryOnServer(repositoryId)
       if (currentRequest === requestId.current) setPortfolio(nextPortfolio)
     } catch (cause) {
       captureError(cause, currentRequest)
@@ -303,72 +296,28 @@ function App() {
     }
   }
 
-  async function applyUpgrade(
-    mode: Parameters<typeof applyTctbpUpgradePlan>[3],
-    approvedPaths: string[],
-    approvedDeletionPaths: string[],
-    confirmDeletions: boolean,
-    confirmation: string,
-  ): Promise<void> {
-    if (!selectedId || !upgradePlan?.fingerprint || aiReview?.status !== 'available') return
-    if (!window.confirm(confirmation)) return
-    setApplyBusy(true)
-    setUpgradeFeedback(null)
-    setError(null)
-    try {
-      const result = await applyTctbpUpgradePlan(
-        selectedId,
-        upgradePlan.fingerprint,
-        aiReview.reviewId,
-        mode,
-        approvedPaths,
-        approvedDeletionPaths,
-        confirmDeletions,
-      )
-      setUpgradeFeedback(
-        result.status === 'applied'
-          ? `Applied ${result.appliedPaths.length} change(s). Review and checkpoint the repository next.`
-          : 'There were no approved changes to apply.',
-      )
-      await refreshDetail(selectedId, intent)
-      await refreshUpgradePlan(selectedId)
-    } catch (cause) {
-      captureError(cause, requestId.current)
-    } finally {
-      setApplyBusy(false)
-    }
-  }
-
-  function applyUpgradeAdditions(): Promise<void> {
-    return applyUpgrade(
-      'additions-only',
-      [],
-      [],
-      false,
-      'Apply missing canonical TCTBP files? No commit or push will be performed.',
-    )
-  }
-
-  function applyUpgradePolicy(): Promise<void> {
-    return applyUpgrade(
-      'approved-managed-files',
-      ['.github/TCTBP.json'],
-      [],
-      false,
-      'Merge canonical TCTBP infrastructure policy sections? No commit or push will be performed.',
-    )
-  }
-
-  function deleteObsoleteUpgradeFiles(): Promise<void> {
-    const paths = upgradePlan?.drift.obsoleteTargets?.map((file) => file.path) ?? []
-    return applyUpgrade(
-      'approved-managed-files',
-      [],
-      paths,
-      true,
-      `Delete ${paths.length} obsolete canonical TCTBP file(s)? This cannot be undone by the Adviser.`,
-    )
-  }
+  const {
+    applyAdditions,
+    applyPolicy,
+    applyDrifted,
+    applyAlignment,
+    applyDeleteObsolete,
+    applyInOrder,
+  } = useUpgradeApply({
+    selectedId,
+    upgradePlan,
+    aiReview,
+    intent,
+    refreshDetail,
+    refreshUpgradePlan,
+    setApplyBusy,
+    setUpgradeFeedback,
+    setError,
+    markMutated: () => {
+      mutatedRef.current = true
+    },
+    reportError: (cause) => captureError(cause, requestId.current),
+  })
 
   async function refreshCatalogue(): Promise<void> {
     const currentRequest = ++requestId.current
@@ -394,6 +343,7 @@ function App() {
   }
 
   function openRepository(repositoryId: string): void {
+    returningIdRef.current = repositoryId
     setReferenceOpen(false)
     setSelectedId(repositoryId)
     setDetail(null)
@@ -424,10 +374,8 @@ function App() {
     })()
   }
 
-  function showPortfolio(): void {
-    requestId.current += 1
+  function resetSession(): void {
     setSelectedId(null)
-    setReferenceOpen(false)
     setDetail(null)
     setUpgradePlan(null)
     setUpgradeBusy(false)
@@ -444,33 +392,46 @@ function App() {
     setActionBusy(false)
     setActionFeedback(null)
     setIntent('none')
+  }
+
+  function showPortfolio(): void {
+    requestId.current += 1
+    resetSession()
+    setReferenceOpen(false)
+    setSettingsOpen(false)
     setBusy(false)
     setError(null)
+    if (returningIdRef.current) {
+      const returning = returningIdRef.current
+      window.setTimeout(() => {
+        if (returningIdRef.current === returning) returningIdRef.current = null
+      }, 1200)
+    }
+    if (mutatedRef.current) {
+      mutatedRef.current = false
+      void refreshPortfolio()
+    }
   }
 
   function showReference(): void {
     requestId.current += 1
-    setSelectedId(null)
-    setDetail(null)
-    setUpgradePlan(null)
-    setUpgradeBusy(false)
-    setApplyBusy(false)
-    setUpgradeFeedback(null)
-    setAiReview(null)
-    setAiBusy(false)
-    setBootstrapPlan(null)
-    setBootstrapBusy(false)
-    setBootstrapApplyBusy(false)
-    setBootstrapApplyFeedback(null)
-    setBootstrapJob(null)
-    setActionJob(null)
-    setActionBusy(false)
-    setActionFeedback(null)
-    setIntent('none')
+    resetSession()
+    returningIdRef.current = null
+    setSettingsOpen(false)
     setReferenceOpen(true)
     setError(null)
     if (!catalogue) void refreshCatalogue()
     else setBusy(false)
+  }
+
+  function showSettings(): void {
+    requestId.current += 1
+    resetSession()
+    returningIdRef.current = null
+    setReferenceOpen(false)
+    setSettingsOpen(true)
+    setBusy(false)
+    setError(null)
   }
 
   function changeIntent(nextIntent: RecommendationIntent): void {
@@ -479,24 +440,11 @@ function App() {
     void refreshDetail(selectedId, nextIntent)
   }
 
-  function changePreference(
-    repositoryId: string,
-    patch: Partial<PortfolioPreference>,
-  ): void {
-    setPreferences((current) => (
-      updatePortfolioPreference(current, repositoryId, patch)
-    ))
-  }
-
   useEffect(() => {
     if (started.current) return
     started.current = true
     void refreshPortfolio()
   }, [])
-
-  useEffect(() => {
-    savePortfolioPreferences(preferences)
-  }, [preferences])
 
   const retry = () => {
     if (referenceOpen) void refreshCatalogue()
@@ -504,42 +452,32 @@ function App() {
     else void refreshPortfolio(true)
   }
 
+  const { resolved } = useTheme()
+
   return (
-    <div className="app-shell">
-      <nav className="topbar" aria-label="Application">
-        <button
-          className="brand"
-          type="button"
-          aria-label="Show repository portfolio"
-          onClick={showPortfolio}
-        >
-          <span className="brand-mark" aria-hidden="true">T</span>
-          <span>
-            <strong>TCTBP</strong>
-            <small>Adviser</small>
-          </span>
-        </button>
-        <div className="topbar-actions">
-          <button type="button" onClick={showReference}>TCTBP reference</button>
-          <span className="mode-label">Local-first repository portfolio</span>
-        </div>
-      </nav>
+    <div className={`min-h-screen flex flex-col ${resolved}`}>
+      <TopNav
+        busy={busy}
+        onQueryChange={setQuery}
+        onRefresh={() => void refreshPortfolio(true)}
+        onShowPortfolio={showPortfolio}
+        onShowReference={showReference}
+        onShowSettings={showSettings}
+        query={query}
+      />
 
-      <main>
-        {error && (
-          <section className="error-panel" role="alert">
-            <div>
-              <p className="eyebrow">Inspection unavailable</p>
-              <h1>The Adviser stopped safely.</h1>
-              <p>{error}</p>
-            </div>
-            <button type="button" onClick={retry}>
-              Try again
-            </button>
-          </section>
-        )}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
+        {error && <ErrorBanner error={error} onRetry={retry} />}
 
-        {referenceOpen && catalogue ? (
+        {settingsOpen ? (
+          <SettingsPanel
+            onBack={showPortfolio}
+            onPreferenceChange={changePreference}
+            onSaved={() => void refreshPortfolio(true)}
+            preferences={preferences}
+            repositories={portfolio?.repositories ?? []}
+          />
+        ) : referenceOpen && catalogue ? (
           <ReferenceExplorer catalogue={catalogue} onBack={showPortfolio} />
         ) : selectedId && detail ? (
           <RepositoryDetail
@@ -548,6 +486,7 @@ function App() {
             actionBusy={actionBusy}
             actionFeedback={actionFeedback}
             onRunAction={(workflowId) => void runAction(workflowId)}
+            onRunRecommended={() => void runRecommendedAction()}
             onRepairCompatibility={() => void runAction('repair-tctbp-script-compatibility')}
             intent={intent}
             busy={busy}
@@ -569,34 +508,36 @@ function App() {
             onRefresh={() => void refreshDetail(selectedId, intent)}
             onLoadUpgradePlan={() => void refreshUpgradePlan(selectedId)}
             onReviewAi={() => void refreshAiReview()}
-            onApplyAdditions={() => void applyUpgradeAdditions()}
-            onApplyPolicy={() => void applyUpgradePolicy()}
-            onDeleteObsolete={() => void deleteObsoleteUpgradeFiles()}
+            onApplyAdditions={() => void applyAdditions()}
+            onApplyPolicy={() => void applyPolicy()}
+            onApplyDrifted={() => void applyDrifted()}
+            onApplyAlignment={() => void applyAlignment()}
+            onDeleteObsolete={() => void applyDeleteObsolete()}
+            onApplyInOrder={() => void applyInOrder()}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard
+            busy={busy}
+            returningId={returningIdRef.current}
             snapshot={portfolio}
             preferences={preferences}
-            busy={busy}
+            query={query}
             onOpen={openRepository}
-            onRefresh={() => void refreshPortfolio(true)}
             onPreferenceChange={changePreference}
+            onRefreshRepository={(repositoryId) => (
+              void refreshRepositoryCard(repositoryId)
+            )}
           />
         ) : !error ? (
-          <section className="loading-panel" aria-live="polite">
-            <span className="loading-ring" aria-hidden="true" />
-            <p>
-              {referenceOpen
-                ? 'Loading the pinned TCTBP reference…'
-                : selectedId
-                ? 'Inspecting the selected repository…'
-                : 'Discovering local repositories…'}
-            </p>
-          </section>
+          referenceOpen
+            ? <LoadingState message="Loading the pinned TCTBP reference…" />
+            : selectedId
+              ? <LoadingState message="Inspecting the selected repository…" />
+              : <PortfolioDashboardSkeleton />
         ) : null}
       </main>
 
-      <footer>
+      <footer className="py-8 text-center text-xs text-text-faint uppercase tracking-widest">
         Local evidence remains primary · No Git fetch · No repository mutation
       </footer>
     </div>

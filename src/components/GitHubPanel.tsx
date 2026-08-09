@@ -3,6 +3,7 @@ import type {
   RepositoryGitHubEvidence,
 } from '../../shared/github'
 import { formatAge } from '../presentation'
+import { Panel, Badge } from './primitives'
 
 export function GitHubPanel({
   evidence,
@@ -15,50 +16,49 @@ export function GitHubPanel({
 }) {
   if (evidence.status === 'disabled') {
     return (
-      <ProviderNotice
-        title="GitHub enrichment is disabled"
-        message="Local advice remains available without provider access."
-      />
+      <p className="text-xs text-text-muted">
+        GitHub enrichment is disabled. Local advice is unaffected.
+      </p>
     )
   }
   if (evidence.status === 'not-mapped') {
     return (
-      <ProviderNotice
-        title="No GitHub repository mapping"
-        message="No supported GitHub origin was found for this local repository."
-      />
+      <p className="text-xs text-text-muted">
+        No GitHub repository mapping was found for this local repository.
+      </p>
     )
   }
   if (evidence.status === 'unavailable') {
     return (
-      <ProviderNotice
-        title="GitHub evidence is unavailable"
-        message={`${evidence.error.message} Local advice is unaffected.`}
-        retrievedAt={evidence.retrievedAt}
-      />
+      <p className="text-xs text-text-muted">
+        {evidence.error.message} Local advice is unaffected.
+      </p>
     )
   }
   if (evidence.status !== 'available') return null
 
   const repository = evidence.repository
   return (
-    <section className="github-panel" aria-labelledby="github-title">
-      <div className="github-panel-heading">
+    <Panel eyebrow="Separate provider evidence" title="GitHub-visible state">
+      <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between mb-4">
         <div>
-          <p className="eyebrow">Separate provider evidence</p>
-          <h2 id="github-title">GitHub-visible state</h2>
-          <p>
-            <a href={repository.htmlUrl} rel="noreferrer" target="_blank">
+          <p className="text-sm">
+            <a
+              className="font-medium text-teal-700 hover:text-teal-800 hover:underline"
+              href={repository.htmlUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
               {repository.fullName}
             </a>
             {' · '}{repository.visibility}
             {repository.archived ? ' · archived' : ''}
           </p>
         </div>
-        <span>{providerAge(evidence.retrievedAt)}</span>
+        <Badge tone="neutral">{providerAge(evidence.retrievedAt)}</Badge>
       </div>
 
-      <div className="github-facts">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <ProviderFact
           label="Default branch"
           value={branchSummary(evidence)}
@@ -94,38 +94,19 @@ export function GitHubPanel({
       </div>
 
       <ProviderProblems evidence={evidence} />
-      <p className="provider-boundary">
+      <p className="mt-4 text-xs text-text-faint">
         GitHub observations do not replace working-tree or local tracking-ref
         evidence and do not alter the deterministic recommendation.
       </p>
-    </section>
-  )
-}
-
-function ProviderNotice({
-  title,
-  message,
-  retrievedAt,
-}: {
-  title: string
-  message: string
-  retrievedAt?: string
-}) {
-  return (
-    <section className="github-panel provider-notice">
-      <p className="eyebrow">Separate provider evidence</p>
-      <h2>{title}</h2>
-      <p>{message}</p>
-      {retrievedAt && <small>{providerAge(retrievedAt)}</small>}
-    </section>
+    </Panel>
   )
 }
 
 function ProviderFact({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className="p-3 bg-surface-soft rounded-lg">
+      <span className="block text-xs text-text-muted">{label}</span>
+      <strong className="block mt-0.5 text-sm text-text-primary break-all">{value}</strong>
     </div>
   )
 }
@@ -149,7 +130,7 @@ function ProviderProblems({
   ].filter((section) => section.unavailable)
   if (unavailable.length === 0) return null
   return (
-    <div className="provider-partial">
+    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
       Partial provider evidence: {unavailable.map(({ name }) => name).join(', ')}
       {' '}could not be retrieved.
     </div>

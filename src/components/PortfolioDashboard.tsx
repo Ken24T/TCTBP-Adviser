@@ -8,6 +8,7 @@ import type {
   PortfolioPreferences,
 } from '../portfolio-preferences'
 import { formatAge } from '../presentation'
+import { Card, EmptyState, Section } from './primitives'
 import { PortfolioCard } from './PortfolioCard'
 
 type PortfolioFilter =
@@ -19,45 +20,41 @@ type PortfolioFilter =
   | 'tctbp-review'
   | 'tctbp-bootstrap'
   | 'tctbp-blocked'
-  | 'tctbp-outdated'
-  | 'tctbp-files'
-  | 'tctbp-policy'
 
 interface PortfolioDashboardProps {
   snapshot: PortfolioSnapshot
   preferences: PortfolioPreferences
-  busy: boolean
+  query: string
+  busy?: boolean
+  returningId?: string | null
   onOpen: (repositoryId: string) => void
-  onRefresh: () => void
   onPreferenceChange: (
     repositoryId: string,
     patch: Partial<PortfolioPreference>,
   ) => void
+  onRefreshRepository: (repositoryId: string) => void
 }
 
 export function PortfolioDashboard({
   snapshot,
   preferences,
-  busy,
+  query,
+  busy = false,
+  returningId = null,
   onOpen,
-  onRefresh,
   onPreferenceChange,
+  onRefreshRepository,
 }: PortfolioDashboardProps) {
-  const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<PortfolioFilter>('all')
-  const [showHidden, setShowHidden] = useState(false)
-  const hiddenCount = snapshot.repositories.filter(
-    (repository) => preferences[repository.id]?.hidden,
-  ).length
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const repositories = useMemo(
     () => visibleRepositories(
       snapshot.repositories,
       preferences,
       query,
       filter,
-      showHidden,
     ),
-    [snapshot.repositories, preferences, query, filter, showHidden],
+    [snapshot.repositories, preferences, query, filter],
   )
   const healthyCount = snapshot.repositories.filter(
     (repository) => repository.recommendation?.severity === 'healthy',
@@ -68,12 +65,12 @@ export function PortfolioDashboard({
   const cacheStale = snapshot.cache.ageMs > snapshot.cache.ttlMs
 
   return (
-    <>
-      <header className="portfolio-header">
-        <div>
-          <p className="eyebrow">Local repository registry</p>
-          <h1>Repository portfolio</h1>
-          <p>
+    <div className="space-y-8 animate-fade-in">
+      <header className="flex flex-col lg:flex-row lg:items-end gap-6 justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold uppercase tracking-widest text-teal-600">Local repository registry</p>
+          <h1 className="mt-1 text-5xl font-semibold text-text-primary tracking-tight">Repository portfolio</h1>
+          <p className="mt-3 text-lg text-text-secondary leading-relaxed">
             {snapshot.discovery.repositoryCount} local repositories discovered across{' '}
             {snapshot.discovery.rootCount} configured root
             {snapshot.discovery.rootCount === 1 ? '' : 's'}.
@@ -82,99 +79,122 @@ export function PortfolioDashboard({
               : ''}
           </p>
         </div>
-        <button disabled={busy} type="button" onClick={onRefresh}>
-          {busy ? 'Refreshing…' : 'Refresh portfolio'}
-        </button>
       </header>
 
-      <section className="portfolio-metrics" aria-label="Portfolio summary">
-        <Metric label="Discovered" value={snapshot.discovery.repositoryCount} />
-        <Metric label="Healthy" value={healthyCount} />
-        <Metric label="TCTBP compatible" value={compatibleCount} />
-        <Metric label="GitHub mapped" value={snapshot.github.localMappings} />
-        {snapshot.upgrade?.enabled && (
-          <>
-            <Metric label="TCTBP current" value={snapshot.upgrade.current} />
-            <Metric label="TCTBP review" value={snapshot.upgrade.reviewRequired} />
-            <Metric label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} />
-            <Metric label="TCTBP blocked" value={snapshot.upgrade.blocked} />
-          </>
-        )}
-      </section>
-
-      <section className="portfolio-controls" aria-label="Portfolio filters">
-        <label className="portfolio-search">
-          <span>Search repositories</span>
-          <input
-            type="search"
-            placeholder="Search by repository or custom name"
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
+      <Card className="p-5 space-y-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <MetricChip
+            label="Discovered"
+            value={snapshot.discovery.repositoryCount}
+            tone="info"
+            note={`${snapshot.discovery.rootCount} configured root${snapshot.discovery.rootCount === 1 ? '' : 's'}`}
           />
-        </label>
-        <div className="filter-buttons">
-          {filterOptions(snapshot).map((option) => (
-            <button
-              className={filter === option ? 'selected' : ''}
-              key={option}
-              type="button"
-              onClick={() => setFilter(option)}
-            >
-              {filterLabel(option)}
-            </button>
-          ))}
-          {hiddenCount > 0 && (
-            <button type="button" onClick={() => setShowHidden(!showHidden)}>
-              {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
-            </button>
+          <MetricChip label="Healthy" value={healthyCount} tone="success" note="No action needed" />
+          <MetricChip label="TCTBP compatible" value={compatibleCount} tone="accent" note="Ready for advice" />
+          <MetricChip label="GitHub mapped" value={snapshot.github.localMappings} tone="neutral" />
+          {snapshot.upgrade?.enabled && (
+            <>
+              <MetricChip label="TCTBP current" value={snapshot.upgrade.current} tone="success" />
+              <MetricChip label="TCTBP update" value={snapshot.upgrade.reviewRequired} tone="warning" />
+              <MetricChip label="TCTBP bootstrap" value={snapshot.upgrade.bootstrapRequired} tone="danger" />
+              <MetricChip label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
+            </>
           )}
+          <div className="flex flex-wrap items-center gap-3 ml-auto">
+            <button
+              aria-expanded={filtersOpen}
+              className={[
+                'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
+                filtersOpen
+                  ? 'bg-teal-600 text-white shadow-soft'
+                  : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
+              ].join(' ')}
+              type="button"
+              onClick={() => setFiltersOpen(!filtersOpen)}
+            >
+              Filters{filter !== 'all' ? ` · ${filterLabel(filter)}` : ''}
+            </button>
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <span
+                aria-hidden="true"
+                className={`w-2 h-2 rounded-full ${cacheStale ? 'bg-amber-500' : 'bg-teal-500'}`}
+              />
+              <span>
+                {cacheStale
+                  ? 'Stale portfolio'
+                  : snapshot.cache.status === 'fresh'
+                    ? 'Cached portfolio'
+                    : 'Freshly inspected'}
+                {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
+              </span>
+            </div>
+          </div>
         </div>
-      </section>
 
-      <div className={`portfolio-cache-note ${cacheStale ? 'cache-stale' : ''}`}>
-        <span className="status-dot" aria-hidden="true" />
-        {cacheStale
-          ? 'Stale portfolio'
-          : snapshot.cache.status === 'fresh'
-            ? 'Cached portfolio'
-            : 'Freshly inspected'}
-        {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
-      </div>
+        {filtersOpen && (
+          <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
+            {filterOptions(snapshot).map((option) => (
+              <button
+                className={[
+                  'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
+                  filter === option
+                    ? 'bg-teal-600 text-white shadow-soft'
+                    : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
+                ].join(' ')}
+                key={option}
+                type="button"
+                onClick={() => setFilter(option)}
+              >
+                {filterLabel(option)}
+              </button>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {repositories.length > 0 ? (
-        <section className="portfolio-grid" aria-label="Repositories">
-          {repositories.map((repository) => (
-            <PortfolioCard
-              key={repository.id}
-              repository={repository}
-              preference={preferences[repository.id] ?? emptyPreference()}
-              onOpen={() => onOpen(repository.id)}
-              onPreferenceChange={(patch) => (
-                onPreferenceChange(repository.id, patch)
-              )}
-            />
-          ))}
-        </section>
+        <Section
+          eyebrow={`${repositories.length} matching`}
+          title={filterLabel(filter)}
+        >
+          <div
+            aria-label="Repositories"
+            className="grid gap-5 max-sm:grid-cols-1 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))] xl:[grid-template-columns:repeat(auto-fill,minmax(22rem,1fr))]"
+          >
+            {repositories.map((repository) => (
+              <PortfolioCard
+                busy={busy}
+                key={repository.id}
+                repository={repository}
+                preference={preferences[repository.id] ?? emptyPreference()}
+                startFlipped={repository.id === returningId}
+                onOpen={() => onOpen(repository.id)}
+                onPreferenceChange={(patch) => (
+                  onPreferenceChange(repository.id, patch)
+                )}
+                onRefresh={() => onRefreshRepository(repository.id)}
+              />
+            ))}
+          </div>
+        </Section>
       ) : (
-        <section className="portfolio-empty">
-          <p className="eyebrow">No matches</p>
-          <h2>No repositories match the current view.</h2>
-          <p>Adjust the search, filter, or hidden-repository setting.</p>
-        </section>
+        <EmptyState
+          eyebrow="No matches"
+          title="No repositories match the current view."
+          description="Adjust the search, filter, or hidden-repository setting."
+        />
       )}
 
       {snapshot.discovery.issues.length > 0 && (
-        <section className="discovery-issues" aria-labelledby="issues-title">
-          <p className="eyebrow">Partial discovery</p>
-          <h2 id="issues-title">Some locations were skipped safely</h2>
-          <ul>
+        <Section eyebrow="Partial discovery" title="Some locations were skipped safely">
+          <ul className="ad-surface-soft p-5 space-y-2 text-sm text-text-secondary list-disc list-inside">
             {snapshot.discovery.issues.map((issue, index) => (
               <li key={`${issue.code}-${index}`}>{issue.message}</li>
             ))}
           </ul>
-        </section>
+        </Section>
       )}
-    </>
+    </div>
   )
 }
 
@@ -183,12 +203,11 @@ function visibleRepositories(
   preferences: PortfolioPreferences,
   query: string,
   filter: PortfolioFilter,
-  showHidden: boolean,
 ): PortfolioRepository[] {
   const needle = query.trim().toLocaleLowerCase()
   return repositories.filter((repository) => {
     const preference = preferences[repository.id]
-    if (preference?.hidden && !showHidden) return false
+    if (preference?.hidden) return false
     const name = `${repository.name} ${preference?.name ?? ''}`
       .toLocaleLowerCase()
     return name.includes(needle) && matchesFilter(repository, filter)
@@ -230,14 +249,7 @@ function matchesFilter(
   if (filter === 'tctbp-blocked') {
     return repository.upgrade.blockerCount > 0
   }
-  if (filter === 'tctbp-outdated') {
-    return repository.upgrade.sourceAlignment === 'outdated'
-  }
-  if (filter === 'tctbp-files') {
-    return repository.upgrade.actionCounts.add > 0
-      || repository.upgrade.actionCounts.review > 0
-  }
-  return repository.upgrade.policyDifferenceCount > 0
+  return false
 }
 
 function filterOptions(snapshot: PortfolioSnapshot): PortfolioFilter[] {
@@ -248,9 +260,6 @@ function filterOptions(snapshot: PortfolioSnapshot): PortfolioFilter[] {
       'tctbp-review',
       'tctbp-bootstrap',
       'tctbp-blocked',
-      'tctbp-outdated',
-      'tctbp-files',
-      'tctbp-policy',
     )
   }
   return options
@@ -274,21 +283,42 @@ function filterLabel(filter: PortfolioFilter): string {
     healthy: 'Healthy',
     'non-tctbp': 'Without TCTBP',
     'tctbp-current': 'TCTBP current',
-    'tctbp-review': 'TCTBP review',
+    'tctbp-review': 'TCTBP update',
     'tctbp-bootstrap': 'Bootstrap required',
     'tctbp-blocked': 'TCTBP blocked',
-    'tctbp-outdated': 'Source outdated',
-    'tctbp-files': 'File changes',
-    'tctbp-policy': 'Policy drift',
   }
   return labels[filter]
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+type MetricTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+
+function MetricChip({
+  label,
+  value,
+  tone = 'neutral',
+  note,
+}: {
+  label: string
+  value: number
+  tone?: MetricTone
+  note?: string
+}) {
+  const dotClasses: Record<MetricTone, string> = {
+    neutral: 'bg-ink-400',
+    success: 'bg-teal-500',
+    warning: 'bg-amber-500',
+    danger: 'bg-red-500',
+    info: 'bg-blue-500',
+    accent: 'bg-teal-600',
+  }
   return (
-    <div>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
+    <span className="inline-flex items-center gap-2" title={note}>
+      <span aria-hidden="true" className={`w-2 h-2 rounded-full ${dotClasses[tone]}`} />
+      <strong className="text-lg font-semibold text-text-primary tabular-nums">{value}</strong>
+      <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">{label}</span>
+      {note ? <span className="text-xs text-text-faint">· {note}</span> : null}
+    </span>
   )
 }
+
+

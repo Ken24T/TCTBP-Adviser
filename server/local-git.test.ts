@@ -73,7 +73,7 @@ describe('local Git inspector', () => {
     expect(observation.counts.modified).toBe(1)
   })
 
-  it('calls only the three service-owned command descriptors', async () => {
+  it('calls only the service-owned command descriptors', async () => {
     const executor = new RecordingExecutor()
     const inspector = new LocalGitInspector(executor)
     const root = await createTemporaryDirectory()
@@ -84,6 +84,7 @@ describe('local Git inspector', () => {
 
     expect(executor.commandIds.sort()).toEqual([
       'git-dir',
+      'origin-url',
       'status',
       'top-level',
     ])

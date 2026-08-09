@@ -1,3 +1,8 @@
+// TCTBP file-size justification: this module holds the eight intent-plan
+// builders (one per RecommendationIntent) plus the preservation/safety
+// helpers they all share. Shared step/block primitives already live in
+// plan-helpers.ts; the builders stay together because they share PlanContext
+// and the same plan shape.
 import type { RepositoryObservation } from '../../shared/inspection'
 import type { DeploymentEvidence } from '../../shared/deployment'
 import type { HandoverEvidence } from '../../shared/handover'
@@ -71,6 +76,12 @@ function preserveLocally(context: PlanContext): IntentPlan {
 
 function preserveAndPublish(context: PlanContext): IntentPlan {
   const { observation } = context
+  if (!observation.remoteOrigin) {
+    return blockedPlan(context, [{
+      code: 'remote-origin-missing',
+      message: 'No remote origin is configured, so nothing can be published.',
+    }], [statusStep()])
+  }
   const steps = [statusStep()]
   if (!observation.workingTree.clean) {
     steps.push(workflowStep(
@@ -127,6 +138,12 @@ function preserveAndPublish(context: PlanContext): IntentPlan {
 }
 
 function handover(context: PlanContext): IntentPlan {
+  if (!context.observation.remoteOrigin) {
+    return blockedPlan(context, [{
+      code: 'remote-origin-missing',
+      message: 'No remote origin is configured, so a handover cannot publish its continuation baseline.',
+    }], [statusStep()])
+  }
   if (
     context.handoverEvidence?.workflowCompleted === true
     && context.handoverEvidence.branch === context.observation.head.branch

@@ -23,13 +23,45 @@ export interface DiscoverySnapshot {
 }
 
 export class RepositoryDiscovery {
-  constructor(readonly config: ServiceConfig) {}
+  #repositoryRoots: string[]
+  #excludeDirectories: string[]
+  #maximumDepth: number
+
+  constructor(readonly config: ServiceConfig) {
+    this.#repositoryRoots = [...config.repositoryRoots]
+    this.#excludeDirectories = [...config.excludeDirectories]
+    this.#maximumDepth = config.maximumDepth
+  }
+
+  get repositoryRoots(): string[] {
+    return [...this.#repositoryRoots]
+  }
+
+  get excludeDirectories(): string[] {
+    return [...this.#excludeDirectories]
+  }
+
+  get maximumDepth(): number {
+    return this.#maximumDepth
+  }
+
+  setRepositoryRoots(roots: string[]): void {
+    this.#repositoryRoots = [...roots]
+  }
+
+  setExcludeDirectories(directories: string[]): void {
+    this.#excludeDirectories = [...directories]
+  }
+
+  setMaximumDepth(depth: number): void {
+    this.#maximumDepth = depth
+  }
 
   async scan(): Promise<DiscoverySnapshot> {
     const repositories = new Map<string, DiscoveredRepository>()
     const issues: DiscoveryIssue[] = []
     const scan = { visitedDirectories: 0 }
-    for (const root of this.config.repositoryRoots) {
+    for (const root of this.#repositoryRoots) {
       if (repositories.size >= this.config.maximumRepositories) break
       await this.walk(root, root, 0, repositories, issues, scan)
     }
@@ -67,7 +99,7 @@ export class RepositoryDiscovery {
       })
       return
     }
-    if (depth >= this.config.maximumDepth) return
+    if (depth >= this.#maximumDepth) return
 
     let entries
     try {
@@ -88,7 +120,7 @@ export class RepositoryDiscovery {
       if (
         !entry.isDirectory()
         || entry.isSymbolicLink()
-        || this.config.excludeDirectories.includes(entry.name)
+        || this.#excludeDirectories.includes(entry.name)
       ) continue
       const candidate = path.join(directory, entry.name)
       const canonical = await safeContainedRealpath(root, candidate)

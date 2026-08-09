@@ -76,6 +76,19 @@ describe('intent planner', () => {
     expect(plan?.likelyNextStepId).toBe('publish')
   })
 
+  it('blocks publishing when no remote origin is configured', () => {
+    const plan = buildPlan('preserve-and-publish', {
+      syncState: 'unpublished',
+      remoteOrigin: null,
+    })
+
+    expect(plan?.status).toBe('blocked')
+    expect(plan?.blockedBy).toEqual([
+      expect.objectContaining({ code: 'remote-origin-missing' }),
+    ])
+    expect(plan?.steps.map((step) => step.workflowId)).not.toContain('publish')
+  })
+
   it('recognises work that is already preserved and published', () => {
     const plan = buildPlan('preserve-and-publish')
 

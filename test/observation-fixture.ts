@@ -16,6 +16,7 @@ export interface ObservationOptions {
   tctbpInstalled?: boolean
   tctbpCompatible?: boolean
   workflows?: string[]
+  remoteOrigin?: string | null
   observedAt?: string
   errors?: InspectionIssue[]
 }
@@ -60,6 +61,9 @@ export function observationFixture(
       state: syncState,
       basis: INSPECTION_BASIS,
     },
+    remoteOrigin: options.remoteOrigin === undefined
+      ? 'git@github.com:Ken24T/fixture.git'
+      : options.remoteOrigin,
     tctbp: {
       installed: options.tctbpInstalled ?? true,
       compatible: options.tctbpCompatible ?? true,

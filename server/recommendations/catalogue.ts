@@ -71,6 +71,12 @@ const ACTIONS: Record<RecommendationAction, ActionDescription> = {
     does: ['Explains the unsupported contract or missing capability.'],
     doesNot: ['Does not upgrade or replace TCTBP infrastructure.'],
   },
+  'update-tctbp': {
+    trigger: null,
+    kind: 'guidance',
+    does: ['Shows the canonical TCTBP-Web drift and lets you apply it.'],
+    doesNot: ['Does not modify repository files without explicit approval.'],
+  },
 }
 
 export function stepFor(action: RecommendationAction): RecommendationStep {

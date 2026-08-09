@@ -46,16 +46,22 @@ describe('repository detail view', () => {
         onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
         onRefresh={() => undefined}
+        onRunRecommended={() => undefined}
         onLoadUpgradePlan={() => undefined}
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
       />,
     )
 
     expect(markup).toContain('fixture')
     expect(markup).toContain('Checkpoint')
+    expect(markup).toContain('Recommended: Checkpoint')
+    expect(markup).toContain('Run Checkpoint')
     expect(markup).toContain('checkpoint please')
     expect(markup).toContain('1 staged')
     expect(markup).toContain('development')
@@ -64,6 +70,8 @@ describe('repository detail view', () => {
     expect(markup).toContain('What this action does not do')
     expect(markup).toContain('No fetch was performed')
     expect(markup).toContain('Preview upgrade plan')
+    expect(markup).toContain('ad-detail-themed')
+    expect(markup).toContain('Configured local repository')
   })
 
   it('renders the explicit machine-transfer intent path', () => {
@@ -109,19 +117,21 @@ describe('repository detail view', () => {
         onPrepareBootstrap={() => undefined}
         onApplyBootstrap={() => undefined}
         onIntentChange={() => undefined}
-        onRefresh={() => undefined}
-        onLoadUpgradePlan={() => undefined}
+        onRefresh={() => undefined}        onRunRecommended={() => undefined}        onLoadUpgradePlan={() => undefined}
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
       />,
     )
 
     expect(markup).toContain('Handover')
     expect(markup).toContain('handover please')
     expect(markup).toContain('Continue on another machine')
-    expect(markup).toContain('State-driven recommendation')
+    expect(markup).toContain('Why this is recommended')
     expect(markup).toContain('Intent-driven plan')
   })
 })

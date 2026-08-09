@@ -5,7 +5,8 @@ import {
 } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import path from 'node:path'
-import { createApiHandler, createApiRuntime } from '../server/api'
+import { createApiHandler } from '../server/api'
+import { createApiRuntime } from '../server/api-runtime'
 import type { ServiceConfig } from '../server/config'
 import {
   createGitRepository,
@@ -34,16 +35,28 @@ export async function cleanupApis(): Promise<void> {
 
 export async function startApi(
   includePlainRepository = false,
+  environment: NodeJS.ProcessEnv = process.env,
 ): Promise<RunningApi> {
   const root = await createTemporaryDirectory()
   temporaryDirectories.push(root)
-  const repository = await createGitRepository(root)
+  const repository = await createGitRepository(
+    root,
+    'repository',
+    'https://github.com/Ken24T/fixture.git',
+  )
   if (includePlainRepository) {
     await createGitRepository(root, 'plain-repository')
   }
   await writeProfile(repository)
   const token = 'test-session-token'
-  const runtime = createApiRuntime(serviceConfig(root), token)
+  const runtime = createApiRuntime(
+    serviceConfig(root),
+    token,
+    {
+      ...environment,
+      TCTBP_ADVISER_ALLOWED_ROOT: environment.TCTBP_ADVISER_ALLOWED_ROOT ?? root,
+    },
+  )
   const server = createServer(createApiHandler(runtime))
   servers.push(server)
   await new Promise<void>((resolve) => {
