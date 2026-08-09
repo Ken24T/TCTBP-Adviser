@@ -19,7 +19,6 @@ import {
   loadPortfolio,
   loadReferenceCatalogue,
   loadActionerJob,
-  applyTctbpUpgradePlan,
   loadTctbpBootstrapJob,
   startTctbpBootstrap,
   loadRepositoryDetail,
@@ -37,16 +36,18 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
 import { usePortfolioPreferences } from './use-portfolio-preferences'
 import { useWorkflowActions } from './use-workflow-actions'
+import { useUpgradeApply } from './use-upgrade-apply'
 
 // File-size note: under 600 lines — above the 400-line warning threshold but below the 600-line hard split.
 // App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
 // view routing. The presentational layers are already extracted (TopNav, ErrorBanner, LoadingState,
 // and the view components), workflow-action confirmation/start maps live in action-workflows.ts, the
 // shared view reset lives in resetSession(), the portfolio-preferences state (hydration from the
-// shared server file plus debounced saves) lives in use-portfolio-preferences.ts, and the workflow
-// action runner (runAction / runRecommendedAction) lives in use-workflow-actions.ts. Splitting
-// further means extracting the remaining coupled async handlers into a custom hook (e.g. useAdviser),
-// deferred as a larger, riskier refactor.
+// shared server file plus debounced saves) lives in use-portfolio-preferences.ts, the workflow
+// action runner (runAction / runRecommendedAction) lives in use-workflow-actions.ts, and the
+// upgrade apply handlers (applyAdditions / applyPolicy / applyDeleteObsolete / applyInOrder) live
+// in use-upgrade-apply.ts. Splitting further means extracting the remaining coupled async handlers
+// into a custom hook (e.g. useAdviser), deferred as a larger, riskier refactor.
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
@@ -110,6 +111,9 @@ function App() {
               `Bootstrap completed on ${nextJob.result?.branch ?? 'the dedicated branch'} with ${nextJob.result?.appliedPaths.length ?? 0} file(s). Review and checkpoint before publishing.`,
             )
             void refreshDetail(selectedId, intent)
+            // The bootstrap changes the working tree — refresh the upgrade
+            // plan too so the panel never shows a stale plan.
+            if (upgradePlan) void refreshUpgradePlan(selectedId)
           } else if (nextJob.status === 'failed') {
             setBootstrapApplyBusy(false)
             setBootstrapApplyFeedback(nextJob.error ?? 'Bootstrap failed before completion.')
@@ -118,7 +122,7 @@ function App() {
         .catch((cause) => captureError(cause, requestId.current))
     }, 500)
     return () => window.clearTimeout(timer)
-  }, [bootstrapJob, intent, selectedId])
+  }, [bootstrapJob, intent, selectedId, upgradePlan])
 
   useEffect(() => {
     if (
@@ -141,12 +145,17 @@ function App() {
                 )
               }
             })
+            // Checkpoint/publish/apply change the repository state — refresh
+            // the upgrade plan so it never shows a stale plan after an action.
+            if (nextJob.status === 'completed' && upgradePlan) {
+              void refreshUpgradePlan(selectedId)
+            }
           }
         })
         .catch((cause) => captureError(cause, requestId.current))
     }, 500)
     return () => window.clearTimeout(timer)
-  }, [actionJob, intent, selectedId])
+  }, [actionJob, intent, selectedId, upgradePlan])
 
   async function refreshPortfolio(force = false): Promise<void> {
     const currentRequest = ++requestId.current
@@ -280,73 +289,26 @@ function App() {
     }
   }
 
-  async function applyUpgrade(
-    mode: Parameters<typeof applyTctbpUpgradePlan>[3],
-    approvedPaths: string[],
-    approvedDeletionPaths: string[],
-    confirmDeletions: boolean,
-    confirmation: string,
-  ): Promise<void> {
-    if (!selectedId || !upgradePlan?.fingerprint || aiReview?.status !== 'available') return
-    if (!window.confirm(confirmation)) return
-    setApplyBusy(true)
-    setUpgradeFeedback(null)
-    setError(null)
-    try {
-      const result = await applyTctbpUpgradePlan(
-        selectedId,
-        upgradePlan.fingerprint,
-        aiReview.reviewId,
-        mode,
-        approvedPaths,
-        approvedDeletionPaths,
-        confirmDeletions,
-      )
-      setUpgradeFeedback(
-        result.status === 'applied'
-          ? `Applied ${result.appliedPaths.length} change(s). Review and checkpoint the repository next.`
-          : 'There were no approved changes to apply.',
-      )
-      if (result.status === 'applied') mutatedRef.current = true
-      await refreshDetail(selectedId, intent)
-      await refreshUpgradePlan(selectedId)
-    } catch (cause) {
-      captureError(cause, requestId.current)
-    } finally {
-      setApplyBusy(false)
-    }
-  }
-
-  function applyUpgradeAdditions(): Promise<void> {
-    return applyUpgrade(
-      'additions-only',
-      [],
-      [],
-      false,
-      'Apply missing canonical TCTBP files? No commit or push will be performed.',
-    )
-  }
-
-  function applyUpgradePolicy(): Promise<void> {
-    return applyUpgrade(
-      'approved-managed-files',
-      ['.github/TCTBP.json'],
-      [],
-      false,
-      'Merge canonical TCTBP infrastructure policy sections? No commit or push will be performed.',
-    )
-  }
-
-  function deleteObsoleteUpgradeFiles(): Promise<void> {
-    const paths = upgradePlan?.drift.obsoleteTargets?.map((file) => file.path) ?? []
-    return applyUpgrade(
-      'approved-managed-files',
-      [],
-      paths,
-      true,
-      `Delete ${paths.length} obsolete canonical TCTBP file(s)? This cannot be undone by the Adviser.`,
-    )
-  }
+  const {
+    applyAdditions,
+    applyPolicy,
+    applyDeleteObsolete,
+    applyInOrder,
+  } = useUpgradeApply({
+    selectedId,
+    upgradePlan,
+    aiReview,
+    intent,
+    refreshDetail,
+    refreshUpgradePlan,
+    setApplyBusy,
+    setUpgradeFeedback,
+    setError,
+    markMutated: () => {
+      mutatedRef.current = true
+    },
+    reportError: (cause) => captureError(cause, requestId.current),
+  })
 
   async function refreshCatalogue(): Promise<void> {
     const currentRequest = ++requestId.current
@@ -537,9 +499,10 @@ function App() {
             onRefresh={() => void refreshDetail(selectedId, intent)}
             onLoadUpgradePlan={() => void refreshUpgradePlan(selectedId)}
             onReviewAi={() => void refreshAiReview()}
-            onApplyAdditions={() => void applyUpgradeAdditions()}
-            onApplyPolicy={() => void applyUpgradePolicy()}
-            onDeleteObsolete={() => void deleteObsoleteUpgradeFiles()}
+            onApplyAdditions={() => void applyAdditions()}
+            onApplyPolicy={() => void applyPolicy()}
+            onDeleteObsolete={() => void applyDeleteObsolete()}
+            onApplyInOrder={() => void applyInOrder()}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

@@ -1,7 +1,7 @@
 // TCTBP file-size justification: this panel consolidates the TCTBP upgrade
 // plan preview, Jasper AI review, plan export, apply actions, and the nested
 // bootstrap form. Splitting would fragment closely related UI state and props.
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type {
   TctbpBootstrapJob,
@@ -14,7 +14,9 @@ import {
   formatTctbpPlanJson,
   formatTctbpPlanMarkdown,
 } from '../tctbp-plan-export'
+import { PlanExportMenu } from './PlanExportMenu'
 import { TctbpBootstrapPanel } from './TctbpBootstrapPanel'
+import { blockerHint } from '../presentation'
 import { Button, Panel, PanelHeading, Badge } from './primitives'
 
 interface TctbpUpgradePanelProps {
@@ -30,6 +32,7 @@ interface TctbpUpgradePanelProps {
   bootstrapApplyBusy: boolean
   bootstrapApplyFeedback: string | null
   bootstrapJob: TctbpBootstrapJob | null
+  contractIncompatible?: boolean
   onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
   onApplyBootstrap: (request: TctbpBootstrapRequest) => void
   onLoad: () => void
@@ -37,6 +40,7 @@ interface TctbpUpgradePanelProps {
   onApplyAdditions: () => void
   onApplyPolicy: () => void
   onDeleteObsolete: () => void
+  onApplyInOrder: () => void
 }
 
 export function TctbpUpgradePanel({
@@ -52,6 +56,7 @@ export function TctbpUpgradePanel({
   bootstrapApplyBusy,
   bootstrapApplyFeedback,
   bootstrapJob,
+  contractIncompatible = false,
   onPrepareBootstrap,
   onApplyBootstrap,
   onLoad,
@@ -59,6 +64,7 @@ export function TctbpUpgradePanel({
   onApplyAdditions,
   onApplyPolicy,
   onDeleteObsolete,
+  onApplyInOrder,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [aiAcknowledged, setAiAcknowledged] = useState(false)
@@ -69,6 +75,13 @@ export function TctbpUpgradePanel({
     && aiReview.planFingerprint === reviewFingerprint
     && aiAcknowledged,
   )
+  const applicableCount = plan
+    ? [
+        plan.policy.state === 'drifted',
+        plan.actionCounts.add > 0,
+        (plan.drift.obsoleteTargets?.length ?? 0) > 0,
+      ].filter(Boolean).length
+    : 0
 
   useEffect(() => {
     setAiAcknowledged(false)
@@ -100,6 +113,13 @@ export function TctbpUpgradePanel({
 
   return (
     <Panel
+      actions={plan ? (
+        <PlanExportMenu
+          onCopy={() => void copyMarkdown()}
+          onJson={() => exportPlan('json')}
+          onMarkdown={() => exportPlan('markdown')}
+        />
+      ) : undefined}
       eyebrow="Canonical TCTBP-Web"
       title={plan ? dispositionTitle(plan.disposition) : 'Upgrade planner'}
       id="upgrade-plan-title"
@@ -108,6 +128,15 @@ export function TctbpUpgradePanel({
         Preview managed TCTBP drift, or explicitly apply canonical managed files
         on a dedicated branch without commit or push.
       </p>
+
+      {contractIncompatible && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          <strong>Review TCTBP compatibility:</strong>{' '}
+          Your repository's TCTBP contract is incompatible with the canonical
+          source. Preview the upgrade plan below to see what needs reconciling,
+          then apply the canonical files.
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <Button
@@ -152,58 +181,101 @@ export function TctbpUpgradePanel({
 
       {plan && (
         <>
-          <div className="flex flex-wrap items-center gap-2 mb-4" aria-label="Upgrade plan export">
-            <Button size="sm" variant="tertiary" onClick={() => exportPlan('markdown')}>
-              Download Markdown
-            </Button>
-            <Button size="sm" variant="tertiary" onClick={() => exportPlan('json')}>
-              Download JSON
-            </Button>
-            <Button size="sm" variant="tertiary" onClick={() => void copyMarkdown()}>
-              Copy Markdown
-            </Button>
-            <Button
-              className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
-              disabled={
-                applyBusy
-                || !aiApplyReady
-                || !plan.fingerprint
-                || plan.blockers.length > 0
-                || plan.actionCounts.add === 0
-              }
-              size="sm"
-              onClick={onApplyAdditions}
-            >
-              {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
-            </Button>
-            <Button
-              className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
-              disabled={
-                applyBusy
-                || !aiApplyReady
-                || !plan.fingerprint
-                || plan.blockers.length > 0
-                || plan.policy.state !== 'drifted'
-              }
-              size="sm"
-              onClick={onApplyPolicy}
-            >
-              Apply policy merge
-            </Button>
-            <Button
-              className="bg-red-50 text-red-900 border border-red-200 hover:bg-red-100"
-              disabled={
-                applyBusy
-                || !aiApplyReady
-                || !plan.fingerprint
-                || plan.blockers.length > 0
-                || (plan.drift.obsoleteTargets?.length ?? 0) === 0
-              }
-              size="sm"
-              onClick={onDeleteObsolete}
-            >
-              Delete obsolete files
-            </Button>
+          <div className="mb-4" aria-label="Apply order">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                Apply in this order
+              </h3>
+              {applicableCount > 0 && (
+                <Button
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyInOrder}
+                >
+                  {applyBusy
+                    ? 'Applying…'
+                    : `Apply in order (${applicableCount} step${applicableCount === 1 ? '' : 's'})`}
+                </Button>
+              )}
+            </div>
+            <NextStepsStrip
+              applicableCount={applicableCount}
+              blocked={plan.blockers.length > 0}
+              pendingCommit={plan.blockers.length > 0 && plan.blockers.every(
+                (blocker) => blocker.code === 'working-tree-dirty',
+              )}
+            />
+            <ol className="space-y-2">
+              <ApplyStep
+                active={plan.policy.state === 'drifted'}
+                description="Update .github/TCTBP.json to the canonical schema and policy first, so the managed-file surface matches the contract."
+                number={1}
+                title="Apply policy merge"
+              >
+                <Button
+                  className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyPolicy}
+                >
+                  {applyBusy ? 'Applying…' : 'Apply policy merge'}
+                </Button>
+              </ApplyStep>
+              <ApplyStep
+                active={plan.actionCounts.add > 0}
+                description={`Add ${plan.actionCounts.add} missing canonical managed file${plan.actionCounts.add === 1 ? '' : 's'}.`}
+                number={2}
+                title="Apply additions"
+              >
+                <Button
+                  className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyAdditions}
+                >
+                  {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
+                </Button>
+              </ApplyStep>
+              <ApplyStep
+                active={(plan.drift.obsoleteTargets?.length ?? 0) > 0}
+                description={`Remove ${plan.drift.obsoleteTargets?.length ?? 0} file(s) the canonical TCTBP source no longer tracks.`}
+                number={3}
+                title="Delete obsolete files"
+              >
+                <Button
+                  className="bg-red-50 text-red-900 border border-red-200 hover:bg-red-100"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onDeleteObsolete}
+                >
+                  {applyBusy ? 'Applying…' : 'Delete obsolete files'}
+                </Button>
+              </ApplyStep>
+            </ol>
+            <p className="mt-2 text-xs text-text-faint">
+              Every apply only touches the working tree — nothing is committed or
+              pushed. Review the changes, then checkpoint them from the card.
+            </p>
           </div>
 
           {feedback && (
@@ -235,6 +307,79 @@ export function TctbpUpgradePanel({
         </>
       )}
     </Panel>
+  )
+}
+
+/**
+ * Adaptive one-line narration of what to do next with this plan: commit a
+ * pending apply, resolve a blocker, apply the applicable steps in order, or
+ * nothing to do. Appears above the "Apply in this order" list so the
+ * recommended path is explicit.
+ */
+function NextStepsStrip({
+  blocked,
+  pendingCommit,
+  applicableCount,
+}: {
+  blocked: boolean
+  pendingCommit: boolean
+  applicableCount: number
+}) {
+  const tone = pendingCommit
+    ? 'bg-teal-50 border-teal-200 text-teal-900'
+    : blocked
+      ? 'bg-amber-50 border-amber-200 text-amber-900'
+      : applicableCount > 0
+        ? 'bg-teal-50 border-teal-200 text-teal-900'
+        : 'bg-surface-soft border-border text-text-secondary'
+  const message = pendingCommit
+    ? 'The working tree has local changes — checkpoint or commit them, then continue applying.'
+    : blocked
+      ? 'This repository is blocked — resolve the blocker below, then apply in order.'
+      : applicableCount > 0
+        ? `Next: apply the ${applicableCount} step${applicableCount === 1 ? '' : 's'} in order, then review the working tree and checkpoint from the card.`
+        : 'All managed files are current — nothing to apply. Review the plan, then checkpoint from the card when ready.'
+  return <p className={`mb-3 p-3 rounded-lg border text-sm ${tone}`}>{message}</p>
+}
+
+/**
+ * A numbered step in the "Apply in this order" list. When the step does not
+ * apply to this repository (e.g. no policy drift), the button is replaced by
+ * a quiet "nothing to apply" note so the recommended sequence stays visible.
+ */
+function ApplyStep({
+  number,
+  title,
+  description,
+  active,
+  children,
+}: {
+  number: number
+  title: string
+  description: string
+  active: boolean
+  children: ReactNode
+}) {
+  return (
+    <li className="flex items-start gap-3 p-3 bg-surface-soft border border-border rounded-lg">
+      <span
+        aria-hidden="true"
+        className={`grid w-6 h-6 text-xs font-bold place-items-center rounded-full shrink-0 ${
+          active ? 'bg-teal-100 text-teal-800' : 'bg-surface-inset text-text-muted'
+        }`}
+      >
+        {number}
+      </span>
+      <div className="flex-1 min-w-0">
+        <strong className="block text-sm text-text-primary">{title}</strong>
+        <p className="mt-0.5 text-xs text-text-muted">{description}</p>
+        {active ? children : (
+          <p className="mt-1.5 text-xs text-text-faint">
+            Nothing to apply for this repository.
+          </p>
+        )}
+      </div>
+    </li>
   )
 }
 
@@ -323,9 +468,22 @@ function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
       {plan.blockers.length > 0 && (
         <ul className="mb-4 space-y-2">
           {plan.blockers.map((blocker) => (
-            <li key={blocker.code} className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-900">
-              <strong>Blocked:</strong>{' '}{blocker.message}
-            </li>
+            blocker.code === 'working-tree-dirty' ? (
+              <li key={blocker.code} className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+                <strong>Commit before continuing:</strong>{' '}
+                The working tree has local changes — often a successful apply.
+                Checkpoint (or commit/stash) them, then continue applying.
+              </li>
+            ) : (
+              <li key={blocker.code} className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-900">
+                <strong>Blocked:</strong>{' '}{blocker.message}
+                {blockerHint(blocker.code) && (
+                  <p className="mt-1 text-xs text-red-700">
+                    How to resolve: {blockerHint(blocker.code)}
+                  </p>
+                )}
+              </li>
+            )
           ))}
         </ul>
       )}

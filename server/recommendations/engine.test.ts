@@ -112,6 +112,20 @@ const RULE_CASES: RuleCase[] = [
     reason: 'tctbp-contract-incompatible',
   },
   {
+    name: 'contract incompatible with local changes',
+    options: { tctbpCompatible: false, clean: false },
+    disposition: 'sequence',
+    action: 'checkpoint',
+    reason: 'working-tree-dirty',
+  },
+  {
+    name: 'contract incompatible with conflicts stays a stop',
+    options: { tctbpCompatible: false, clean: false, conflicted: 1 },
+    disposition: 'stop',
+    action: null,
+    reason: 'tctbp-contract-incompatible',
+  },
+  {
     name: 'tracking state unknown',
     options: { syncState: 'unknown' },
     disposition: 'inspect',
@@ -158,6 +172,37 @@ describe('deterministic recommendation engine', () => {
     expect(result.blockedActions).toEqual(expect.arrayContaining([
       expect.objectContaining({ action: 'resume' }),
       expect.objectContaining({ action: 'publish' }),
+      expect.objectContaining({ action: 'handover' }),
+    ]))
+  })
+
+  it('makes incompatible-with-local-changes a checkpoint-first sequence', () => {
+    // Incompatible contracts advertise no workflows, so this must not depend
+    // on checkpoint appearing in the advertised list.
+    const result = recommend(
+      observationFixture({
+        tctbpCompatible: false,
+        clean: false,
+        workflows: [],
+      }),
+      'none',
+      NOW,
+    )
+
+    expect(result.disposition).toBe('sequence')
+    expect(result.primaryAction).toBe('checkpoint')
+    expect(result.reasonCodes).toEqual([
+      'working-tree-dirty',
+      'tctbp-contract-incompatible',
+    ])
+    expect(result.steps.map((step) => step.action)).toEqual([
+      'checkpoint',
+      'review-compatibility',
+    ])
+    expect(result.likelyNextActions).toEqual(['review-compatibility'])
+    expect(result.blockedActions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'publish' }),
+      expect.objectContaining({ action: 'resume' }),
       expect.objectContaining({ action: 'handover' }),
     ]))
   })

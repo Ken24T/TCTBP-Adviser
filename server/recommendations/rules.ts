@@ -46,7 +46,21 @@ export function resolveDefinition(
 
   if (context.stale) return staleDefinition(context)
   if (!observation.tctbp.installed) return tctbpMissing(context)
-  if (!observation.tctbp.compatible) return tctbpIncompatible(context)
+  if (!observation.tctbp.compatible) {
+    // A dirty tree blocks the compatibility fix from being applied (the apply
+    // is refused while the working tree has local changes), so the user's
+    // uncommitted work must be preserved first. Preserve it via a checkpoint
+    // sequence, then fix the contract. Conflicts and active operations still
+    // outrank this: checkpointing a conflicted tree is not safe.
+    const interruption = (
+      observation.operations.length > 0
+      || observation.workingTree.counts.conflicted > 0
+    )
+    if (dirty && !interruption) {
+      return incompatibleWithLocalChanges(context)
+    }
+    return tctbpIncompatible(context)
+  }
   if (
     observation.operations.length > 0
     || observation.workingTree.counts.conflicted > 0
@@ -223,6 +237,35 @@ function tctbpIncompatible(context: EvaluationContext): ResultDefinition {
     'tctbp.contract.major',
     context.observation.tctbp.contract.major,
   )
+}
+
+/**
+ * An incompatible contract combined with uncommitted local work. The apply is
+ * refused while the tree is dirty, so the first step is to preserve the work
+ * with a checkpoint; the contract review follows once the tree is clean.
+ * Note: checkpoint availability is not gated on the advertised workflow list
+ * here — an incompatible contract advertises no workflows at all, yet the
+ * checkpoint workflow itself runs regardless of contract compatibility.
+ */
+function incompatibleWithLocalChanges(
+  context: EvaluationContext,
+): ResultDefinition {
+  return {
+    disposition: 'sequence',
+    primaryAction: 'checkpoint',
+    reasonCodes: ['working-tree-dirty', 'tctbp-contract-incompatible'],
+    severity: 'stop',
+    actions: ['checkpoint', 'review-compatibility'],
+    blockedActions: block(
+      ['publish', 'resume', 'handover'],
+      ['working-tree-dirty', 'tctbp-contract-incompatible'],
+    ),
+    likelyNextActions: ['review-compatibility'],
+    evidence: [
+      evidence(context, 'workingTree.clean', false),
+      evidence(context, 'tctbp.compatible', false),
+    ],
+  }
 }
 
 function unbornRepository(context: EvaluationContext): ResultDefinition {

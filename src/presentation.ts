@@ -7,6 +7,7 @@ import type {
   RecommendationDisposition,
   RecommendationReasonCode,
 } from '../shared/recommendation'
+import type { TctbpUpgradeBlockerCode } from '../shared/tctbp-upgrade'
 import type { PortfolioRepository } from '../shared/portfolio'
 
 const ACTION_LABELS: Record<RecommendationAction, string> = {
@@ -158,6 +159,15 @@ export function recommendationTitleFor(
   } | null,
 ): string {
   if (!recommendation) return 'Recommendation unavailable'
+  // A checkpoint-first sequence (incompatible contract + dirty tree) leads
+  // with the checkpoint; the contract reasons still surface in the callout.
+  if (
+    recommendation.disposition === 'sequence'
+    && recommendation.primaryAction === 'checkpoint'
+    && recommendation.reasonCodes.includes('tctbp-contract-incompatible')
+  ) {
+    return 'Checkpoint'
+  }
   if (recommendation.reasonCodes.includes('tctbp-not-installed')) {
     return 'Install TCTBP'
   }
@@ -183,4 +193,20 @@ export function upgradeLabel(
   if (disposition === 'bootstrap-required') return 'TCTBP bootstrap required'
   if (disposition === 'source-unavailable') return 'TCTBP source unavailable'
   return 'TCTBP review required'
+}
+
+/** A "how to resolve" hint for a workflow blocker, or null when unknown. */
+export function blockerHint(code: string): string | null {
+  const hints: Record<TctbpUpgradeBlockerCode, string> = {
+    'working-tree-dirty': 'Commit or stash local changes first — or checkpoint them.',
+    'active-git-operation': 'Wait for the running Git operation to finish before retrying.',
+    'detached-head': 'Reattach to a branch first (e.g. git switch development).',
+    'source-unavailable': 'Make the canonical TCTBP-Web source available, then retry.',
+    'policy-unavailable': 'Ensure both policies can be compared (fetch or pull), then retry.',
+    'managed-source-unavailable': 'A canonical managed file could not be read — check the TCTBP-Web checkout.',
+    'different-source': 'Regenerate from the canonical Ken24T/TCTBP-Web source.',
+    'environment-branch': 'Switch to a branch the target environment is configured for.',
+    'stale-plan': 'Refresh the plan so its fingerprint matches the current repository state.',
+  }
+  return hints[code as TctbpUpgradeBlockerCode] ?? null
 }

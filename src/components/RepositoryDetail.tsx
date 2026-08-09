@@ -55,6 +55,7 @@ interface RepositoryDetailProps {
   onApplyAdditions: () => void
   onApplyPolicy: () => void
   onDeleteObsolete: () => void
+  onApplyInOrder: () => void
 }
 
 export function RepositoryDetail({
@@ -88,6 +89,7 @@ export function RepositoryDetail({
   onApplyAdditions,
   onApplyPolicy,
   onDeleteObsolete,
+  onApplyInOrder,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
@@ -176,6 +178,9 @@ export function RepositoryDetail({
               bootstrapApplyBusy={bootstrapApplyBusy}
               bootstrapApplyFeedback={bootstrapApplyFeedback}
               bootstrapJob={bootstrapJob}
+              contractIncompatible={recommendation.reasonCodes.includes(
+                'tctbp-contract-incompatible',
+              )}
               onPrepareBootstrap={onPrepareBootstrap}
               onApplyBootstrap={onApplyBootstrap}
               onLoad={onLoadUpgradePlan}
@@ -183,6 +188,7 @@ export function RepositoryDetail({
               onApplyAdditions={onApplyAdditions}
               onApplyPolicy={onApplyPolicy}
               onDeleteObsolete={onDeleteObsolete}
+              onApplyInOrder={onApplyInOrder}
             />
           </div>
         </div>

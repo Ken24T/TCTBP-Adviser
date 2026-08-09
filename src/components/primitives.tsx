@@ -185,21 +185,26 @@ export function Panel({
   eyebrow,
   id,
   className = '',
+  actions,
 }: {
   children: ReactNode
   title?: string
   eyebrow?: string
   id?: string
   className?: string
+  actions?: ReactNode
 }) {
   return (
     <section className={`ad-surface p-6 ${className}`}>
-      {(eyebrow || title) && (
-        <div className="mb-4 space-y-1">
-          {eyebrow && (
-            <p className="text-xs font-bold uppercase tracking-widest text-teal-600">{eyebrow}</p>
-          )}
-          {title && <h2 id={id} className="text-xl font-semibold text-text-primary">{title}</h2>}
+      {(eyebrow || title || actions) && (
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            {eyebrow && (
+              <p className="text-xs font-bold uppercase tracking-widest text-teal-600">{eyebrow}</p>
+            )}
+            {title && <h2 id={id} className="text-xl font-semibold text-text-primary">{title}</h2>}
+          </div>
+          {actions && <div className="shrink-0">{actions}</div>}
         </div>
       )}
       {children}

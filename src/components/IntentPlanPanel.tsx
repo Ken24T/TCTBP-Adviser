@@ -1,5 +1,6 @@
 import type { ActionerJob, ActionerWorkflowId } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
+import { blockerHint } from '../presentation'
 import { Button, Panel } from './primitives'
 
 interface IntentPlanPanelProps {
@@ -53,9 +54,14 @@ export function IntentPlanPanel({
       {plan.blockedBy.length > 0 && (
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <strong className="block text-sm font-semibold text-red-900 mb-1">Resolve state or policy first</strong>
-          <ul className="space-y-1 text-sm text-red-800 list-disc list-inside">
+          <ul className="space-y-2 text-sm text-red-800">
             {plan.blockedBy.map((block) => (
-              <li key={`${block.code}-${block.message}`}>{block.message}</li>
+              <li key={`${block.code}-${block.message}`}>
+                <p>{block.message}</p>
+                {blockerHint(block.code) && (
+                  <p className="mt-0.5 text-xs text-red-700">How to resolve: {blockerHint(block.code)}</p>
+                )}
+              </li>
             ))}
           </ul>
         </div>

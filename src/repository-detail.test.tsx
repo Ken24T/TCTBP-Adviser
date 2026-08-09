@@ -52,6 +52,7 @@ describe('repository detail view', () => {
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
         onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
       />,
     )
 
@@ -119,6 +120,7 @@ describe('repository detail view', () => {
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
         onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
       />,
     )
 
