@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   loadServerPortfolioPreferences,
   saveServerPortfolioPreferences,
-} from './api-client'
+} from './api'
 import {
   loadPortfolioPreferences,
   savePortfolioPreferences,

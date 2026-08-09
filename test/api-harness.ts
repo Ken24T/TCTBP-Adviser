@@ -5,7 +5,8 @@ import {
 } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import path from 'node:path'
-import { createApiHandler, createApiRuntime } from '../server/api'
+import { createApiHandler } from '../server/api'
+import { createApiRuntime } from '../server/api-runtime'
 import type { ServiceConfig } from '../server/config'
 import {
   createGitRepository,

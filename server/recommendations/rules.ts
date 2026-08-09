@@ -1,3 +1,8 @@
+// TCTBP file-size justification: this module holds every recommendation rule
+// as a pure function over the shared EvaluationContext, so the engine can
+// dispatch to them in a stable order. The rules share the context type and
+// the block/evidence helpers at the bottom of the file; splitting them would
+// duplicate that shared plumbing.
 import type { RepositoryObservation } from '../../shared/inspection'
 import type {
   BlockedAction,

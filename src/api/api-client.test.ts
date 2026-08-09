@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { PortfolioSnapshot } from '../shared/portfolio'
-import type { RepositoryDetailResult } from '../shared/repository-detail'
-import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
+import type { PortfolioSnapshot } from '../../shared/portfolio'
+import type { RepositoryDetailResult } from '../../shared/repository-detail'
+import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import {
   applyTctbpUpgradePlan,
   loadPortfolio,
   loadReferenceCatalogue,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
-} from './api-client'
+} from './index'
 
 afterEach(() => {
   vi.unstubAllGlobals()
