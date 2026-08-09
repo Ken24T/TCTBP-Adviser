@@ -26,6 +26,7 @@ describe('GitHub provider observations', () => {
       retrievedAt: '2026-07-30T06:00:00.000Z',
       repository: {
         fullName: IDENTITY.fullName,
+        ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/12345?v=4',
         defaultBranch: 'development',
         defaultBranchSha: 'development-sha',
       },
@@ -100,6 +101,7 @@ function responseFor(path: string): unknown {
   if (path.endsWith('/TCTBP-Adviser')) {
     return {
       full_name: IDENTITY.fullName,
+      owner: { avatar_url: 'https://avatars.githubusercontent.com/u/12345?v=4' },
       html_url: 'https://github.com/Ken24T/TCTBP-Adviser',
       default_branch: 'development',
       visibility: 'public',

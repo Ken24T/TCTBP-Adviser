@@ -154,7 +154,10 @@ export function PortfolioDashboard({
           eyebrow={`${repositories.length} matching`}
           title={filterLabel(filter)}
         >
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" aria-label="Repositories">
+          <div
+            aria-label="Repositories"
+            className="grid gap-5 max-sm:grid-cols-1 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))] xl:[grid-template-columns:repeat(auto-fill,minmax(22rem,1fr))]"
+          >
             {repositories.map((repository) => (
               <PortfolioCard
                 busy={busy}

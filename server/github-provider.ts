@@ -151,8 +151,14 @@ GitHubRepositoryObservation['repository'] {
   const record = object(value)
   const visibility = string(record.visibility)
   if (!['public', 'private', 'internal'].includes(visibility)) invalid()
+  const owner = record.owner !== null && typeof record.owner === 'object'
+    ? record.owner as Record<string, unknown>
+    : null
   return {
     fullName: string(record.full_name),
+    ownerAvatarUrl: owner && typeof owner.avatar_url === 'string'
+      ? owner.avatar_url
+      : null,
     htmlUrl: safeGitHubUrl(string(record.html_url)),
     defaultBranch: string(record.default_branch),
     defaultBranchSha: null,

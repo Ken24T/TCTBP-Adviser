@@ -39,6 +39,9 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('No Git fetch performed')
     expect(markup).toContain('flip-card-inner')
     expect(markup).toContain('Opening repository')
+    expect(markup).toContain('Actions for TCTBP-Adviser')
+    expect(markup).toContain('Pin to top')
+    expect(markup).toContain('Recommended next action')
   })
 
   it('mounts the returned card flipped and flips it back on return', () => {
@@ -163,9 +166,10 @@ describe('portfolio dashboard', () => {
     )
 
     expect(markup).toContain('1 GitHub-only repositories added')
-    expect(markup).toContain('No local working copy')
+    expect(markup).toContain('GitHub evidence')
     expect(markup).toContain('Local recommendation unavailable')
     expect(markup).toContain('View on GitHub')
+    expect(markup).toContain('avatars.githubusercontent.com')
   })
 })
 

@@ -7,6 +7,7 @@ export function githubObservationFixture(): GitHubRepositoryObservation {
     retrievedAt: '2026-07-30T06:00:00.000Z',
     repository: {
       fullName: 'Ken24T/TCTBP-Adviser',
+      ownerAvatarUrl: 'https://avatars.githubusercontent.com/u/12345?v=4',
       htmlUrl: 'https://github.com/Ken24T/TCTBP-Adviser',
       defaultBranch: 'development',
       defaultBranchSha: 'abcdef1234567890',

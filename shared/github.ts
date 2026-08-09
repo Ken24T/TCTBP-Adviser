@@ -76,6 +76,7 @@ export interface GitHubRepositoryObservation {
   retrievedAt: string
   repository: {
     fullName: string
+    ownerAvatarUrl: string | null
     htmlUrl: string
     defaultBranch: string
     defaultBranchSha: string | null

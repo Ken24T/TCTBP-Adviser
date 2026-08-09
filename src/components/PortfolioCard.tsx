@@ -1,15 +1,11 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import type { PortfolioRepository } from '../../shared/portfolio'
-import {
-  actionLabel,
-  dispositionLabel,
-  formatAge,
-  syncSummaryFromState,
-} from '../presentation'
+import { actionLabel, dispositionLabel, formatAge } from '../presentation'
 import type { PortfolioPreference } from '../portfolio-preferences'
-import { cardSurfaceVars, pillSurfaceVars, severityTone } from '../card-surface'
+import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
-import { Badge, Button, Card } from './primitives'
+import { Button, Card } from './primitives'
+import { PortfolioCardMenu } from './PortfolioCardMenu'
 
 /** Matches the Intranet FunctionCard's FLIP_ANIMATION_DURATION (650 ms). */
 const FLIP_DURATION_MS = 650
@@ -51,10 +47,14 @@ export function PortfolioCard({
   const isDark = resolved === 'dark'
   const surface = cardSurfaceVars(statusTone, isDark)
   const canOpen = repository.available && repository.source === 'local'
+  const faviconUrl = repository.github.status === 'available'
+    ? repository.github.repository.ownerAvatarUrl
+    : null
   const [flipping, setFlipping] = useState(startFlipped)
   const [flipDirection, setFlipDirection] = useState<'forward' | 'return' | null>(
     startFlipped ? 'return' : null,
   )
+  const [renaming, setRenaming] = useState(false)
   const prevToneRef = useRef<string | null>(null)
   const [tonePulse, setTonePulse] = useState(false)
 
@@ -108,7 +108,7 @@ export function PortfolioCard({
           className={[
             'flip-card-face flip-card-front flex flex-col h-full gap-5 border-t-[3px] border-t-[var(--card-accent)] bg-[var(--card-surface)]',
             'shadow-[0_2px_8px_rgba(var(--card-accent-rgb),0.15),0_1px_3px_rgba(0,0,0,0.08)]',
-            'hover:bg-[var(--card-surface-hover)] hover:-translate-y-1 hover:scale-[1.01]',
+            'hover:bg-[var(--card-surface-hover)]',
             'hover:shadow-[0_8px_24px_rgba(var(--card-accent-rgb),0.28),0_4px_12px_rgba(0,0,0,0.12)]',
             'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--card-accent)]',
             preference.pinned
@@ -121,57 +121,64 @@ export function PortfolioCard({
           onClick={handleCardClick}
         >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
-            {repository.source === 'github-only'
-              ? 'GitHub-only repository'
-              : repository.available ? 'Local repository' : 'Unavailable'}
-          </p>
-          <h2 className="mt-1 text-xl font-semibold text-text-primary truncate">
-            {displayName}
-          </h2>
-          {displayName !== repository.name && (
-            <small className="block text-text-faint truncate">{repository.name}</small>
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          {faviconUrl && (
+            <img
+              alt=""
+              className="w-8 h-8 rounded-full shrink-0 mt-0.5"
+              src={faviconUrl}
+            />
           )}
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
+              {repository.source === 'github-only'
+                ? 'GitHub-only repository'
+                : repository.available ? 'Local repository' : 'Unavailable'}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-text-primary truncate">
+              {displayName}
+            </h2>
+            {displayName !== repository.name && (
+              <small className="block text-text-faint truncate">{repository.name}</small>
+            )}
+          </div>
         </div>
-        <span
-          className="inline-flex items-center gap-1.5 shrink-0 mt-1 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]"
-        >
-          <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
-          {tone}
-        </span>
+        <div className="flex items-center gap-2 shrink-0 mt-1">
+          <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
+            <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
+            {tone}
+          </span>
+          <PortfolioCardMenu
+            canOpen={canOpen}
+            githubUrl={githubUrl(repository)}
+            hidden={preference.hidden}
+            onOpen={activate}
+            onRename={() => setRenaming(true)}
+            onToggleHide={() => onPreferenceChange({ hidden: !preference.hidden })}
+            onTogglePin={() => onPreferenceChange({ pinned: !preference.pinned })}
+            pinned={preference.pinned}
+            repositoryName={repository.name}
+            sourceStatus={repository.source === 'local'
+              ? repository.available ? 'Local evidence' : 'Partial failure'
+              : 'GitHub evidence'}
+            sourceTone={repository.source === 'local'
+              ? repository.available ? 'success' : 'warning'
+              : 'info'}
+            tctbpStatus={tctbpLabel(repository)}
+            upgradeReasons={repository.upgrade?.reasons ?? []}
+            upgradeStatus={repository.upgrade
+              ? upgradeLabel(repository.upgrade.disposition)
+              : null}
+            upgradeTone={repository.upgrade
+              ? upgradeTone(repository.upgrade.disposition)
+              : null}
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 text-sm">
-        <Fact
-          label="Branch"
-          value={repository.head?.branch
-            ?? githubBranch(repository)
-            ?? (repository.head?.detached ? 'Detached HEAD' : 'Unavailable')}
-        />
-        <Fact
-          label="Working tree"
-          value={repository.workingTree
-            ? repository.workingTree.clean
-              ? 'Clean'
-              : `${repository.workingTree.pathCount} changed paths`
-            : repository.source === 'github-only'
-              ? 'No local working copy'
-              : 'Unavailable'}
-        />
-        <Fact
-          label="Tracking"
-          value={repository.localTracking
-            ? syncSummaryFromState(repository.localTracking)
-            : repository.source === 'github-only'
-              ? 'Provider evidence only'
-              : 'Unavailable'}
-        />
-      </div>
-
-      <div className="bg-[var(--card-text-block-bg)] p-4 rounded-lg text-sm">
+      <div className="mt-auto bg-[var(--card-text-block-bg)] p-4 rounded-lg text-sm">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-text-muted">Recommendation</span>
+          <span className="text-text-muted">Recommended next action</span>
           <strong className="text-text-primary text-right">{recommendationTitle(repository)}</strong>
         </div>
         <small className="block mt-1 text-text-faint">
@@ -182,89 +189,17 @@ export function PortfolioCard({
         </small>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge surface style={pillSurfaceVars('neutral', isDark)}>
-          {tctbpLabel(repository)}
-        </Badge>
-        <Badge
-          surface
-          style={pillSurfaceVars(
-            repository.source === 'local'
-              ? repository.available ? 'success' : 'warning'
-              : 'info',
-            isDark,
-          )}
-        >
-          {repository.source === 'local'
-            ? repository.available ? 'Local evidence' : 'Partial failure'
-            : 'GitHub evidence'}
-        </Badge>
-        {repository.upgrade && (
-          <Badge
-            surface
-            style={pillSurfaceVars(upgradeTone(repository.upgrade.disposition), isDark)}
-          >
-            {upgradeLabel(repository.upgrade.disposition)}
-          </Badge>
-        )}
-      </div>
-
-      {repository.upgrade && repository.upgrade.reasons.length > 0 && (
-        <p className="text-xs text-text-muted leading-relaxed">
-          {repository.upgrade.reasons.join(' · ')}
-        </p>
+      {renaming && (
+        <RenameRow
+          name={preference.name}
+          onCancel={() => setRenaming(false)}
+          onSave={(nextName) => {
+            onPreferenceChange({ name: nextName })
+            setRenaming(false)
+          }}
+          placeholder={repository.name}
+        />
       )}
-
-      <div className="mt-auto pt-4 border-t border-border space-y-3">
-        <label className="block text-xs text-text-muted">
-          Custom name
-          <input
-            aria-label={`Custom name for ${repository.name}`}
-            className="mt-1 w-full px-3 py-2 text-sm text-text-primary bg-[var(--card-text-block-bg)] border border-[var(--card-btn-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
-            maxLength={80}
-            onChange={(event) => onPreferenceChange({
-              name: event.currentTarget.value,
-            })}
-            placeholder={repository.name}
-            type="text"
-            value={preference.name}
-          />
-        </label>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant="card-tertiary"
-            onClick={() => onPreferenceChange({ pinned: !preference.pinned })}
-          >
-            {preference.pinned ? 'Unpin' : 'Pin'}
-          </Button>
-          <Button
-            size="sm"
-            variant="card-tertiary"
-            onClick={() => onPreferenceChange({ hidden: !preference.hidden })}
-          >
-            {preference.hidden ? 'Show' : 'Hide'}
-          </Button>
-          <Button
-            disabled={!canOpen}
-            size="sm"
-            variant="card-primary"
-            onClick={activate}
-          >
-            {repository.source === 'local' ? 'View repository' : 'Local detail unavailable'}
-          </Button>
-          {githubUrl(repository) && (
-            <a
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-[var(--card-link-text)] hover:text-[var(--card-link-hover-text)] hover:bg-[var(--card-link-hover-bg)] transition-colors"
-              href={githubUrl(repository) ?? undefined}
-              rel="noreferrer"
-              target="_blank"
-            >
-              View on GitHub
-            </a>
-          )}
-        </div>
-      </div>
         </Card>
         <div className="flip-card-face flip-card-back" aria-hidden="true">
           <span className="flip-card-back-dot" />
@@ -280,11 +215,40 @@ export function PortfolioCard({
   )
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function RenameRow({
+  name,
+  placeholder,
+  onSave,
+  onCancel,
+}: {
+  name: string
+  placeholder: string
+  onSave: (nextName: string) => void
+  onCancel: () => void
+}) {
+  const [value, setValue] = useState(name)
   return (
-    <div className="min-w-0">
-      <span className="block text-xs text-text-muted uppercase tracking-wider">{label}</span>
-      <strong className="block text-text-primary truncate">{value}</strong>
+    <div className="flex items-center gap-2">
+      <input
+        aria-label="Custom repository name"
+        autoFocus
+        className="flex-1 min-w-0 px-3 py-2 text-sm text-text-primary bg-[var(--card-text-block-bg)] border border-[var(--card-btn-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
+        maxLength={80}
+        onChange={(event) => setValue(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') onSave(value)
+          if (event.key === 'Escape') onCancel()
+        }}
+        placeholder={placeholder}
+        type="text"
+        value={value}
+      />
+      <Button size="sm" variant="card-primary" onClick={() => onSave(value)}>
+        Save
+      </Button>
+      <Button size="sm" variant="card-tertiary" onClick={onCancel}>
+        Cancel
+      </Button>
     </div>
   )
 }
@@ -307,12 +271,6 @@ function recommendationTitle(repository: PortfolioRepository): string {
   return recommendation.primaryAction
     ? actionLabel(recommendation.primaryAction)
     : dispositionLabel(recommendation.disposition)
-}
-
-function githubBranch(repository: PortfolioRepository): string | null {
-  return repository.github.status === 'available'
-    ? repository.github.repository.defaultBranch
-    : null
 }
 
 function githubAge(repository: PortfolioRepository): string | null {

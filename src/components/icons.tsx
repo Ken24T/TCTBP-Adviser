@@ -78,3 +78,13 @@ export function SettingsIcon({ className = '' }: IconProps) {
     </svg>
   )
 }
+
+export function KebabIcon({ className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="currentColor" viewBox="0 0 16 16">
+      <circle cx="8" cy="2.5" r="1.5" />
+      <circle cx="8" cy="8" r="1.5" />
+      <circle cx="8" cy="13.5" r="1.5" />
+    </svg>
+  )
+}
