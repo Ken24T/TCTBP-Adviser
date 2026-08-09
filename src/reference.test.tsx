@@ -118,5 +118,20 @@ describe('intent and reference views', () => {
     expect(markup).toContain('development')
     expect(markup).toContain('staging')
     expect(markup).toContain('Applicable workflows')
+    expect(markup).toContain('Inspect repository health without fetching or changing it.')
+    expect(markup).toContain('Preserve current work in a local commit.')
+    expect(markup).toContain('Workflows you can run on this branch, based on the advertised policy.')
+  })
+
+  it('shows an empty state when no workflows are applicable', () => {
+    const markup = renderToStaticMarkup(
+      <RepositoryReferencePanel
+        reference={repositoryReference(
+          observationFixture({ workflows: [], clean: false, syncState: 'behind' }),
+        )}
+      />,
+    )
+
+    expect(markup).toContain('No workflows are applicable on this branch.')
   })
 })

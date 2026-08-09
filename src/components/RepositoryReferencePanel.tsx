@@ -39,12 +39,38 @@ export function RepositoryReferencePanel({
         <p className="text-text-secondary mb-6">No complete branch-role map is advertised.</p>
       )}
 
-      <h3 className="text-sm font-semibold text-text-primary mb-2">Applicable workflows</h3>
-      <div className="flex flex-wrap gap-2">
-        {applicable.map((workflow) => (
-          <Badge key={workflow.id} tone="accent">{workflow.displayName}</Badge>
-        ))}
-      </div>
+      <h3 className="text-sm font-semibold text-text-primary mb-1">Applicable workflows</h3>
+      {applicable.length > 0 ? (
+        <>
+          <p className="text-xs text-text-secondary mb-3">
+            Workflows you can run on this branch, based on the advertised policy.
+          </p>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {applicable.map((workflow) => (
+              <li
+                key={workflow.id}
+                className="p-3 bg-surface-soft border border-border rounded-lg"
+              >
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <Badge tone="accent">{workflow.displayName}</Badge>
+                  {workflow.dryRun && (
+                    <span className="text-[10px] uppercase tracking-widest text-text-muted">
+                      Dry run — no changes
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-text-secondary leading-relaxed">
+                  {workflow.purpose}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="text-text-secondary">
+          No workflows are applicable on this branch.
+        </p>
+      )}
     </section>
   )
 }
