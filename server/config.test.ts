@@ -5,6 +5,7 @@ import { createTemporaryDirectory } from '../test/helpers'
 import { loadServiceConfig } from './config'
 
 const temporaryDirectories: string[] = []
+let settingsFile = ''
 
 afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map(
@@ -21,6 +22,7 @@ describe('portfolio service configuration', () => {
 
     const config = await loadServiceConfig({
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([first, second, first]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_EXCLUDE_DIRECTORIES: '["node_modules","archive"]',
       TCTBP_ADVISER_MAXIMUM_DEPTH: '4',
       TCTBP_ADVISER_MAXIMUM_DIRECTORIES: '500',
@@ -51,6 +53,7 @@ describe('portfolio service configuration', () => {
 
     const config = await loadServiceConfig({
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_TCTBP_WEB_ROOT: canonical,
     })
 
@@ -65,6 +68,7 @@ describe('portfolio service configuration', () => {
 
     await expect(loadServiceConfig({
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_TCTBP_WEB_ROOT: canonical,
     })).rejects.toMatchObject({ code: 'repository-outside-allowed-root' })
   })
@@ -76,6 +80,7 @@ describe('portfolio service configuration', () => {
 
     const config = await loadServiceConfig({
       TCTBP_ADVISER_ALLOWED_ROOT: root,
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_REPOSITORY: repository,
     })
 
@@ -87,10 +92,12 @@ describe('portfolio service configuration', () => {
 
     await expect(loadServiceConfig({
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_EXCLUDE_DIRECTORIES: '["../outside"]',
     })).rejects.toMatchObject({ code: 'configuration-invalid' })
     await expect(loadServiceConfig({
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_MAXIMUM_DEPTH: '99',
     })).rejects.toMatchObject({ code: 'configuration-invalid' })
   })
@@ -100,6 +107,7 @@ describe('portfolio service configuration', () => {
 
     const config = await loadServiceConfig({
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
       TCTBP_ADVISER_GITHUB_ENABLED: 'true',
       TCTBP_ADVISER_GITHUB_TOKEN: ' server-secret ',
       TCTBP_ADVISER_GITHUB_REPOSITORIES:
@@ -125,6 +133,7 @@ describe('portfolio service configuration', () => {
     const root = await temporaryRoot()
     const base = {
       TCTBP_ADVISER_REPOSITORY_ROOTS: JSON.stringify([root]),
+      TCTBP_ADVISER_SETTINGS_FILE: settingsFile,
     }
 
     await expect(loadServiceConfig({
@@ -141,5 +150,6 @@ describe('portfolio service configuration', () => {
 async function temporaryRoot(): Promise<string> {
   const root = await createTemporaryDirectory()
   temporaryDirectories.push(root)
+  settingsFile = path.join(root, 'app-settings.json')
   return root
 }

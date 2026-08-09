@@ -41,23 +41,28 @@ export function TopNav({
       aria-label="Application"
       className="sticky top-0 z-50 flex items-center justify-between px-8 py-4 border-b border-teal-700 bg-gradient-to-r from-teal-900 to-teal-700 text-white shadow-md"
     >
-      <button
-        aria-label="Show repository portfolio"
-        className="flex items-center gap-3 text-left"
-        type="button"
-        onClick={onShowPortfolio}
+      <Tooltip
+        label="TCTBP"
+        description="Test, Commit, Tag, Bump and Push"
       >
-        <span
-          aria-hidden="true"
-          className="grid w-10 h-10 text-lg font-black leading-none place-items-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-cream-50"
+        <button
+          aria-label="Show repository portfolio"
+          className="flex items-center gap-3 text-left"
+          type="button"
+          onClick={onShowPortfolio}
         >
-          T
-        </span>
-        <span className="leading-tight">
-          <strong className="block text-lg tracking-tight">TCTBP</strong>
-          <small className="block text-xs text-white/60 uppercase tracking-widest">Adviser</small>
-        </span>
-      </button>
+          <span
+            aria-hidden="true"
+            className="grid w-10 h-10 text-lg font-black leading-none place-items-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-cream-50"
+          >
+            T
+          </span>
+          <span className="leading-tight">
+            <strong className="block text-lg tracking-tight">TCTBP</strong>
+            <small className="block text-xs text-white/60 uppercase tracking-widest">Adviser</small>
+          </span>
+        </button>
+      </Tooltip>
       <div className="flex items-center gap-4">
         <span className="hidden md:inline text-xs text-white/60 uppercase tracking-widest">
           Local-first repository portfolio

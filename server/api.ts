@@ -25,6 +25,7 @@ import { PromoteActioner } from './promote-actioner'
 import { ShipActioner } from './ship-actioner'
 import { readActionerRequest } from './actioner-input'
 import { BoundedGitExecutor } from './git-command'
+import { loadServiceConfig } from './config'
 import type { ServiceConfig } from './config'
 import { CanonicalTctbpSourceService } from './tctbp-source'
 import { readTctbpApplyRequest } from './tctbp-apply-input'
@@ -385,12 +386,12 @@ export function createApiHandler(runtime: ApiRuntime) {
       }
       if (request.method === 'PUT' && url.pathname === '/api/settings') {
         const persisted = await loadPersistedAppSettings(runtime.environment)
-        const next = await applySettingsUpdate(
-          runtime,
+        const next = await applyPersistedSettings(
           persisted,
           await readJsonBody(request),
         )
         await savePersistedAppSettings(next, runtime.environment)
+        await applyEffectiveSettingsToRuntime(runtime)
         sendJson(response, 200, await readSettingsResponse(runtime))
         return
       }
@@ -1056,19 +1057,21 @@ function settingsFieldSource(
   name: string,
   persistedPresent: boolean,
 ): AppSettingsSource {
+  if (persistedPresent) return 'settings'
   if (environmentHasValue(environment, name)) return 'environment'
-  return persistedPresent ? 'settings' : 'default'
+  return 'default'
 }
 
 function rootsFieldSource(
   environment: NodeJS.ProcessEnv,
   persisted: PersistedAppSettings,
 ): AppSettingsSource {
+  if (persisted.repositoryRoots.length > 0) return 'settings'
   if (
     environmentHasValue(environment, 'TCTBP_ADVISER_REPOSITORY_ROOTS')
     || environmentHasValue(environment, 'TCTBP_ADVISER_ALLOWED_ROOT')
   ) return 'environment'
-  return persisted.repositoryRoots.length > 0 ? 'settings' : 'default'
+  return 'default'
 }
 
 async function readSettingsResponse(
@@ -1140,99 +1143,49 @@ function settingsObject(body: unknown): Record<string, unknown> {
   return body as Record<string, unknown>
 }
 
-async function applySettingsUpdate(
-  runtime: ApiRuntime,
+async function applyPersistedSettings(
   persisted: PersistedAppSettings,
   body: unknown,
 ): Promise<PersistedAppSettings> {
   const update = settingsObject(body)
   const next: PersistedAppSettings = { ...persisted }
-  const environment = runtime.environment
-  const changed: Partial<PersistedAppSettings> = {}
 
-  if (
-    !environmentHasValue(environment, 'TCTBP_ADVISER_REPOSITORY_ROOTS')
-    && !environmentHasValue(environment, 'TCTBP_ADVISER_ALLOWED_ROOT')
-    && 'repositoryRoots' in update
-  ) {
-    const roots = await validateRepositoryRoots(update.repositoryRoots)
-    next.repositoryRoots = roots
-    changed.repositoryRoots = roots
+  if ('repositoryRoots' in update) {
+    next.repositoryRoots = await validateRepositoryRoots(update.repositoryRoots)
   }
-
-  if (
-    !environmentHasValue(environment, 'TCTBP_ADVISER_EXCLUDE_DIRECTORIES')
-    && 'excludeDirectories' in update
-  ) {
-    const directories = validateDirectoryNames(update.excludeDirectories)
-    next.excludeDirectories = directories
-    changed.excludeDirectories = directories
+  if ('excludeDirectories' in update) {
+    next.excludeDirectories = validateDirectoryNames(update.excludeDirectories)
   }
-
-  if (
-    !environmentHasValue(environment, 'TCTBP_ADVISER_MAXIMUM_DEPTH')
-    && 'maximumDepth' in update
-  ) {
-    const depth = validateMaximumDepth(update.maximumDepth)
-    if (depth !== null) {
-      next.maximumDepth = depth
-      changed.maximumDepth = depth
-    }
+  if ('maximumDepth' in update) {
+    next.maximumDepth = validateMaximumDepth(update.maximumDepth)
   }
-
-  if (
-    !environmentHasValue(environment, 'TCTBP_ADVISER_TCTBP_WEB_ROOT')
-    && 'canonicalTctbpWebRoot' in update
-  ) {
-    const root = await validateCanonicalRoot(
+  if ('canonicalTctbpWebRoot' in update) {
+    next.canonicalTctbpWebRoot = await validateCanonicalRoot(
       update.canonicalTctbpWebRoot,
       next.repositoryRoots,
     )
-    next.canonicalTctbpWebRoot = root
-    changed.canonicalTctbpWebRoot = root
   }
-
-  if (
-    !environmentHasValue(environment, 'TCTBP_ADVISER_GITHUB_ENABLED')
-    && 'githubEnabled' in update
-  ) {
-    const enabled = validateBooleanSetting(update.githubEnabled)
-    if (enabled !== null) {
-      next.githubEnabled = enabled
-      changed.githubEnabled = enabled
-    }
+  if ('githubEnabled' in update) {
+    next.githubEnabled = validateBooleanSetting(update.githubEnabled)
   }
-
-  if (
-    !environmentHasValue(environment, 'TCTBP_ADVISER_GITHUB_REPOSITORIES')
-    && 'githubRepositories' in update
-  ) {
-    const repositories = validateGithubRepositories(update.githubRepositories)
-    next.githubRepositories = repositories
-    changed.githubRepositories = repositories
-  }
-
-  if (changed.repositoryRoots !== undefined) {
-    runtime.registry.updateRepositoryRoots(changed.repositoryRoots)
-  }
-  if (changed.excludeDirectories !== undefined) {
-    runtime.registry.discovery.setExcludeDirectories(changed.excludeDirectories)
-  }
-  if (changed.maximumDepth !== undefined && changed.maximumDepth !== null) {
-    runtime.registry.discovery.setMaximumDepth(changed.maximumDepth)
-  }
-  if (changed.canonicalTctbpWebRoot !== undefined) {
-    runtime.tctbpSource.setSourceRoot(changed.canonicalTctbpWebRoot)
-  }
-  if (changed.githubEnabled !== undefined || changed.githubRepositories !== undefined) {
-    runtime.github.setConfig({
-      ...runtime.github.config,
-      enabled: changed.githubEnabled ?? runtime.github.config.enabled,
-      repositories: changed.githubRepositories ?? runtime.github.config.repositories,
-    })
+  if ('githubRepositories' in update) {
+    next.githubRepositories = validateGithubRepositories(update.githubRepositories)
   }
 
   return next
+}
+
+async function applyEffectiveSettingsToRuntime(runtime: ApiRuntime): Promise<void> {
+  const config = await loadServiceConfig(runtime.environment)
+  runtime.registry.updateRepositoryRoots(config.repositoryRoots)
+  runtime.registry.discovery.setExcludeDirectories(config.excludeDirectories)
+  runtime.registry.discovery.setMaximumDepth(config.maximumDepth)
+  runtime.tctbpSource.setSourceRoot(config.canonicalTctbpWebRoot ?? null)
+  runtime.github.setConfig({
+    ...runtime.github.config,
+    enabled: config.github.enabled,
+    repositories: config.github.repositories,
+  })
 }
 
 async function validateRepositoryRoots(candidate: unknown): Promise<string[]> {

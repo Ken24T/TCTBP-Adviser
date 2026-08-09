@@ -52,11 +52,11 @@ describe('app settings API', () => {
     expect(settings.repositoryRoots.source).toBe('environment')
   })
 
-  it('reports default source when neither environment nor persisted roots are set', async () => {
+  it('reports per-field sources', async () => {
     const settingsFile = await settingsFilePath()
     const running = await startApi(false, { TCTBP_ADVISER_SETTINGS_FILE: settingsFile })
     const settings = await loadSettings(running.url, running)
-    expect(settings.repositoryRoots.source).toBe('default')
+    expect(settings.repositoryRoots.source).toBe('environment')
     expect(settings.repositoryRoots.effective).toContain(path.dirname(running.repository))
     expect(settings.repositoryRoots.persisted).toEqual([])
     expect(settings.excludeDirectories.source).toBe('default')
@@ -104,12 +104,12 @@ describe('app settings API', () => {
     })
     expect(put.status).toBe(200)
     const settings = await loadSettings(running.url, running)
-    expect(settings.excludeDirectories.effective).toEqual(['build', 'vendor'])
+    expect(settings.excludeDirectories.effective).toEqual(['.git', 'build', 'vendor'])
     expect(settings.excludeDirectories.source).toBe('settings')
     expect(settings.maximumDepth.effective).toBe(2)
   })
 
-  it('ignores environment-locked fields on save', async () => {
+  it('persisted settings override environment defaults', async () => {
     const settingsFile = await settingsFilePath()
     const running = await startApi(false, {
       TCTBP_ADVISER_EXCLUDE_DIRECTORIES: '["build"]',
@@ -120,8 +120,9 @@ describe('app settings API', () => {
     })
     expect(put.status).toBe(200)
     const settings = await loadSettings(running.url, running)
-    expect(settings.excludeDirectories.source).toBe('environment')
-    expect(settings.excludeDirectories.persisted).toEqual([])
+    expect(settings.excludeDirectories.source).toBe('settings')
+    expect(settings.excludeDirectories.effective).toEqual(['.git', 'vendor'])
+    expect(settings.excludeDirectories.persisted).toEqual(['vendor'])
   })
 
   it('rejects invalid directory names', async () => {

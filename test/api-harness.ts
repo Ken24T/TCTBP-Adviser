@@ -44,7 +44,14 @@ export async function startApi(
   }
   await writeProfile(repository)
   const token = 'test-session-token'
-  const runtime = createApiRuntime(serviceConfig(root), token, environment)
+  const runtime = createApiRuntime(
+    serviceConfig(root),
+    token,
+    {
+      ...environment,
+      TCTBP_ADVISER_ALLOWED_ROOT: environment.TCTBP_ADVISER_ALLOWED_ROOT ?? root,
+    },
+  )
   const server = createServer(createApiHandler(runtime))
   servers.push(server)
   await new Promise<void>((resolve) => {

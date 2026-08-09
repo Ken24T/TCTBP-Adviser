@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { AppSettingsResponse } from '../../shared/app-settings'
+import type {
+  AppSettingsResponse,
+  AppSettingsSource,
+} from '../../shared/app-settings'
 import { loadAppSettings, saveAppSettings } from '../api-client'
 import { Button, Card, PageHeader } from './primitives'
 import { CloseIcon } from './icons'
@@ -99,15 +102,9 @@ export function SettingsPanel({ onBack, onSaved }: SettingsPanelProps) {
     )
   }
 
-  const locked = {
-    roots: settings.repositoryRoots.source === 'environment',
-    excludes: settings.excludeDirectories.source === 'environment',
-    maxDepth: settings.maximumDepth.source === 'environment',
-    canonicalRoot: settings.canonicalTctbpWebRoot.source === 'environment',
-    githubEnabled: settings.githubEnabled.source === 'environment',
-    githubRepos: settings.githubRepositories.source === 'environment',
+  const markDirty = () => {
+    setSaved(false)
   }
-  const editable = Object.values(locked).some((value) => !value)
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -129,153 +126,158 @@ export function SettingsPanel({ onBack, onSaved }: SettingsPanelProps) {
 
       <Card className="p-5 space-y-4">
         <SettingsHeading
+          source={settings.repositoryRoots.source}
           title="Repository roots"
           description="Local directories scanned for repositories. Absolute paths only."
-          locked={locked.roots}
         />
-        {locked.roots ? (
-          <ReadOnlyList values={settings.repositoryRoots.effective} />
-        ) : (
-          <ListField
-            ariaLabel="Repository root"
-            locked={locked.roots}
-            onChange={setRoots}
-            placeholder="/absolute/path/to/repositories"
-            values={roots}
-          />
-        )}
+        <EffectiveNote
+          label="Currently scanning"
+          source={settings.repositoryRoots.source}
+          values={settings.repositoryRoots.effective}
+        />
+        <ListField
+          ariaLabel="Repository root"
+          onChange={(values) => {
+            setRoots(values)
+            markDirty()
+          }}
+          placeholder="/absolute/path/to/repositories"
+          values={roots}
+        />
       </Card>
 
       <Card className="p-5 space-y-4">
         <SettingsHeading
           title="Discovery"
           description="Directories skipped while scanning and the maximum scan depth."
-          locked={locked.excludes && locked.maxDepth}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <span className="block text-xs font-bold uppercase tracking-widest text-text-muted">
-              Excluded directories
-            </span>
-            {locked.excludes ? (
-              <ReadOnlyList values={settings.excludeDirectories.effective} />
-            ) : (
-              <ListField
-                ariaLabel="Excluded directory"
-                locked={locked.excludes}
-                onChange={setExcludes}
-                placeholder="build"
-                values={excludes}
-              />
-            )}
+            <FieldLabel
+              label="Excluded directories"
+              source={settings.excludeDirectories.source}
+            />
+            <EffectiveNote
+              label="Currently excluded"
+              source={settings.excludeDirectories.source}
+              values={settings.excludeDirectories.effective}
+            />
+            <ListField
+              ariaLabel="Excluded directory"
+              onChange={(values) => {
+                setExcludes(values)
+                markDirty()
+              }}
+              placeholder="build"
+              values={excludes}
+            />
           </div>
           <div className="space-y-2">
-            <span className="block text-xs font-bold uppercase tracking-widest text-text-muted">
-              Maximum depth
-            </span>
-            {locked.maxDepth ? (
-              <p className="px-3 py-2 text-sm text-text-secondary font-mono bg-surface-soft border border-border rounded-lg">
-                {settings.maximumDepth.effective}
-              </p>
-            ) : (
-              <input
-                aria-label="Maximum depth"
-                className="w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
-                min={0}
-                max={10}
-                onChange={(event) => {
-                  setMaxDepth(event.currentTarget.value)
-                  setSaved(false)
-                }}
-                placeholder="Default (3)"
-                type="number"
-                value={maxDepth}
-              />
-            )}
+            <FieldLabel
+              label="Maximum depth"
+              source={settings.maximumDepth.source}
+            />
+            <EffectiveNote
+              label="Currently using depth"
+              source={settings.maximumDepth.source}
+              values={[String(settings.maximumDepth.effective)]}
+            />
+            <input
+              aria-label="Maximum depth"
+              className="w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
+              min={0}
+              max={10}
+              onChange={(event) => {
+                setMaxDepth(event.currentTarget.value)
+                markDirty()
+              }}
+              placeholder="Leave blank for default"
+              type="number"
+              value={maxDepth}
+            />
           </div>
         </div>
       </Card>
 
       <Card className="p-5 space-y-4">
         <SettingsHeading
+          source={settings.canonicalTctbpWebRoot.source}
           title="TCTBP reference"
           description="The pinned TCTBP-Web checkout that feeds the reference catalogue."
-          locked={locked.canonicalRoot}
         />
-        {locked.canonicalRoot ? (
-          <p className="px-3 py-2 text-sm text-text-secondary font-mono bg-surface-soft border border-border rounded-lg">
-            {settings.canonicalTctbpWebRoot.effective ?? 'Not configured'}
-          </p>
-        ) : (
-          <input
-            aria-label="TCTBP-Web root"
-            className="w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint font-mono"
-            onChange={(event) => {
-              setCanonicalRoot(event.currentTarget.value)
-              setSaved(false)
-            }}
-            placeholder="/absolute/path/to/TCTBP-Web (optional)"
-            type="text"
-            value={canonicalRoot}
-          />
-        )}
+        <EffectiveNote
+          label="Currently"
+          source={settings.canonicalTctbpWebRoot.source}
+          values={
+            settings.canonicalTctbpWebRoot.effective
+              ? [settings.canonicalTctbpWebRoot.effective]
+              : []
+          }
+        />
+        <input
+          aria-label="TCTBP-Web root"
+          className="w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint font-mono"
+          onChange={(event) => {
+            setCanonicalRoot(event.currentTarget.value)
+            markDirty()
+          }}
+          placeholder="/absolute/path/to/TCTBP-Web (optional)"
+          type="text"
+          value={canonicalRoot}
+        />
       </Card>
 
       <Card className="p-5 space-y-4">
         <SettingsHeading
+          source={settings.githubEnabled.source}
           title="GitHub enrichment"
           description="Fetch read-only evidence for repositories published on GitHub."
-          locked={locked.githubEnabled && locked.githubRepos}
         />
-        {locked.githubEnabled ? (
-          <p className="px-3 py-2 text-sm text-text-secondary font-mono bg-surface-soft border border-border rounded-lg">
-            {settings.githubEnabled.effective ? 'Enabled' : 'Disabled'}
-          </p>
-        ) : (
-          <label className="flex items-center gap-3 text-sm text-text-secondary">
-            <input
-              aria-label="Enable GitHub enrichment"
-              checked={githubEnabled}
-              className="w-4 h-4 rounded accent-teal-600"
-              onChange={(event) => {
-                setGithubEnabled(event.currentTarget.checked)
-                setSaved(false)
-              }}
-              type="checkbox"
-            />
-            Enabled
-          </label>
-        )}
+        <label className="flex items-center gap-3 text-sm text-text-secondary">
+          <input
+            aria-label="Enable GitHub enrichment"
+            checked={githubEnabled}
+            className="w-4 h-4 rounded accent-teal-600"
+            onChange={(event) => {
+              setGithubEnabled(event.currentTarget.checked)
+              markDirty()
+            }}
+            type="checkbox"
+          />
+          Enabled
+        </label>
         <div className="space-y-2">
-          <span className="block text-xs font-bold uppercase tracking-widest text-text-muted">
-            GitHub repositories
-          </span>
-          {locked.githubRepos ? (
-            <ReadOnlyList values={settings.githubRepositories.effective} />
-          ) : (
-            <ListField
-              ariaLabel="GitHub repository"
-              locked={locked.githubRepos}
-              onChange={setGithubRepos}
-              placeholder="owner/repository"
-              values={githubRepos}
-            />
-          )}
+          <FieldLabel
+            label="GitHub repositories"
+            source={settings.githubRepositories.source}
+          />
+          <EffectiveNote
+            label="Currently configured"
+            source={settings.githubRepositories.source}
+            values={settings.githubRepositories.effective}
+          />
+          <ListField
+            ariaLabel="GitHub repository"
+            onChange={(values) => {
+              setGithubRepos(values)
+              markDirty()
+            }}
+            placeholder="owner/repository"
+            values={githubRepos}
+          />
         </div>
       </Card>
 
-      {editable && (
-        <div className="flex items-center gap-4">
-          <Button disabled={busy} onClick={() => void save()}>
-            {busy ? 'Saving…' : 'Save settings'}
-          </Button>
-          {saved && (
-            <span className="text-sm text-teal-500" role="status">
-              Settings saved.
-            </span>
-          )}
-        </div>
-      )}
+      <div className="flex items-center gap-4">
+        <Button disabled={busy} onClick={() => void save()}>
+          {busy ? 'Saving…' : 'Save settings'}
+        </Button>
+        {saved && (
+          <span className="text-sm text-teal-500" role="status">
+            Settings saved.
+          </span>
+        )}
+      </div>
     </div>
   )
 }
@@ -283,11 +285,11 @@ export function SettingsPanel({ onBack, onSaved }: SettingsPanelProps) {
 function SettingsHeading({
   title,
   description,
-  locked,
+  source,
 }: {
   title: string
   description: string
-  locked: boolean
+  source?: AppSettingsSource
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -295,37 +297,63 @@ function SettingsHeading({
         <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
         <p className="mt-1 text-sm text-text-secondary">{description}</p>
       </div>
-      <span
-        className={[
-          'text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap',
-          locked
-            ? 'bg-surface-soft text-text-secondary border border-border'
-            : 'bg-teal-600 text-white',
-        ].join(' ')}
-      >
-        {locked ? 'Environment managed' : 'Editable'}
-      </span>
+      {source && <SourceTag source={source} />}
     </div>
   )
 }
 
-function ReadOnlyList({ values }: { values: string[] }) {
+function FieldLabel({
+  label,
+  source,
+}: {
+  label: string
+  source: AppSettingsSource
+}) {
+  return (
+    <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-text-muted">
+      {label}
+      <SourceTag source={source} />
+    </span>
+  )
+}
+
+function SourceTag({ source }: { source: AppSettingsSource }) {
+  const label = source === 'settings'
+    ? 'Saved'
+    : source === 'environment'
+      ? 'From environment'
+      : 'Default'
+  return (
+    <span
+      className={[
+        'text-[10px] font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap',
+        source === 'settings'
+          ? 'bg-teal-600 text-white'
+          : 'bg-surface-soft text-text-secondary border border-border',
+      ].join(' ')}
+    >
+      {label}
+    </span>
+  )
+}
+
+function EffectiveNote({
+  label,
+  source,
+  values,
+}: {
+  label: string
+  source: AppSettingsSource
+  values: string[]
+}) {
+  if (source === 'settings') return null
   if (values.length === 0) {
-    return (
-      <p className="text-sm text-text-faint">None configured.</p>
-    )
+    return <p className="text-xs text-text-faint">{label}: none.</p>
   }
   return (
-    <ul className="space-y-2">
-      {values.map((value) => (
-        <li
-          key={value}
-          className="px-3 py-2 text-sm text-text-secondary font-mono bg-surface-soft border border-border rounded-lg"
-        >
-          {value}
-        </li>
-      ))}
-    </ul>
+    <p className="text-xs text-text-faint">
+      {label}: {values.join(', ')}
+    </p>
   )
 }
 
@@ -333,13 +361,11 @@ function ListField({
   ariaLabel,
   values,
   placeholder,
-  locked,
   onChange,
 }: {
   ariaLabel: string
   values: string[]
   placeholder: string
-  locked: boolean
   onChange: (values: string[]) => void
 }) {
   const update = (index: number, value: string) => {
@@ -353,8 +379,7 @@ function ListField({
         <div key={index} className="flex items-center gap-2">
           <input
             aria-label={`${ariaLabel} ${index + 1}`}
-            className="flex-1 px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint font-mono disabled:opacity-50"
-            disabled={locked}
+            className="flex-1 px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint font-mono"
             onChange={(event) => update(index, event.currentTarget.value)}
             placeholder={placeholder}
             type="text"
@@ -362,8 +387,7 @@ function ListField({
           />
           <button
             aria-label={`Remove ${ariaLabel} ${index + 1}`}
-            className="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors disabled:opacity-50"
-            disabled={locked}
+            className="p-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors"
             type="button"
             onClick={() => onChange(values.filter((_, candidate) => candidate !== index))}
           >
@@ -372,8 +396,7 @@ function ListField({
         </div>
       ))}
       <button
-        className="px-3 py-1.5 text-xs font-medium rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-border transition-colors disabled:opacity-50"
-        disabled={locked}
+        className="px-3 py-1.5 text-xs font-medium rounded-lg text-text-secondary hover:text-text-primary hover:bg-surface-hover border border-border transition-colors"
         type="button"
         onClick={() => onChange([...values, ''])}
       >
