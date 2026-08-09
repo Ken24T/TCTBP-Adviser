@@ -144,6 +144,7 @@ export async function handleRepositoryRoutes(
       intentPlan: null,
       reference: repositoryReference(observation),
       github,
+      directoryName: repository.name,
     }
     result.intentPlan = planIntent(
       observation,

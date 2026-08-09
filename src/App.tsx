@@ -482,6 +482,7 @@ function App() {
         ) : selectedId && detail ? (
           <RepositoryDetail
             detail={detail}
+            preferences={preferences}
             actionJob={actionJob}
             actionBusy={actionBusy}
             actionFeedback={actionFeedback}

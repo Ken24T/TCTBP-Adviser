@@ -7,6 +7,7 @@ import type {
 } from '../../shared/tctbp-bootstrap'
 import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
+import type { PortfolioPreferences } from '../../shared/portfolio-preferences'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import { Panel, Section, Select } from './primitives'
 import { cardSurfaceVars, severityTone } from '../card-surface'
@@ -26,6 +27,7 @@ import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
+  preferences?: PortfolioPreferences
   actionJob: ActionerJob | null
   actionBusy: boolean
   actionFeedback: string | null
@@ -62,6 +64,7 @@ interface RepositoryDetailProps {
 
 export function RepositoryDetail({
   detail,
+  preferences = {},
   actionJob,
   actionBusy,
   actionFeedback,
@@ -103,6 +106,11 @@ export function RepositoryDetail({
     recommendation.primaryAction
     && workflowForRecommendation(recommendation.primaryAction),
   )
+  // The header shows the custom rename when set, falling back to the on-disk
+  // directory name (never the lowercased repo slug).
+  const headerName = preferences[observation.repository.id]?.name?.trim()
+    || detail.directoryName
+    || observation.repository.name
 
   const { resolved } = useTheme()
   const surface = cardSurfaceVars(
@@ -115,7 +123,7 @@ export function RepositoryDetail({
       <RepositoryDetailHero
         busy={busy}
         description={description}
-        name={observation.repository.name}
+        name={headerName}
         onBack={onBack}
         onRefresh={onRefresh}
         onRunRecommended={canRunRecommended ? onRunRecommended : undefined}

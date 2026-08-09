@@ -10,4 +10,6 @@ export interface RepositoryDetailResult {
   intentPlan: IntentPlan | null
   reference: RepositoryReference
   github: RepositoryGitHubEvidence
+  /** The on-disk folder name of the repository (header fallback title). */
+  directoryName: string
 }
