@@ -89,13 +89,13 @@ export async function handleActionRoutes(
       decodeURIComponent(publishActionMatch[1]),
     )
     const observation = await runtime.inspections.inspect(repository)
-    assertPublishPlan(observation, actionRequest.planFingerprint)
+    assertPublishPlan(observation, actionRequest.planFingerprint, actionRequest.intent)
     const job = runtime.actionerJobs.create(repository.id, 'publish')
     void (async () => {
       try {
         runtime.actionerJobs.start(job.jobId)
         const currentObservation = await runtime.inspections.inspect(repository)
-        assertPublishPlan(currentObservation, actionRequest.planFingerprint)
+        assertPublishPlan(currentObservation, actionRequest.planFingerprint, actionRequest.intent)
         const result = await new PublishActioner().run(
           repository.path,
           currentObservation.head.branch,

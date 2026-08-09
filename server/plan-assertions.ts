@@ -31,11 +31,16 @@ export function assertCheckpointPlan(
 export function assertPublishPlan(
   observation: RepositoryObservation,
   planFingerprint: string,
+  intent: ActionerIntent,
 ): void {
+  // Publish can be required inside several intent plans (preserve-and-publish,
+  // prepare-production-release, …). Rebuild the plan for the intent the client
+  // actually acted on, so the fingerprint handshake matches the plan the user
+  // approved — not a hardcoded preserve-and-publish plan.
   const plan = planIntent(
     observation,
     recommend(observation, 'none', new Date()),
-    'preserve-and-publish',
+    intent,
   )
   const publishStep = plan?.steps.find((step) => step.workflowId === 'publish')
   if (

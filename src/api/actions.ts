@@ -31,8 +31,9 @@ function startAction(
 export function startPublishAction(
   repositoryId: string,
   planFingerprint: string,
+  intent: ActionerIntent,
 ): Promise<ActionerJobStart> {
-  return startAction(repositoryId, 'publish', 'preserve-and-publish', planFingerprint)
+  return startAction(repositoryId, 'publish', intent, planFingerprint)
 }
 
 export function startBranchDevelopmentAction(
