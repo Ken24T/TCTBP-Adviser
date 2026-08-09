@@ -331,9 +331,11 @@ describe('same-origin inspection API', () => {
         workflows: Array<{ id: string }>
       }
       github: { status: string; retrievedAt: string | null }
+      directoryName: string
     }
 
     expect(response.status).toBe(200)
+    expect(body.directoryName).toBe('repository')
     expect(body.recommendation.freshness.observedAt)
       .toBe(body.observation.observedAt)
     expect(body.recommendation.observationIds[0])

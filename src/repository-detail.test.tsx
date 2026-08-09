@@ -5,6 +5,8 @@ import { planIntent } from '../server/intents/planner'
 import { observationFixture } from '../test/observation-fixture'
 import { RepositoryDetail } from './components/RepositoryDetail'
 import { repositoryReference } from '../server/reference/catalogue'
+import type { PortfolioPreferences } from '../shared/portfolio-preferences'
+import type { RepositoryDetailResult } from '../shared/repository-detail'
 
 describe('repository detail view', () => {
   it('renders repository state, recommendation, effects and policy evidence', () => {
@@ -28,6 +30,7 @@ describe('repository detail view', () => {
           intentPlan: null,
           reference: repositoryReference(observation),
           github: disabledGitHub(),
+          directoryName: 'fixture',
         }}
         intent="none"
         busy={false}
@@ -100,6 +103,7 @@ describe('repository detail view', () => {
           intentPlan,
           reference: repositoryReference(observation),
           github: disabledGitHub(),
+          directoryName: 'fixture',
         }}
         intent="continue-on-another-machine"
         busy={false}
@@ -134,7 +138,82 @@ describe('repository detail view', () => {
     expect(markup).toContain('Why this is recommended')
     expect(markup).toContain('Intent-driven plan')
   })
+
+  it('shows the custom rename on the header, falling back to the directory name', () => {
+    const observation = observationFixture({ clean: false })
+    const recommendation = recommend(
+      observation,
+      'none',
+      new Date(observation.observedAt),
+    )
+    const detail: RepositoryDetailResult = {
+      observation,
+      recommendation,
+      intentPlan: null,
+      reference: repositoryReference(observation),
+      github: disabledGitHub(),
+      directoryName: 'Fixture Directory',
+    }
+
+    // Without a rename the header shows the on-disk directory name, not the
+    // lowercased repo slug.
+    expect(renderDetail(detail)).toContain('Fixture Directory')
+
+    // A rename overrides the directory name in the header.
+    const renamed = renderDetail(detail, {
+      [observation.repository.id]: {
+        pinned: false,
+        hidden: false,
+        name: 'Fixture Rename',
+      },
+    })
+    expect(renamed).toContain('Fixture Rename')
+    expect(renamed).not.toContain('Fixture Directory')
+  })
 })
+
+function renderDetail(
+  detail: RepositoryDetailResult,
+  preferences: PortfolioPreferences = {},
+): string {
+  return renderToStaticMarkup(
+    <RepositoryDetail
+      detail={detail}
+      preferences={preferences}
+      actionJob={null}
+      actionBusy={false}
+      actionFeedback={null}
+      onRunAction={() => undefined}
+      onRepairCompatibility={() => undefined}
+      intent="none"
+      busy={false}
+      upgradePlan={null}
+      upgradeBusy={false}
+      applyBusy={false}
+      upgradeFeedback={null}
+      aiReview={null}
+      aiBusy={false}
+      bootstrapPlan={null}
+      bootstrapBusy={false}
+      bootstrapApplyBusy={false}
+      bootstrapApplyFeedback={null}
+      bootstrapJob={null}
+      onPrepareBootstrap={() => undefined}
+      onApplyBootstrap={() => undefined}
+      onIntentChange={() => undefined}
+      onRefresh={() => undefined}
+      onRunRecommended={() => undefined}
+      onLoadUpgradePlan={() => undefined}
+      onReviewAi={() => undefined}
+      onApplyAdditions={() => undefined}
+      onApplyPolicy={() => undefined}
+      onApplyDrifted={() => undefined}
+      onApplyAlignment={() => undefined}
+      onDeleteObsolete={() => undefined}
+      onApplyInOrder={() => undefined}
+    />,
+  )
+}
 
 function disabledGitHub() {
   return {
