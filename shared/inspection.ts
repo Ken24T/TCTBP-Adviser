@@ -109,6 +109,7 @@ export interface RepositoryObservation {
   }
   operations: GitOperation[]
   localTracking: LocalTrackingObservation
+  remoteOrigin: string | null
   tctbp: TctbpObservation
   errors: InspectionIssue[]
 }

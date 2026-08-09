@@ -1,8 +1,11 @@
-import { randomUUID } from 'node:crypto'
+// TCTBP file-size justification: this module owns the canonical-source manager
+// class that drives the bootstrap/plan/apply lifecycle end-to-end; its methods
+// share the loaded-source state and the same upgrade-domain helpers. The file
+// I/O layer (writeManagedFile, deleteManagedFile, readFiles, parseVersion) has
+// already been extracted to tctbp-source-files.ts. Further splitting means
+// splitting the class itself, deferred as a larger refactor.
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { lstat, mkdir, realpath, rename, unlink, writeFile } from 'node:fs/promises'
-import path from 'node:path'
 import type {
   RepositoryObservation,
   ScaffoldHealthObservation,
@@ -15,8 +18,10 @@ import type {
 } from '../shared/tctbp-bootstrap'
 import type {
   CanonicalSourceSummary,
+  ManagedFileAction,
   TctbpApplyRequest,
   TctbpApplyResult,
+  TctbpApplyStep,
   TctbpPolicyComparison,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
@@ -48,10 +53,13 @@ import {
   generateBootstrapPolicy,
 } from './tctbp-bootstrap'
 import type { BootstrapJobProgress } from './tctbp-bootstrap-jobs'
+import { readBoundedRepositoryFile } from './security'
 import {
-  isPathContained,
-  readBoundedRepositoryFile,
-} from './security'
+  deleteManagedFile,
+  parseVersion,
+  readFiles,
+  writeManagedFile,
+} from './tctbp-source-files'
 
 const VERSION_PATH = 'VERSION'
 const SCRIPT_COMPATIBILITY_PATH = 'scripts/package.json'
@@ -81,10 +89,22 @@ interface UpgradeTargetObservation {
 }
 
 export class CanonicalTctbpSourceService {
+  #sourceRoot: string | null
+
   constructor(
-    readonly sourceRoot: string | null,
+    sourceRoot: string | null,
     readonly executor: GitExecutor,
-  ) {}
+  ) {
+    this.#sourceRoot = sourceRoot
+  }
+
+  get sourceRoot(): string | null {
+    return this.#sourceRoot
+  }
+
+  setSourceRoot(sourceRoot: string | null): void {
+    this.#sourceRoot = sourceRoot
+  }
 
   async bootstrapPlan(
     targetObservation: UpgradeTargetObservation,
@@ -279,7 +299,7 @@ export class CanonicalTctbpSourceService {
     if (plan.blockers.length > 0 || plan.disposition !== 'review-required') {
       throw new AdviserError(
         'upgrade-apply-blocked',
-        'The upgrade plan is not eligible for application.',
+        'The upgrade plan is blocked — resolve any blockers (e.g. uncommitted local changes) before applying.',
       )
     }
     if (!targetObservation.head.branch || isEnvironmentBranch(targetObservation)) {
@@ -289,54 +309,26 @@ export class CanonicalTctbpSourceService {
       )
     }
 
-    const approvedPaths = new Set(request.approvedPaths)
+    const steps = request.steps && request.steps.length > 0
+      ? request.steps
+      : [{
+          mode: request.mode,
+          approvedPaths: request.approvedPaths,
+          approvedDeletionPaths: request.approvedDeletionPaths,
+          confirmDeletions: request.confirmDeletions,
+        }]
     const managedChanges = plan.drift.files.filter((file) => (
       file.action === 'add' || file.action === 'review'
     ))
-    const policyApproved = (
-      request.mode === 'approved-managed-files'
-      && approvedPaths.has('.github/TCTBP.json')
-      && plan.policy.state === 'drifted'
-    )
-    if (request.mode === 'approved-managed-files') {
-      const unmanaged = request.approvedPaths.filter((filePath) => (
-        filePath !== '.github/TCTBP.json'
-        && !managedChanges.some((file) => file.path === filePath)
-      ))
-      if (unmanaged.length > 0 || (
-        approvedPaths.has('.github/TCTBP.json') && !policyApproved
-      )) {
-        throw new AdviserError(
-          'upgrade-path-not-managed',
-          'The apply request contains a path outside the current managed plan.',
-        )
-      }
-    }
     const obsoleteTargets = plan.drift.obsoleteTargets ?? []
-    const deletionPaths = Array.from(new Set(request.approvedDeletionPaths))
-    if (deletionPaths.length > 0) {
-      if (!request.confirmDeletions) {
-        throw new AdviserError(
-          'upgrade-deletion-confirmation-required',
-          'Obsolete managed-file deletion requires explicit confirmation.',
-        )
-      }
-      const unknownDeletions = deletionPaths.filter((filePath) => (
-        !obsoleteTargets.some((file) => file.path === filePath)
-      ))
-      if (unknownDeletions.length > 0) {
-        throw new AdviserError(
-          'upgrade-deletion-not-managed',
-          'The apply request contains a path outside the obsolete managed-file plan.',
-        )
-      }
-    }
-
-    const filesToApply = managedChanges.filter((file) => (
-      request.mode === 'additions-only'
-        ? file.action === 'add'
-        : approvedPaths.has(file.path)
+    // Validate and select what each step touches, all against the single
+    // reviewed plan — never a re-planned intermediate state. An ordered
+    // "apply in order (N steps)" request therefore applies the whole
+    // reviewed plan in one validated pass.
+    const selections = steps.map((step) => (
+      selectApplyStep(step, plan, managedChanges, obsoleteTargets)
     ))
+
     const source = await this.loadSource()
     if (source.state !== 'available' || !this.sourceRoot) {
       throw new AdviserError(
@@ -350,43 +342,65 @@ export class CanonicalTctbpSourceService {
         'The canonical source changed after the plan was generated.',
       )
     }
-    const sourceFiles = await readFiles(
-      this.sourceRoot,
-      filesToApply.map((file) => file.path),
-    )
-    const targetPolicyContent = policyApproved
-      ? await readBoundedRepositoryFile(targetRoot, '.github/TCTBP.json')
-      : null
-    const mergedPolicy = policyApproved
-      ? mergeCanonicalTctbpPolicy(source.policyContent, targetPolicyContent)
-      : null
-    if (policyApproved && mergedPolicy === null) {
-      throw new AdviserError(
-        'upgrade-policy-merge-unavailable',
-        'The canonical and target TCTBP policies could not be safely merged.',
-      )
-    }
-    if (filesToApply.some((file) => !sourceFiles.has(file.path))) {
+    const requiredFiles = Array.from(new Set(selections.flatMap(
+      (selection) => selection.filesToApply.map((file) => file.path),
+    )))
+    const sourceFiles = await readFiles(this.sourceRoot, requiredFiles)
+    if (requiredFiles.some((filePath) => !sourceFiles.has(filePath))) {
       throw new AdviserError(
         'upgrade-source-file-unavailable',
         'A selected canonical managed file is unavailable; no changes were applied.',
       )
     }
-    for (const file of filesToApply) {
-      await writeManagedFile(targetRoot, file.path, sourceFiles.get(file.path) as string)
-    }
-    if (mergedPolicy !== null) {
-      await writeManagedFile(targetRoot, '.github/TCTBP.json', mergedPolicy)
-    }
-    for (const filePath of deletionPaths) {
-      await deleteManagedFile(targetRoot, filePath)
+
+    const appliedPaths: string[] = []
+    for (const selection of selections) {
+      for (const file of selection.filesToApply) {
+        await writeManagedFile(targetRoot, file.path, sourceFiles.get(file.path) as string)
+        appliedPaths.push(file.path)
+      }
+      if (selection.policyApproved) {
+        const targetPolicyContent = await readBoundedRepositoryFile(targetRoot, '.github/TCTBP.json')
+        const mergedPolicy = mergeCanonicalTctbpPolicy(source.policyContent, targetPolicyContent)
+        if (mergedPolicy === null) {
+          throw new AdviserError(
+            'upgrade-policy-merge-unavailable',
+            'The canonical and target TCTBP policies could not be safely merged.',
+          )
+        }
+        await writeManagedFile(targetRoot, '.github/TCTBP.json', mergedPolicy)
+        appliedPaths.push('.github/TCTBP.json')
+      }
+      for (const filePath of selection.deletionPaths) {
+        await deleteManagedFile(targetRoot, filePath)
+        appliedPaths.push(`deleted:${filePath}`)
+      }
     }
 
-    const appliedPaths = [
-      ...filesToApply.map((file) => file.path),
-      ...(mergedPolicy !== null ? ['.github/TCTBP.json'] : []),
-      ...deletionPaths.map((filePath) => `deleted:${filePath}`),
-    ]
+    // Record the canonical alignment in the source manifest, exactly as
+    // bootstrap does. Without it the plan cannot verify the target came from
+    // TCTBP-Web (alignment stays 'unknown') and can never reach 'current'
+    // even after a full reconcile.
+    const sourceJson = JSON.stringify({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: source.revision,
+      sourceVersion: source.version,
+      installedSchemaVersion: 11,
+      adviserContract: {
+        major: 1,
+        minor: 0,
+        capabilities: [
+          'inspection.local-v1',
+          'workflow-catalogue.core-v1',
+          'reason-codes.core-v1',
+        ],
+      },
+      installedAt: new Date().toISOString().slice(0, 10),
+      managedSurface: source.managedPaths,
+    }, null, 2) + '\n'
+    await writeManagedFile(targetRoot, '.tctbp/source.json', sourceJson)
+    appliedPaths.push('.tctbp/source.json')
+
     return {
       status: appliedPaths.length > 0 ? 'applied' : 'nothing-to-apply',
       appliedPaths,
@@ -459,107 +473,67 @@ function isEnvironmentBranch(observation: UpgradeTargetObservation): boolean {
   ].includes(branch)
 }
 
-async function writeManagedFile(
-  repositoryRoot: string,
-  relativePath: string,
-  content: string,
-): Promise<void> {
-  const candidate = path.resolve(repositoryRoot, relativePath)
-  if (!isPathContained(repositoryRoot, candidate)) {
-    throw new AdviserError(
-      'upgrade-path-outside-root',
-      'A managed upgrade path escapes the target repository.',
-    )
-  }
-  const parent = path.dirname(candidate)
-  await mkdir(parent, { recursive: true })
-  const resolvedParent = await realpath(parent)
-  if (!isPathContained(repositoryRoot, resolvedParent)) {
-    throw new AdviserError(
-      'upgrade-parent-outside-root',
-      'A managed upgrade directory resolves outside the target repository.',
-    )
-  }
-  try {
-    const stats = await lstat(candidate)
-    if (stats.isSymbolicLink() || !stats.isFile()) {
+interface ApplyStepSelection {
+  filesToApply: Array<{ path: string; action: ManagedFileAction }>
+  policyApproved: boolean
+  deletionPaths: string[]
+}
+
+/**
+ * Validates one apply step against the reviewed plan and selects the files
+ * it will touch. All steps in an ordered request are validated before any
+ * file is written, so a multi-step apply is atomic with respect to the plan.
+ */
+function selectApplyStep(
+  step: TctbpApplyStep,
+  plan: TctbpUpgradePlan,
+  managedChanges: Array<{ path: string; action: ManagedFileAction }>,
+  obsoleteTargets: Array<{ path: string }>,
+): ApplyStepSelection {
+  const approvedPaths = new Set(step.approvedPaths)
+  const policyApproved = (
+    step.mode === 'approved-managed-files'
+    && approvedPaths.has('.github/TCTBP.json')
+    && plan.policy.state === 'drifted'
+  )
+  if (step.mode === 'approved-managed-files') {
+    const unmanaged = step.approvedPaths.filter((filePath) => (
+      filePath !== '.github/TCTBP.json'
+      && !managedChanges.some((file) => file.path === filePath)
+    ))
+    if (unmanaged.length > 0 || (
+      approvedPaths.has('.github/TCTBP.json') && !policyApproved
+    )) {
       throw new AdviserError(
-        'upgrade-target-entry-invalid',
-        'A managed target entry is not a regular file.',
+        'upgrade-path-not-managed',
+        'The apply request contains a path outside the current managed plan.',
       )
     }
-  } catch (error) {
-    if (!isMissingFileError(error)) throw error
   }
-
-  const temporary = path.join(
-    parent,
-    `.${path.basename(candidate)}.tctbp-${randomUUID()}.tmp`,
-  )
-  try {
-    await writeFile(temporary, content, { encoding: 'utf8', flag: 'wx' })
-    await rename(temporary, candidate)
-  } finally {
-    await unlink(temporary).catch(() => undefined)
+  const deletionPaths = Array.from(new Set(step.approvedDeletionPaths))
+  if (deletionPaths.length > 0) {
+    if (!step.confirmDeletions) {
+      throw new AdviserError(
+        'upgrade-deletion-confirmation-required',
+        'Obsolete managed-file deletion requires explicit confirmation.',
+      )
+    }
+    const unknownDeletions = deletionPaths.filter((filePath) => (
+      !obsoleteTargets.some((file) => file.path === filePath)
+    ))
+    if (unknownDeletions.length > 0) {
+      throw new AdviserError(
+        'upgrade-deletion-not-managed',
+        'The apply request contains a path outside the obsolete managed-file plan.',
+      )
+    }
   }
-}
-
-async function deleteManagedFile(
-  repositoryRoot: string,
-  relativePath: string,
-): Promise<void> {
-  const candidate = path.resolve(repositoryRoot, relativePath)
-  if (!isPathContained(repositoryRoot, candidate)) {
-    throw new AdviserError(
-      'upgrade-path-outside-root',
-      'An obsolete managed path escapes the target repository.',
-    )
-  }
-  const stats = await lstat(candidate)
-  if (stats.isSymbolicLink() || !stats.isFile()) {
-    throw new AdviserError(
-      'upgrade-target-entry-invalid',
-      'An obsolete managed entry is not a regular file.',
-    )
-  }
-  await unlink(candidate)
-}
-
-async function readFiles(
-  repositoryRoot: string,
-  paths: readonly string[],
-): Promise<Map<string, string>> {
-  const entries = await Promise.all(paths.map(async (relativePath) => (
-    [relativePath, await readBoundedRepositoryFile(repositoryRoot, relativePath)] as const
-  )))
-  return new Map(entries.filter(
-    (entry): entry is readonly [string, string] => entry[1] !== null,
+  const filesToApply = managedChanges.filter((file) => (
+    step.mode === 'additions-only'
+      ? file.action === 'add'
+      : approvedPaths.has(file.path)
   ))
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return (
-    typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && error.code === 'ENOENT'
-  )
-}
-
-function parseVersion(content: string | null): string | null {
-  if (!content) return null
-  try {
-    const value: unknown = JSON.parse(content)
-    if (
-      typeof value === 'object'
-      && value !== null
-      && 'version' in value
-      && typeof value.version === 'string'
-    ) return value.version
-  } catch {
-    return content.trim() || null
-  }
-  return null
+  return { filesToApply, policyApproved, deletionPaths }
 }
 
 function unavailableSource(message: string): LoadedCanonicalSource {

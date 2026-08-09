@@ -26,6 +26,11 @@ export class RepositoryRegistry {
     readonly cacheTtlMs: number,
   ) {}
 
+  updateRepositoryRoots(roots: string[]): void {
+    this.discovery.setRepositoryRoots(roots)
+    this.#snapshot = null
+  }
+
   async list(): Promise<RepositorySummary[]> {
     const snapshot = await this.snapshot()
     return snapshot.repositories.map(({ id, name }) => ({ id, name }))

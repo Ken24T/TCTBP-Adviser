@@ -36,7 +36,7 @@ describe('GitHub provider evidence panel', () => {
       }} />,
     )
 
-    expect(markup).toContain('GitHub evidence is unavailable')
+    expect(markup).toContain('GitHub access was denied')
     expect(markup).toContain('Local advice is unaffected')
   })
 })

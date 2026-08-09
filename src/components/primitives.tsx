@@ -1,0 +1,389 @@
+import {
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react'
+
+export function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  className = '',
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'card-tertiary' | 'card-primary'
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  const base = 'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+  const sizeClasses = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-4 py-2 text-sm',
+    lg: 'px-5 py-2.5 text-base',
+  }
+  const variantClasses = {
+    primary: 'bg-teal-600 text-white hover:bg-teal-700 focus:ring-teal-500 shadow-soft',
+    secondary: 'bg-butter-100 text-ink-900 hover:bg-butter-200 focus:ring-butter-400 border border-butter-300',
+    tertiary: 'bg-surface-soft text-text-primary hover:bg-surface-hover focus:ring-ink-400 border border-border',
+    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    'card-tertiary': 'bg-[var(--card-btn-bg)] text-[var(--card-btn-text)] hover:bg-[var(--card-btn-hover-bg)] focus:ring-[var(--card-btn-text)] border border-[var(--card-btn-border)]',
+    'card-primary': 'bg-[var(--card-btn-primary-bg)] text-[var(--card-btn-primary-text)] hover:bg-[var(--card-btn-primary-hover-bg)] focus:ring-[var(--card-btn-primary-text)] shadow-soft',
+  }
+
+  return (
+    <button
+      className={`${base} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`}
+      type="button"
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
+export function Card({
+  children,
+  className = '',
+  hover = false,
+  style,
+  onClick,
+}: {
+  children: ReactNode
+  className?: string
+  hover?: boolean
+  style?: CSSProperties
+  onClick?: (event: MouseEvent<HTMLDivElement>) => void
+}) {
+  return (
+    <div
+      className={[
+        'ad-surface p-6 transition-all duration-200',
+        hover ? 'hover:shadow-lg hover:border-teal-300 cursor-pointer' : '',
+        className,
+      ].join(' ')}
+      onClick={onClick}
+      style={style}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Badge({
+  children,
+  tone = 'neutral',
+  surface = false,
+  style,
+}: {
+  children: ReactNode
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+  surface?: boolean
+  style?: CSSProperties
+}) {
+  const toneClasses = {
+    neutral: 'bg-surface-soft text-text-secondary border border-border',
+    success: 'bg-green-100 text-green-800',
+    warning: 'bg-amber-100 text-amber-800',
+    danger: 'bg-red-100 text-red-800',
+    info: 'bg-blue-100 text-blue-800',
+    accent: 'bg-teal-100 text-teal-800',
+  }
+
+  return (
+    <span
+      className={surface
+        ? 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--pill-bg)] text-[var(--pill-text)] border border-[var(--pill-border)]'
+        : `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${toneClasses[tone]}`}
+      style={style}
+    >
+      {children}
+    </span>
+  )
+}
+
+export function StatusPill({
+  status,
+}: {
+  status: 'healthy' | 'attention' | 'stop' | 'unknown' | string
+}) {
+  const tone = status === 'healthy' ? 'success'
+    : status === 'attention' ? 'warning'
+    : status === 'stop' ? 'danger'
+    : 'neutral'
+  return <Badge tone={tone}>{status}</Badge>
+}
+
+export function Section({
+  children,
+  title,
+  eyebrow,
+  className = '',
+}: {
+  children: ReactNode
+  title?: string
+  eyebrow?: string
+  className?: string
+}) {
+  return (
+    <section className={`space-y-4 ${className}`}>
+      {(eyebrow || title) && (
+        <div className="space-y-1">
+          {eyebrow && (
+            <p className="text-xs font-bold uppercase tracking-widest text-teal-600">
+              {eyebrow}
+            </p>
+          )}
+          {title && <h2 className="text-2xl font-semibold text-text-primary">{title}</h2>}
+        </div>
+      )}
+      {children}
+    </section>
+  )
+}
+
+export function EmptyState({
+  title,
+  description,
+  eyebrow = 'Nothing to show',
+}: {
+  title: string
+  description: string
+  eyebrow?: string
+}) {
+  return (
+    <Card className="text-center py-16">
+      <p className="text-xs font-bold uppercase tracking-widest text-teal-600">{eyebrow}</p>
+      <h3 className="mt-2 text-xl font-semibold text-text-primary">{title}</h3>
+      <p className="mt-1 text-text-muted">{description}</p>
+    </Card>
+  )
+}
+
+export function PanelHeading({
+  eyebrow,
+  title,
+  id,
+}: {
+  eyebrow: string
+  title: string
+  id: string
+}) {
+  return (
+    <div className="mb-4 space-y-1">
+      {eyebrow && (
+        <p className="text-xs font-bold uppercase tracking-widest text-teal-600">{eyebrow}</p>
+      )}
+      <h2 id={id} className="text-xl font-semibold text-text-primary">{title}</h2>
+    </div>
+  )
+}
+
+export function Panel({
+  children,
+  title,
+  eyebrow,
+  id,
+  className = '',
+  actions,
+}: {
+  children: ReactNode
+  title?: string
+  eyebrow?: string
+  id?: string
+  className?: string
+  actions?: ReactNode
+}) {
+  return (
+    <section className={`ad-surface p-6 ${className}`}>
+      {(eyebrow || title || actions) && (
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            {eyebrow && (
+              <p className="text-xs font-bold uppercase tracking-widest text-teal-600">{eyebrow}</p>
+            )}
+            {title && <h2 id={id} className="text-xl font-semibold text-text-primary">{title}</h2>}
+          </div>
+          {actions && <div className="shrink-0">{actions}</div>}
+        </div>
+      )}
+      {children}
+    </section>
+  )
+}
+
+export function PageHeader({
+  title,
+  eyebrow,
+  description,
+  onBack,
+  actions,
+}: {
+  title: string
+  eyebrow?: string
+  description?: string
+  onBack?: () => void
+  actions?: ReactNode
+}) {
+  return (
+    <header className="flex flex-col lg:flex-row lg:items-end gap-6 justify-between">
+      <div className="max-w-3xl">
+        {onBack && (
+          <button
+            className="mb-2 text-sm font-medium text-teal-700 hover:text-teal-800 transition-colors"
+            type="button"
+            onClick={onBack}
+          >
+            ← Portfolio
+          </button>
+        )}
+        {eyebrow && (
+          <p className="text-xs font-bold uppercase tracking-widest text-teal-600">{eyebrow}</p>
+        )}
+        <h1 className="mt-1 text-4xl font-semibold text-text-primary tracking-tight">{title}</h1>
+        {description && (
+          <p className="mt-3 text-lg text-text-secondary leading-relaxed">{description}</p>
+        )}
+      </div>
+      {actions && <div className="flex items-center gap-3">{actions}</div>}
+    </header>
+  )
+}
+
+export function Select({
+  className = '',
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <span className="relative inline-flex">
+      <select
+        className={`appearance-none px-4 py-2.5 pr-9 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${className}`}
+        {...props}
+      />
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        viewBox="0 0 16 16"
+      >
+        <path d="M4 6l4 4 4-4" />
+      </svg>
+    </span>
+  )
+}
+
+export function Skeleton({
+  className = '',
+  width,
+  height,
+}: {
+  className?: string
+  width?: string
+  height?: string
+}) {
+  return (
+    <div
+      className={`bg-surface-hover rounded animate-pulse ${className}`}
+      style={{ width, height }}
+    />
+  )
+}
+
+export function SkeletonText({
+  lines = 1,
+  width = '100%',
+  className = '',
+}: {
+  lines?: number
+  width?: string
+  className?: string
+}) {
+  return (
+    <div className={`space-y-2 ${className}`}>
+      {Array.from({ length: lines }).map((_, index) => (
+        <Skeleton key={index} height="0.75rem" width={index === 0 ? width : '80%'} />
+      ))}
+    </div>
+  )
+}
+
+export function SkeletonCard({ children, className = '' }: { children?: ReactNode; className?: string }) {
+  return (
+    <Card className={`p-6 ${className}`}>
+      <div className="animate-pulse space-y-4">
+        {children ?? <SkeletonText lines={3} />}
+      </div>
+    </Card>
+  )
+}
+
+export function MetricCard({
+  label,
+  value,
+  tone = 'neutral',
+  note,
+}: {
+  label: string
+  value: number
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+  note?: string
+}) {
+  const borderClasses = {
+    neutral: 'border-l-ink-400',
+    success: 'border-l-teal-500',
+    warning: 'border-l-amber-500',
+    danger: 'border-l-red-500',
+    info: 'border-l-blue-500',
+    accent: 'border-l-teal-600',
+  }
+  const icon = note ? <span className="text-xs text-text-faint">{note}</span> : null
+
+  return (
+    <Card
+      className={`p-5 border-l-4 ${borderClasses[tone]} flex flex-col justify-between min-h-[6.5rem]`}
+      hover={false}
+    >
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+          {label}
+        </span>
+        {icon}
+      </div>
+      <strong className="text-4xl font-semibold text-text-primary tracking-tight">
+        {value}
+      </strong>
+    </Card>
+  )
+}
+
+export function SkeletonMetric() {
+  return (
+    <SkeletonCard className="flex flex-col justify-between min-h-[6.5rem]">
+      <Skeleton height="0.75rem" width="50%" />
+      <Skeleton height="2.75rem" width="3.5rem" />
+    </SkeletonCard>
+  )
+}
+
+export function KeyValue({
+  items,
+  className = '',
+}: {
+  items: { key: string; value: ReactNode }[]
+  className?: string
+}) {
+  return (
+    <dl className={`space-y-2 ${className}`}>
+      {items.map(({ key, value }) => (
+        <div key={key} className="flex items-start justify-between gap-4 py-2 border-b border-border last:border-0">
+          <dt className="text-sm text-text-muted">{key}</dt>
+          <dd className="text-sm font-medium text-text-primary text-right break-all">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}

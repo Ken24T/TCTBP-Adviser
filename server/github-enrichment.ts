@@ -17,11 +17,19 @@ export interface GitHubOnlyRepository {
 }
 
 export class GitHubEnrichmentService {
+  config: GitHubConfig
+
   constructor(
-    readonly config: GitHubConfig,
+    config: GitHubConfig,
     readonly inspector: LocalGitInspector,
     readonly provider: GitHubProvider,
-  ) {}
+  ) {
+    this.config = config
+  }
+
+  setConfig(config: GitHubConfig): void {
+    this.config = config
+  }
 
   async forLocal(
     repository: RegisteredRepository,

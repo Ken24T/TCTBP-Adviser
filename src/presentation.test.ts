@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { observationFixture } from '../test/observation-fixture'
 import {
+  blockerHint,
   branchRoles,
   formatAge,
   formatEvidenceValue,
+  recommendationTitleFor,
   syncSummary,
   workingTreeSummary,
 } from './presentation'
@@ -47,5 +49,35 @@ describe('repository detail presentation', () => {
       productionBranch: 'main',
       promotionTargets: [],
     })).toEqual([{ role: 'Production', branch: 'main' }])
+  })
+
+  it('gives a how-to-resolve hint for known blockers and null otherwise', () => {
+    expect(blockerHint('working-tree-dirty'))
+      .toContain('Commit or stash')
+    expect(blockerHint('detached-head'))
+      .toContain('git switch development')
+    expect(blockerHint('different-source'))
+      .toContain('Ken24T/TCTBP-Web')
+    expect(blockerHint('stale-plan'))
+      .toContain('Refresh the plan')
+    expect(blockerHint('not-a-real-blocker')).toBeNull()
+  })
+
+  it('leads the incompatible-with-local-changes sequence with Checkpoint', () => {
+    expect(recommendationTitleFor({
+      disposition: 'sequence',
+      primaryAction: 'checkpoint',
+      reasonCodes: ['working-tree-dirty', 'tctbp-contract-incompatible'],
+    })).toBe('Checkpoint')
+    expect(recommendationTitleFor({
+      disposition: 'stop',
+      primaryAction: null,
+      reasonCodes: ['tctbp-contract-incompatible'],
+    })).toBe('Review TCTBP')
+    expect(recommendationTitleFor({
+      disposition: 'action',
+      primaryAction: 'update-tctbp',
+      reasonCodes: ['tctbp-update-available'],
+    })).toBe('Update TCTBP')
   })
 })

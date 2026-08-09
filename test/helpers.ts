@@ -12,6 +12,7 @@ export async function createTemporaryDirectory(
 export async function createGitRepository(
   parent: string,
   name = 'repository',
+  origin: string | null = null,
 ): Promise<string> {
   const repository = path.join(parent, name)
   await mkdir(repository, { recursive: true })
@@ -21,6 +22,9 @@ export async function createGitRepository(
   await writeFile(path.join(repository, 'README.md'), '# Test repository\n')
   git(repository, ['add', 'README.md'])
   git(repository, ['commit', '-m', 'test: initial commit'])
+  if (origin) {
+    git(repository, ['remote', 'add', 'origin', origin])
+  }
   return repository
 }
 

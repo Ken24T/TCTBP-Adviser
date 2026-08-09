@@ -7,6 +7,8 @@ import type {
   RecommendationDisposition,
   RecommendationReasonCode,
 } from '../shared/recommendation'
+import type { TctbpUpgradeBlockerCode } from '../shared/tctbp-upgrade'
+import type { PortfolioRepository } from '../shared/portfolio'
 
 const ACTION_LABELS: Record<RecommendationAction, string> = {
   'refresh-inspection': 'Refresh inspection',
@@ -18,7 +20,8 @@ const ACTION_LABELS: Record<RecommendationAction, string> = {
   'inspect-recovery': 'Investigate safely',
   'reattach-branch': 'Reattach a branch',
   'install-tctbp': 'Install TCTBP',
-  'review-compatibility': 'Review compatibility',
+  'review-compatibility': 'Review TCTBP',
+  'update-tctbp': 'Update TCTBP',
 }
 
 const REASON_LABELS: Record<RecommendationReasonCode, string> = {
@@ -33,8 +36,10 @@ const REASON_LABELS: Record<RecommendationReasonCode, string> = {
   'branch-unpublished': 'The current branch has no tracking ref',
   'branch-ahead': 'Local commits have not been published',
   'handover-ready': 'The repository is ready for a machine handover',
+  'remote-origin-missing': 'No remote origin configured',
   'tctbp-not-installed': 'TCTBP is not installed',
   'tctbp-contract-incompatible': 'The Adviser contract is incompatible',
+  'tctbp-update-available': 'TCTBP infrastructure update available',
   'inspection-required': 'Fresh or compatible evidence is required',
   'no-action-required': 'The repository is healthy and in sync',
 }
@@ -122,4 +127,92 @@ export function branchRoles(model: BranchModelObservation) {
     (entry): entry is { role: string; branch: string } =>
       entry.branch !== null,
   )
+}
+
+/** Card severity tone, mirroring the recommendation's colour family. */
+export function portfolioTone(
+  repository: PortfolioRepository,
+): 'action-recommended' | 'attention' | 'stop' | 'healthy' {
+  if (repository.source === 'github-only') {
+    return repository.github.status === 'available' ? 'healthy' : 'attention'
+  }
+  if (!repository.available) return 'stop'
+  return repository.recommendation?.severity ?? 'attention'
+}
+
+/** The one-line "Recommended" action shown on the card face. */
+export function recommendationTitle(repository: PortfolioRepository): string {
+  if (repository.source === 'github-only') {
+    return repository.github.status === 'available'
+      ? 'Local recommendation unavailable'
+      : 'GitHub evidence unavailable'
+  }
+  if (!repository.available) return 'Inspection unavailable'
+  const recommendation = repository.recommendation
+  if (!recommendation) return 'Recommendation unavailable'
+  return recommendationTitleFor(recommendation)
+}
+
+/** The "Recommended" title derived directly from a recommendation result. */
+export function recommendationTitleFor(
+  recommendation: {
+    disposition: RecommendationDisposition
+    primaryAction: RecommendationAction | null
+    reasonCodes: RecommendationReasonCode[]
+  } | null,
+): string {
+  if (!recommendation) return 'Recommendation unavailable'
+  // A checkpoint-first sequence (incompatible contract + dirty tree) leads
+  // with the checkpoint; the contract reasons still surface in the callout.
+  if (
+    recommendation.disposition === 'sequence'
+    && recommendation.primaryAction === 'checkpoint'
+    && recommendation.reasonCodes.includes('tctbp-contract-incompatible')
+  ) {
+    return 'Checkpoint'
+  }
+  if (recommendation.reasonCodes.includes('tctbp-not-installed')) {
+    return 'Install TCTBP'
+  }
+  if (recommendation.reasonCodes.includes('tctbp-contract-incompatible')) {
+    return 'Review TCTBP'
+  }
+  if (recommendation.reasonCodes.includes('remote-origin-missing')) {
+    return 'No remote configured'
+  }
+  return recommendation.primaryAction
+    ? actionLabel(recommendation.primaryAction)
+    : dispositionLabel(recommendation.disposition)
+}
+
+export function tctbpLabel(repository: PortfolioRepository): string {
+  if (!repository.tctbp) return 'TCTBP unknown'
+  if (!repository.tctbp.installed) return 'TCTBP not installed'
+  if (!repository.tctbp.compatible) return 'TCTBP incompatible'
+  return `TCTBP schema ${repository.tctbp.schemaVersion ?? 'unknown'}`
+}
+
+export function upgradeLabel(
+  disposition: NonNullable<PortfolioRepository['upgrade']>['disposition'],
+): string {
+  if (disposition === 'current') return 'TCTBP current'
+  if (disposition === 'bootstrap-required') return 'TCTBP bootstrap required'
+  if (disposition === 'source-unavailable') return 'TCTBP source unavailable'
+  return 'TCTBP review required'
+}
+
+/** A "how to resolve" hint for a workflow blocker, or null when unknown. */
+export function blockerHint(code: string): string | null {
+  const hints: Record<TctbpUpgradeBlockerCode, string> = {
+    'working-tree-dirty': 'Commit or stash local changes first — or checkpoint them.',
+    'active-git-operation': 'Wait for the running Git operation to finish before retrying.',
+    'detached-head': 'Reattach to a branch first (e.g. git switch development).',
+    'source-unavailable': 'Make the canonical TCTBP-Web source available, then retry.',
+    'policy-unavailable': 'Ensure both policies can be compared (fetch or pull), then retry.',
+    'managed-source-unavailable': 'A canonical managed file could not be read — check the TCTBP-Web checkout.',
+    'different-source': 'Regenerate from the canonical Ken24T/TCTBP-Web source.',
+    'environment-branch': 'Switch to a branch the target environment is configured for.',
+    'stale-plan': 'Refresh the plan so its fingerprint matches the current repository state.',
+  }
+  return hints[code as TctbpUpgradeBlockerCode] ?? null
 }

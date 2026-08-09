@@ -1,3 +1,7 @@
+// TCTBP file-size note: this panel orchestrates the upgrade plan preview,
+// apply actions, and the nested bootstrap form. The Jasper review, plan
+// details, and apply-step primitives live in their own modules
+// (AiReviewDetails, PlanDetails, TctbpApplySteps).
 import { useEffect, useState } from 'react'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type {
@@ -11,8 +15,12 @@ import {
   formatTctbpPlanJson,
   formatTctbpPlanMarkdown,
 } from '../tctbp-plan-export'
+import { AiReviewDetails } from './AiReviewDetails'
+import { PlanDetails } from './PlanDetails'
+import { PlanExportMenu } from './PlanExportMenu'
+import { NextStepsStrip, ApplyStep } from './TctbpApplySteps'
 import { TctbpBootstrapPanel } from './TctbpBootstrapPanel'
-import { PanelHeading } from './RepositoryState'
+import { Button, Panel } from './primitives'
 
 interface TctbpUpgradePanelProps {
   repositoryName: string
@@ -27,13 +35,17 @@ interface TctbpUpgradePanelProps {
   bootstrapApplyBusy: boolean
   bootstrapApplyFeedback: string | null
   bootstrapJob: TctbpBootstrapJob | null
+  contractIncompatible?: boolean
   onPrepareBootstrap: (request: TctbpBootstrapRequest) => void
   onApplyBootstrap: (request: TctbpBootstrapRequest) => void
   onLoad: () => void
   onReviewAi: () => void
   onApplyAdditions: () => void
   onApplyPolicy: () => void
+  onApplyDrifted: () => void
+  onApplyAlignment: () => void
   onDeleteObsolete: () => void
+  onApplyInOrder: () => void
 }
 
 export function TctbpUpgradePanel({
@@ -49,13 +61,17 @@ export function TctbpUpgradePanel({
   bootstrapApplyBusy,
   bootstrapApplyFeedback,
   bootstrapJob,
+  contractIncompatible = false,
   onPrepareBootstrap,
   onApplyBootstrap,
   onLoad,
   onReviewAi,
   onApplyAdditions,
   onApplyPolicy,
+  onApplyDrifted,
+  onApplyAlignment,
   onDeleteObsolete,
+  onApplyInOrder,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [aiAcknowledged, setAiAcknowledged] = useState(false)
@@ -66,6 +82,23 @@ export function TctbpUpgradePanel({
     && aiReview.planFingerprint === reviewFingerprint
     && aiAcknowledged,
   )
+  const alignmentPending = Boolean(
+    plan
+    && plan.sourceAlignment !== 'current'
+    && plan.actionCounts.add === 0
+    && plan.actionCounts.review === 0
+    && plan.policy.state === 'aligned'
+    && (plan.drift.obsoleteTargets?.length ?? 0) === 0
+  )
+  const applicableCount = plan
+    ? [
+        plan.policy.state === 'drifted',
+        plan.actionCounts.add > 0,
+        plan.actionCounts.review > 0,
+        (plan.drift.obsoleteTargets?.length ?? 0) > 0,
+        alignmentPending,
+      ].filter(Boolean).length
+    : 0
 
   useEffect(() => {
     setAiAcknowledged(false)
@@ -96,260 +129,249 @@ export function TctbpUpgradePanel({
   }
 
   return (
-    <section className="panel wide-panel" aria-labelledby="upgrade-plan-title">
-      <PanelHeading
-        eyebrow="Canonical TCTBP-Web"
-        title={plan ? dispositionTitle(plan.disposition) : 'Upgrade planner'}
-        id="upgrade-plan-title"
-      />
-      <p>
+    <Panel
+      actions={plan ? (
+        <PlanExportMenu
+          onCopy={() => void copyMarkdown()}
+          onJson={() => exportPlan('json')}
+          onMarkdown={() => exportPlan('markdown')}
+        />
+      ) : undefined}
+      eyebrow="Canonical TCTBP-Web"
+      title={plan ? dispositionTitle(plan.disposition) : 'Upgrade planner'}
+      id="upgrade-plan-title"
+    >
+      <p className="text-text-secondary mb-4">
         Preview managed TCTBP drift, or explicitly apply canonical managed files
         on a dedicated branch without commit or push.
       </p>
-      <button
-        className="upgrade-plan-button"
-        disabled={busy}
-        type="button"
-        onClick={onLoad}
-      >
-        {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
-      </button>
-      {plan && (
-        <button
-          className="upgrade-plan-button"
-          disabled={
-            aiBusy
-            || (plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request)
-          }
-          type="button"
-          onClick={onReviewAi}
-        >
-          {aiBusy
-            ? 'Asking Jasper…'
-            : plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request
-              ? 'Prepare bootstrap plan first'
-              : 'Ask Jasper to review this plan'}
-        </button>
+
+      {contractIncompatible && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900">
+          <strong>Review TCTBP:</strong>{' '}
+          Your repository's TCTBP contract is incompatible with the canonical
+          source. Preview the upgrade plan below to see what needs reconciling,
+          then apply the canonical files.
+        </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Button
+          disabled={busy}
+          onClick={onLoad}
+          size="sm"
+        >
+          {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
+        </Button>
+        {plan && (
+          <Button
+            disabled={
+              aiBusy
+              || (plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request)
+            }
+            onClick={onReviewAi}
+            size="sm"
+            variant="secondary"
+          >
+            {aiBusy
+              ? 'Asking Jasper…'
+              : plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request
+                ? 'Prepare bootstrap plan first'
+                : 'Ask Jasper to review this plan'}
+          </Button>
+        )}
+      </div>
+
       {aiReview && <AiReviewDetails review={aiReview} />}
+
       {plan && aiReview?.status === 'available' && aiReview.planFingerprint === reviewFingerprint && (
-        <label className="ai-acknowledgement">
+        <label className="flex items-center gap-2 p-3 bg-surface-soft border border-border rounded-lg text-sm text-text-primary cursor-pointer mb-4">
           <input
             checked={aiAcknowledged}
+            className="w-4 h-4 text-teal-600 border-border rounded focus:ring-teal-500"
             type="checkbox"
             onChange={(event) => setAiAcknowledged(event.currentTarget.checked)}
           />
           I have reviewed Jasper’s advisory and the deterministic plan.
         </label>
       )}
+
       {plan && (
-        <div className="plan-export-actions" aria-label="Upgrade plan export">
-          <button type="button" onClick={() => exportPlan('markdown')}>
-            Download Markdown
-          </button>
-          <button type="button" onClick={() => exportPlan('json')}>
-            Download JSON
-          </button>
-          <button type="button" onClick={() => void copyMarkdown()}>
-            Copy Markdown
-          </button>
-          <button
-            className="upgrade-apply-button"
-            disabled={
-              applyBusy
-              || !aiApplyReady
-              || !plan.fingerprint
-              || plan.blockers.length > 0
-              || plan.actionCounts.add === 0
-            }
-            type="button"
-            onClick={onApplyAdditions}
-          >
-            {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
-          </button>
-          <button
-            className="upgrade-apply-button"
-            disabled={
-              applyBusy
-              || !aiApplyReady
-              || !plan.fingerprint
-              || plan.blockers.length > 0
-              || plan.policy.state !== 'drifted'
-            }
-            type="button"
-            onClick={onApplyPolicy}
-          >
-            Apply policy merge
-          </button>
-          <button
-            className="upgrade-apply-button"
-            disabled={
-              applyBusy
-              || !aiApplyReady
-              || !plan.fingerprint
-              || plan.blockers.length > 0
-              || (plan.drift.obsoleteTargets?.length ?? 0) === 0
-            }
-            type="button"
-            onClick={onDeleteObsolete}
-          >
-            Delete obsolete files
-          </button>
-        </div>
-      )}
-      {feedback && <p className="empty-state">{feedback}</p>}
-      {upgradeFeedback && <p className="empty-state">{upgradeFeedback}</p>}
-      {plan?.disposition === 'bootstrap-required' && (
-        <TctbpBootstrapPanel
-          repositoryName={repositoryName}
-          busy={bootstrapBusy}
-          applyBusy={bootstrapApplyBusy}
-          plan={bootstrapPlan}
-          applyFeedback={bootstrapApplyFeedback}
-          job={bootstrapJob}
-          aiApplyReady={aiApplyReady}
-          onPrepare={onPrepareBootstrap}
-          onApply={onApplyBootstrap}
-        />
-      )}
-      {plan && <PlanDetails plan={plan} />}
-    </section>
-  )
-}
-
-function AiReviewDetails({ review }: { review: AiReviewResult }) {
-  return (
-    <section className="ai-review" aria-label="Jasper AI review">
-      <strong>{aiReviewLabel(review.status)}</strong>
-      {review.summary && <p>{review.summary}</p>}
-      {review.risks.length > 0 && (
-        <ul className="compact-list">
-          {review.risks.map((risk) => (
-            <li key={risk.message}>
-              {risk.message}
-              {risk.evidenceRefs.length > 0 && (
-                <small> Evidence: {risk.evidenceRefs.join(', ')}</small>
+        <>
+          <div className="mb-4" aria-label="Apply order">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                Apply in this order
+              </h3>
+              {applicableCount > 0 && (
+                <Button
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyInOrder}
+                >
+                  {applyBusy
+                    ? 'Applying…'
+                    : `Apply in order (${applicableCount} step${applicableCount === 1 ? '' : 's'})`}
+                </Button>
               )}
-              {risk.evidenceRefs.length === 0 && (
-                <small> Evidence reference unavailable</small>
+            </div>
+            <NextStepsStrip
+              applicableCount={applicableCount}
+              blocked={plan.blockers.length > 0}
+              pendingCommit={plan.blockers.length > 0 && plan.blockers.every(
+                (blocker) => blocker.code === 'working-tree-dirty',
               )}
-            </li>
-          ))}
-        </ul>
+            />
+            <ol className="space-y-2">
+              <ApplyStep
+                active={plan.policy.state === 'drifted'}
+                description="Update .github/TCTBP.json to the canonical schema and policy first, so the managed-file surface matches the contract."
+                number={1}
+                title="Apply policy merge"
+              >
+                <Button
+                  className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyPolicy}
+                >
+                  {applyBusy ? 'Applying…' : 'Apply policy merge'}
+                </Button>
+              </ApplyStep>
+              <ApplyStep
+                active={plan.actionCounts.add > 0}
+                description={`Add ${plan.actionCounts.add} missing canonical managed file${plan.actionCounts.add === 1 ? '' : 's'}.`}
+                number={2}
+                title="Apply additions"
+              >
+                <Button
+                  className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyAdditions}
+                >
+                  {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
+                </Button>
+              </ApplyStep>
+              <ApplyStep
+                active={plan.actionCounts.review > 0}
+                description={`Reconcile ${plan.actionCounts.review} drifted managed file${plan.actionCounts.review === 1 ? '' : 's'} with the canonical source.`}
+                number={3}
+                title="Apply drifted files"
+              >
+                <Button
+                  className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyDrifted}
+                >
+                  {applyBusy ? 'Applying…' : 'Apply drifted files'}
+                </Button>
+              </ApplyStep>
+              <ApplyStep
+                active={(plan.drift.obsoleteTargets?.length ?? 0) > 0}
+                description={`Remove ${plan.drift.obsoleteTargets?.length ?? 0} file(s) the canonical TCTBP source no longer tracks.`}
+                number={4}
+                title="Delete obsolete files"
+              >
+                <Button
+                  className="bg-red-50 text-red-900 border border-red-200 hover:bg-red-100"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onDeleteObsolete}
+                >
+                  {applyBusy ? 'Applying…' : 'Delete obsolete files'}
+                </Button>
+              </ApplyStep>
+              {alignmentPending && (
+                <ApplyStep
+                  active
+                  description="The managed files match canonical, but the repository's source alignment is not recorded. Write .tctbp/source.json so future plans can confirm alignment."
+                  number={5}
+                  title="Record source alignment"
+                >
+                  <Button
+                    className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                    disabled={
+                      applyBusy
+                      || !aiApplyReady
+                      || !plan.fingerprint
+                      || plan.blockers.length > 0
+                    }
+                    size="sm"
+                    onClick={onApplyAlignment}
+                  >
+                    {applyBusy ? 'Applying…' : 'Record source alignment'}
+                  </Button>
+                </ApplyStep>
+              )}
+            </ol>
+            <p className="mt-2 text-xs text-text-faint">
+              Every apply only touches the working tree — nothing is committed or
+              pushed. Review the changes, then checkpoint them from the card.
+            </p>
+          </div>
+
+          {feedback && (
+            <p className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg text-sm text-teal-900">
+              {feedback}
+            </p>
+          )}
+          {upgradeFeedback && (
+            <p className="mb-4 p-3 bg-surface-soft border border-border rounded-lg text-sm text-text-secondary">
+              {upgradeFeedback}
+            </p>
+          )}
+
+          {plan?.disposition === 'bootstrap-required' && (
+            <TctbpBootstrapPanel
+              repositoryName={repositoryName}
+              busy={bootstrapBusy}
+              applyBusy={bootstrapApplyBusy}
+              plan={bootstrapPlan}
+              applyFeedback={bootstrapApplyFeedback}
+              job={bootstrapJob}
+              aiApplyReady={aiApplyReady}
+              onPrepare={onPrepareBootstrap}
+              onApply={onApplyBootstrap}
+            />
+          )}
+
+          <PlanDetails plan={plan} />
+        </>
       )}
-      {review.recommendedNextStep && (
-        <p><strong>Next step:</strong> {review.recommendedNextStep}</p>
-      )}
-      {review.error && <p className="empty-state">{review.error}</p>}
-    </section>
+    </Panel>
   )
 }
 
-function aiReviewLabel(status: AiReviewResult['status']): string {
-  if (status === 'available') return 'Jasper review — advisory only'
-  if (status === 'disabled') return 'Jasper review is not configured'
-  if (status === 'invalid') return 'Jasper returned an invalid review'
-  return 'Jasper review is unavailable'
-}
-
-function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
-  return (
-    <>
-      <dl className="key-value-list">
-        <Row label="Disposition" value={dispositionLabel(plan.disposition)} />
-        <Row label="Source alignment" value={plan.sourceAlignment} />
-        <Row label="Source" value={plan.source.repository ?? 'Unavailable'} />
-        <Row label="Source version" value={plan.source.version ?? 'Unknown'} />
-        <Row
-          label="Canonical revision"
-          value={plan.source.revision?.slice(0, 12) ?? 'Unknown'}
-        />
-        <Row
-          label="Target revision"
-          value={plan.target.sourceRevision?.slice(0, 12) ?? 'Unknown'}
-        />
-        <Row
-          label="Managed files"
-          value={String(plan.source.managedFileCount)}
-        />
-        <Row
-          label="Current / drifted / missing"
-          value={`${plan.drift.counts.current} / ${plan.drift.counts.drifted} / ${plan.drift.counts['missing-target']}`}
-        />
-        <Row
-          label="Preserve / add / review"
-          value={`${plan.actionCounts.preserve} / ${plan.actionCounts.add} / ${plan.actionCounts.review}`}
-        />
-      </dl>
-      {plan.source.message && <p className="empty-state">{plan.source.message}</p>}
-      {plan.bootstrap && (
-        <section className="bootstrap-plan" aria-label="TCTBP bootstrap plan">
-          <strong>Bootstrap plan</strong>
-          <p>
-            Start on <code>{plan.bootstrap.recommendedBranch ?? 'a dedicated upgrade branch'}</code>.
-          </p>
-          <p>Required decisions before installation:</p>
-          <ul className="compact-list">
-            {plan.bootstrap.requiredInputs.map((input) => <li key={input}>{input}</li>)}
-          </ul>
-          <p>Preserved areas:</p>
-          <ul className="compact-list">
-            {plan.bootstrap.preserveAreas.map((area) => <li key={area}>{area}</li>)}
-          </ul>
-        </section>
-      )}
-      {plan.blockers.length > 0 && (
-        <ul className="compact-list">
-          {plan.blockers.map((blocker) => (
-            <li key={blocker.code}>
-              <strong>Blocked:</strong>{' '}{blocker.message}
-            </li>
-          ))}
-        </ul>
-      )}
-      {plan.source.state === 'available' && plan.drift.files.some(
-        (file) => file.state !== 'current',
-      ) && (
-        <ul className="compact-list">
-          {plan.drift.files.filter((file) => file.state !== 'current').map((file) => (
-            <li key={file.path}>
-              <strong>{driftLabel(file.state)}</strong>{' '}
-              <code>{file.path}</code>
-            </li>
-          ))}
-        </ul>
-      )}
-      {(plan.drift.obsoleteTargets?.length ?? 0) > 0 && (
-        <ul className="compact-list">
-          {plan.drift.obsoleteTargets?.map((file) => (
-            <li key={file.path}>
-              <strong>Obsolete:</strong>{' '}<code>{file.path}</code>
-            </li>
-          ))}
-        </ul>
-      )}
-      {plan.policy.differences.length > 0 && (
-        <ul className="compact-list">
-          {plan.policy.differences.map((difference) => (
-            <li key={`${difference.area}-${difference.message}`}>
-              <strong>{difference.area}</strong>{': '}{difference.message}
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  )
-}
-
+/**
+ * Panel title for the plan disposition.
+ */
 function dispositionTitle(
   disposition: TctbpUpgradePlan['disposition'],
 ): string {
@@ -359,18 +381,3 @@ function dispositionTitle(
   return 'Source unavailable'
 }
 
-function dispositionLabel(
-  disposition: TctbpUpgradePlan['disposition'],
-): string {
-  if (disposition === 'current') return 'Current'
-  if (disposition === 'bootstrap-required') return 'Bootstrap required'
-  if (disposition === 'review-required') return 'Review required'
-  return 'Source unavailable'
-}
-
-function driftLabel(state: string): string {
-  if (state === 'missing-target') return 'Missing'
-  if (state === 'source-unavailable') return 'Unavailable'
-  if (state === 'drifted') return 'Drifted'
-  return 'Current'
-}

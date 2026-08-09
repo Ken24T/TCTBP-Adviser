@@ -17,10 +17,10 @@ describe('portfolio dashboard', () => {
             name: 'Adviser Control Room',
           },
         }}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -28,19 +28,63 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Adviser Control Room')
     expect(markup).toContain('TCTBP-Adviser')
     expect(markup).toContain('TCTBP schema 11')
-    expect(markup).toContain('TCTBP review')
+    expect(markup).toContain('TCTBP update')
+    expect(markup).toContain('Update TCTBP')
     expect(markup).toContain('TCTBP review required')
     expect(markup).toContain('TCTBP blocked')
-    expect(markup).toContain('Bootstrap required')
-    expect(markup).toContain('Source outdated')
-    expect(markup).toContain('Policy drift')
+    expect(markup).toContain('Filters')
+    expect(markup).not.toContain('Bootstrap required')
     expect(markup).toContain('Plain-Repo')
     expect(markup).toContain('TCTBP not installed')
     expect(markup).toContain('Install TCTBP')
     expect(markup).toContain('No Git fetch performed')
+    expect(markup).toContain('flip-card-inner')
+    expect(markup).toContain('Opening repository')
+    expect(markup).toContain('Actions for TCTBP-Adviser')
+    expect(markup).toContain('Pin to top')
+    expect(markup).toContain('Refresh')
+    expect(markup).toContain('Recommended')
+    expect(markup).toContain('/api/repositories/AAAAAAAAAAAAAAAAAAAAAAAA/favicon')
+    expect(markup).toContain('>tctbp-adviser<')
   })
 
-  it('omits hidden repositories from the initial view', () => {
+  it('mounts the returned card flipped and flips it back on return', () => {
+    const snapshot = portfolioFixture()
+    const markup = renderToStaticMarkup(
+      <PortfolioDashboard
+        snapshot={snapshot}
+        preferences={{}}
+        query=""
+        returningId={'A'.repeat(24)}
+        onOpen={() => undefined}
+        onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('flip-card-flipped')
+    expect(markup).toContain('Returning to portfolio')
+  })
+
+  it('shows the inspecting state on the card back face while refreshing', () => {
+    const snapshot = portfolioFixture()
+    const markup = renderToStaticMarkup(
+      <PortfolioDashboard
+        busy
+        snapshot={snapshot}
+        preferences={{}}
+        query=""
+        onOpen={() => undefined}
+        onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Inspecting repository')
+    expect(markup).not.toContain('Opening repository')
+  })
+
+  it('omits hidden repositories from the view', () => {
     const snapshot = portfolioFixture()
     const markup = renderToStaticMarkup(
       <PortfolioDashboard
@@ -52,15 +96,15 @@ describe('portfolio dashboard', () => {
             name: '',
           },
         }}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
     expect(markup).not.toContain('<h2>Plain-Repo</h2>')
-    expect(markup).toContain('Show hidden (1)')
+    expect(markup).not.toContain('Show hidden')
   })
 
   it('marks stale cache and unavailable repository state explicitly', () => {
@@ -87,10 +131,10 @@ describe('portfolio dashboard', () => {
       <PortfolioDashboard
         snapshot={snapshot}
         preferences={{}}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
@@ -123,17 +167,18 @@ describe('portfolio dashboard', () => {
       <PortfolioDashboard
         snapshot={snapshot}
         preferences={{}}
-        busy={false}
+        query=""
         onOpen={() => undefined}
-        onRefresh={() => undefined}
         onPreferenceChange={() => undefined}
+        onRefreshRepository={() => undefined}
       />,
     )
 
     expect(markup).toContain('1 GitHub-only repositories added')
-    expect(markup).toContain('No local working copy')
+    expect(markup).toContain('GitHub evidence')
     expect(markup).toContain('Local recommendation unavailable')
     expect(markup).toContain('View on GitHub')
+    expect(markup).toContain('avatars.githubusercontent.com')
   })
 })
 
@@ -177,12 +222,14 @@ function portfolioFixture(): PortfolioSnapshot {
         localTracking: { state: 'in-sync', ahead: 0, behind: 0 },
         tctbp: { installed: true, compatible: true, schemaVersion: 11 },
         recommendation: {
-          disposition: 'none',
-          primaryAction: null,
-          reasonCodes: ['no-action-required'],
-          severity: 'healthy',
+          disposition: 'action',
+          primaryAction: 'update-tctbp',
+          reasonCodes: ['tctbp-update-available'],
+          severity: 'attention',
         },
         error: null,
+        directoryName: 'tctbp-adviser',
+        faviconPath: 'public/favicon.svg',
         github: disabledGitHub(),
         upgrade: {
           disposition: 'review-required',

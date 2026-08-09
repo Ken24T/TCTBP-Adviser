@@ -19,7 +19,11 @@ export interface PromoteActionerTarget {
 export class PromoteActioner {
   constructor(
     readonly target: PromoteActionerTarget,
-    readonly timeoutMs = 300_000,
+    // Promotion runs the repo's verification and build gates, which for
+    // release-heavy projects (e.g. Rust LTO links at 10+ minutes) legitimately
+    // exceed a short timeout. 30 minutes keeps the gate honest without
+    // failing every promotion of such repos (observed on rust-calendar).
+    readonly timeoutMs = 1_800_000,
     readonly maxOutputBytes = 2 * 1024 * 1024,
   ) {}
 

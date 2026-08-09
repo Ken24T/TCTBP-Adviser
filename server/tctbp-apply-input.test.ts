@@ -48,6 +48,73 @@ describe('TCTBP apply request validation', () => {
       confirmDeletions: false,
     }))).rejects.toMatchObject({ code: 'request-plan-invalid' })
   })
+
+  it('accepts an ordered in-order steps request and deduplicates paths', async () => {
+    const request = await readTctbpApplyRequest(body({
+      confirm: true,
+      aiReviewId: 'review-id',
+      aiReviewAcknowledged: true,
+      planFingerprint: 'a'.repeat(64),
+      mode: 'additions-only',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+      steps: [
+        {
+          mode: 'additions-only',
+          approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        },
+        {
+          mode: 'approved-managed-files',
+          approvedPaths: ['scripts/tctbp-core.js', 'scripts/tctbp-core.js'],
+          approvedDeletionPaths: ['scripts/old.js'],
+          confirmDeletions: true,
+        },
+      ],
+    }))
+
+    expect(request.steps).toEqual([
+      {
+        mode: 'additions-only',
+        approvedPaths: [],
+        approvedDeletionPaths: [],
+        confirmDeletions: false,
+      },
+      {
+        mode: 'approved-managed-files',
+        approvedPaths: ['scripts/tctbp-core.js'],
+        approvedDeletionPaths: ['scripts/old.js'],
+        confirmDeletions: true,
+      },
+    ])
+  })
+
+  it('rejects malformed in-order steps', async () => {
+    await expect(readTctbpApplyRequest(body({
+      confirm: true,
+      aiReviewId: 'review-id',
+      aiReviewAcknowledged: true,
+      planFingerprint: 'a'.repeat(64),
+      mode: 'additions-only',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+      steps: [],
+    }))).rejects.toMatchObject({ code: 'request-steps-invalid' })
+    await expect(readTctbpApplyRequest(body({
+      confirm: true,
+      aiReviewId: 'review-id',
+      aiReviewAcknowledged: true,
+      planFingerprint: 'a'.repeat(64),
+      mode: 'additions-only',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+      steps: [{ mode: 'delete-everything', approvedPaths: [], approvedDeletionPaths: [], confirmDeletions: false }],
+    }))).rejects.toMatchObject({ code: 'request-steps-invalid' })
+  })
 })
 
 function body(value: unknown): IncomingMessage {

@@ -77,6 +77,43 @@ describe('same-origin inspection API', () => {
     })
   })
 
+  it('refreshes a single registered repository into a portfolio snapshot', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const id = list.repositories[0].id
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${id}/refresh`,
+      running,
+      { method: 'POST' },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.repositories).toHaveLength(1)
+    expect(body.repositories[0]).toMatchObject({ id, source: 'local' })
+    expect(body.cache.status).toBe('refreshed')
+  })
+
+  it('rejects refreshing an unregistered repository', async () => {
+    const running = await startApi()
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${'Z'.repeat(24)}/refresh`,
+      running,
+      { method: 'POST' },
+    )
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toMatchObject({
+      error: { code: 'repository-not-found' },
+    })
+  })
+
   it('returns a read-only upgrade plan without configured canonical source', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(
@@ -155,6 +192,39 @@ describe('same-origin inspection API', () => {
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({
       error: { code: 'request-confirmation-required' },
+    })
+  })
+
+  it('maps a stale or unavailable Jasper review to a 409 conflict', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-apply`,
+      running,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          confirm: true,
+          aiReviewId: 'missing-review',
+          aiReviewAcknowledged: true,
+          planFingerprint: 'a'.repeat(64),
+          mode: 'additions-only',
+          approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        }),
+      },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      error: { code: 'ai-review-stale-or-unavailable' },
     })
   })
 

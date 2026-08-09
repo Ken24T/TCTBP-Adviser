@@ -13,6 +13,7 @@ import {
   resolveDefinition,
   type EvaluationContext,
   type ResultDefinition,
+  type UpgradeSummaryLike,
 } from './rules'
 
 const DEFAULT_MAX_AGE_MS = 30_000
@@ -22,6 +23,7 @@ export function recommend(
   intent: RecommendationIntent,
   evaluatedAt: Date,
   maxAgeMs = DEFAULT_MAX_AGE_MS,
+  upgrade: UpgradeSummaryLike | null = null,
 ): RecommendationResult {
   const observedTime = Date.parse(observation.observedAt)
   const ageMs = Number.isFinite(observedTime)
@@ -34,6 +36,7 @@ export function recommend(
     maxAgeMs,
     ageMs,
     stale: ageMs === null || ageMs < 0 || ageMs > maxAgeMs,
+    upgrade,
   }
 
   return finalise(context, resolveDefinition(context))

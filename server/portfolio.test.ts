@@ -60,6 +60,24 @@ describe('portfolio snapshot service', () => {
     expect(inspect).toHaveBeenCalledTimes(2)
   })
 
+  it('invalidates the cached snapshot so the next read re-inspects', async () => {
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService([registered('one', 'One')], inspect)
+
+    const first = await service.get()
+    const second = await service.get()
+    service.invalidate()
+    const third = await service.get()
+
+    expect(first.cache.status).toBe('refreshed')
+    expect(second.cache.status).toBe('fresh')
+    expect(third.cache.status).toBe('refreshed')
+    expect(inspect).toHaveBeenCalledTimes(2)
+  })
+
   it('preserves local advice when GitHub enrichment rejects', async () => {
     const inspect = vi.fn(async (repository: RegisteredRepository) => ({
       ...observationFixture(),
@@ -87,6 +105,50 @@ describe('portfolio snapshot service', () => {
     expect(snapshot.repositories[0].recommendation).not.toBeNull()
     expect(JSON.stringify(snapshot)).not.toContain('provider detail')
   })
+
+  it('refreshes a single repository and preserves the other summaries', async () => {
+    const repositories = [
+      registered('one', 'One'),
+      registered('two', 'Two'),
+    ]
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService(repositories, inspect)
+
+    const initial = await service.get()
+    expect(initial.repositories[0].workingTree).toEqual({ clean: true, pathCount: 0 })
+
+    // The next inspection of 'one' observes a dirty working tree.
+    inspect.mockImplementation(async (repository: RegisteredRepository) => ({
+      ...observationFixture({ clean: false }),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const refreshed = await service.refreshRepository('one')
+
+    expect(refreshed.repositories).toHaveLength(2)
+    expect(refreshed.repositories[0].workingTree).toEqual({
+      clean: false,
+      pathCount: 1,
+    })
+    expect(refreshed.repositories[1].workingTree).toEqual({
+      clean: true,
+      pathCount: 0,
+    })
+    expect(refreshed.cache.status).toBe('refreshed')
+  })
+
+  it('requires a registered repository for a single-repo refresh', async () => {
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService([registered('one', 'One')], inspect)
+
+    await expect(service.refreshRepository('missing')).rejects.toThrow()
+    expect(inspect).not.toHaveBeenCalled()
+  })
 })
 
 function createService(
@@ -102,6 +164,11 @@ function createService(
       repositories,
       issues: [],
     })),
+    require: vi.fn(async (id: string) => {
+      const repository = repositories.find((candidate) => candidate.id === id)
+      if (!repository) throw new Error(`unknown repository ${id}`)
+      return repository
+    }),
   } as unknown as RepositoryRegistry
   const inspections = { inspect } as unknown as RepositoryInspectionService
   const github = githubOverride ?? {

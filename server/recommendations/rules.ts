@@ -1,3 +1,8 @@
+// TCTBP file-size justification: this module holds every recommendation rule
+// as a pure function over the shared EvaluationContext, so the engine can
+// dispatch to them in a stable order. The rules share the context type and
+// the block/evidence helpers at the bottom of the file; splitting them would
+// duplicate that shared plumbing.
 import type { RepositoryObservation } from '../../shared/inspection'
 import type {
   BlockedAction,
@@ -7,6 +12,8 @@ import type {
   RecommendationReasonCode,
   RecommendationResult,
 } from '../../shared/recommendation'
+import type { TctbpUpgradeDisposition } from '../../shared/tctbp-upgrade'
+import type { ManagedFileActionCounts } from '../../shared/tctbp-upgrade'
 
 const BLOCKABLE_WORKFLOWS: RecommendationAction[] = [
   'checkpoint',
@@ -14,6 +21,11 @@ const BLOCKABLE_WORKFLOWS: RecommendationAction[] = [
   'resume',
   'handover',
 ]
+
+export interface UpgradeSummaryLike {
+  disposition: TctbpUpgradeDisposition
+  actionCounts?: ManagedFileActionCounts
+}
 
 export interface ResultDefinition {
   disposition: RecommendationResult['disposition']
@@ -35,6 +47,7 @@ export interface EvaluationContext {
   maxAgeMs: number
   ageMs: number | null
   stale: boolean
+  upgrade: UpgradeSummaryLike | null
 }
 
 export function resolveDefinition(
@@ -46,7 +59,21 @@ export function resolveDefinition(
 
   if (context.stale) return staleDefinition(context)
   if (!observation.tctbp.installed) return tctbpMissing(context)
-  if (!observation.tctbp.compatible) return tctbpIncompatible(context)
+  if (!observation.tctbp.compatible) {
+    // A dirty tree blocks the compatibility fix from being applied (the apply
+    // is refused while the working tree has local changes), so the user's
+    // uncommitted work must be preserved first. Preserve it via a checkpoint
+    // sequence, then fix the contract. Conflicts and active operations still
+    // outrank this: checkpointing a conflicted tree is not safe.
+    const interruption = (
+      observation.operations.length > 0
+      || observation.workingTree.counts.conflicted > 0
+    )
+    if (dirty && !interruption) {
+      return incompatibleWithLocalChanges(context)
+    }
+    return tctbpIncompatible(context)
+  }
   if (
     observation.operations.length > 0
     || observation.workingTree.counts.conflicted > 0
@@ -74,10 +101,25 @@ export function resolveDefinition(
     )
   }
   if (observation.localTracking.state === 'unpublished') {
+    if (!observation.remoteOrigin) {
+      // A TCTBP update is locally actionable (apply touches only the working
+      // tree and needs no remote), so it outranks the missing-remote notice;
+      // publish/handover stay unavailable via the detail-plan blockers.
+      return context.upgrade?.disposition === 'review-required'
+        ? tctbpUpdateAvailable(context)
+        : missingRemoteOrigin(context)
+    }
     return workflowAction(context, 'publish', 'branch-unpublished')
   }
   if (observation.localTracking.state === 'ahead') {
+    if (!observation.remoteOrigin) return missingRemoteOrigin(context)
     return workflowAction(context, 'publish', 'branch-ahead')
+  }
+  // The repository is otherwise healthy but its TCTBP managed surface is
+  // behind the canonical source — surface that as an update recommendation
+  // instead of claiming nothing needs doing.
+  if (context.upgrade?.disposition === 'review-required') {
+    return tctbpUpdateAvailable(context)
   }
   return noAction(context)
 }
@@ -225,6 +267,35 @@ function tctbpIncompatible(context: EvaluationContext): ResultDefinition {
   )
 }
 
+/**
+ * An incompatible contract combined with uncommitted local work. The apply is
+ * refused while the tree is dirty, so the first step is to preserve the work
+ * with a checkpoint; the contract review follows once the tree is clean.
+ * Note: checkpoint availability is not gated on the advertised workflow list
+ * here — an incompatible contract advertises no workflows at all, yet the
+ * checkpoint workflow itself runs regardless of contract compatibility.
+ */
+function incompatibleWithLocalChanges(
+  context: EvaluationContext,
+): ResultDefinition {
+  return {
+    disposition: 'sequence',
+    primaryAction: 'checkpoint',
+    reasonCodes: ['working-tree-dirty', 'tctbp-contract-incompatible'],
+    severity: 'stop',
+    actions: ['checkpoint', 'review-compatibility'],
+    blockedActions: block(
+      ['publish', 'resume', 'handover'],
+      ['working-tree-dirty', 'tctbp-contract-incompatible'],
+    ),
+    likelyNextActions: ['review-compatibility'],
+    evidence: [
+      evidence(context, 'workingTree.clean', false),
+      evidence(context, 'tctbp.compatible', false),
+    ],
+  }
+}
+
 function unbornRepository(context: EvaluationContext): ResultDefinition {
   return stoppingDefinition(
     context,
@@ -294,8 +365,7 @@ function stoppingDefinition(
 function unavailableWorkflow(
   context: EvaluationContext,
   action: RecommendationAction,
-): ResultDefinition {
-  return {
+): ResultDefinition {  return {
     disposition: 'inspect',
     primaryAction: null,
     reasonCodes: ['inspection-required'],
@@ -313,6 +383,31 @@ function unavailableWorkflow(
   }
 }
 
+/**
+ * No git remote 'origin' is configured, so publish (and handover, which also
+ * publishes) can never succeed. Surface the missing remote instead of
+ * offering an action that is guaranteed to fail at runtime.
+ */
+function missingRemoteOrigin(context: EvaluationContext): ResultDefinition {
+  return {
+    disposition: 'inspect',
+    primaryAction: null,
+    reasonCodes: ['remote-origin-missing'],
+    severity: 'attention',
+    actions: [],
+    blockedActions: block(['publish', 'handover'], ['remote-origin-missing']),
+    evidence: [
+      evidence(context, 'remoteOrigin', context.observation.remoteOrigin),
+      evidence(context, 'localTracking.state',
+        context.observation.localTracking.state),
+    ],
+    uncertainties: [{
+      code: 'remote-origin-missing',
+      message: 'No git remote \'origin\' is configured, so nothing can be published.',
+    }],
+  }
+}
+
 function noAction(context: EvaluationContext): ResultDefinition {
   return {
     disposition: 'none',
@@ -324,6 +419,41 @@ function noAction(context: EvaluationContext): ResultDefinition {
       evidence(context, 'localTracking.state',
         context.observation.localTracking.state),
     ],
+  }
+}
+
+/**
+ * The repository is safe to operate (compatible contract, clean tree, in
+ * sync) but its managed TCTBP surface is behind the canonical source. This is
+ * a maintenance recommendation, not a safety stop — amber attention, with the
+ * upgrade panel as the action surface.
+ */
+function tctbpUpdateAvailable(context: EvaluationContext): ResultDefinition {
+  const counts = context.upgrade?.actionCounts
+  const evidenceRows: RecommendationEvidence[] = [
+    evidence(
+      context,
+      'upgrade.disposition',
+      context.upgrade?.disposition ?? null,
+    ),
+  ]
+  if ((counts?.add ?? 0) > 0) {
+    evidenceRows.push(
+      evidence(context, 'upgrade.actionCounts.add', counts?.add ?? 0),
+    )
+  }
+  if ((counts?.review ?? 0) > 0) {
+    evidenceRows.push(
+      evidence(context, 'upgrade.actionCounts.review', counts?.review ?? 0),
+    )
+  }
+  return {
+    disposition: 'action',
+    primaryAction: 'update-tctbp',
+    reasonCodes: ['tctbp-update-available'],
+    severity: 'attention',
+    actions: ['update-tctbp'],
+    evidence: evidenceRows,
   }
 }
 

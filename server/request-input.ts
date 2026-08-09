@@ -83,3 +83,37 @@ function isRecommendationIntent(
 ): value is RecommendationIntent {
   return (RECOMMENDATION_INTENTS as readonly string[]).includes(value)
 }
+
+export async function readJsonBody(
+  request: IncomingMessage,
+  maximumBytes = 16 * 1024,
+): Promise<unknown> {
+  const chunks: Buffer[] = []
+  let bytes = 0
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    bytes += buffer.length
+    if (bytes > maximumBytes) {
+      throw new AdviserError(
+        'request-body-too-large',
+        'Request body exceeds the input limit.',
+      )
+    }
+    chunks.push(buffer)
+  }
+  if (bytes === 0) {
+    throw new AdviserError(
+      'request-body-invalid',
+      'Request body is required.',
+    )
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown
+  } catch (error) {
+    throw new AdviserError(
+      'request-json-invalid',
+      'Request must contain valid JSON.',
+      { cause: error },
+    )
+  }
+}

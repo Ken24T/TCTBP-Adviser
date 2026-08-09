@@ -2,6 +2,7 @@ import type { IncomingMessage } from 'node:http'
 import type {
   TctbpApplyMode,
   TctbpApplyRequest,
+  TctbpApplyStep,
 } from '../shared/tctbp-upgrade'
 import { AdviserError } from './errors'
 
@@ -53,6 +54,7 @@ export async function readTctbpApplyRequest(
     'approvedPaths',
     'approvedDeletionPaths',
     'confirmDeletions',
+    'steps',
   ])
   if (Object.keys(record).some((key) => !allowedKeys.has(key))) {
     throw new AdviserError(
@@ -111,6 +113,10 @@ export async function readTctbpApplyRequest(
     )
   }
 
+  const steps = record.steps === undefined
+    ? undefined
+    : validateSteps(record.steps)
+
   return {
     confirm: true,
     aiReviewId: record.aiReviewId,
@@ -122,5 +128,76 @@ export async function readTctbpApplyRequest(
       new Set(record.approvedDeletionPaths as string[]),
     ),
     confirmDeletions: record.confirmDeletions,
+    ...(steps ? { steps } : {}),
   }
+}
+
+function validateSteps(value: unknown): TctbpApplyStep[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new AdviserError(
+      'request-steps-invalid',
+      'TCTBP apply steps must be a non-empty array.',
+    )
+  }
+  return value.map((entry) => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      throw new AdviserError(
+        'request-steps-invalid',
+        'Each TCTBP apply step must be an object.',
+      )
+    }
+    const step = entry as Record<string, unknown>
+    const allowedKeys = new Set([
+      'mode',
+      'approvedPaths',
+      'approvedDeletionPaths',
+      'confirmDeletions',
+    ])
+    if (Object.keys(step).some((key) => !allowedKeys.has(key))) {
+      throw new AdviserError(
+        'request-steps-invalid',
+        'A TCTBP apply step contains unsupported fields.',
+      )
+    }
+    if (
+      step.mode !== 'additions-only'
+      && step.mode !== 'approved-managed-files'
+    ) {
+      throw new AdviserError(
+        'request-steps-invalid',
+        'A TCTBP apply step mode is not supported.',
+      )
+    }
+    if (
+      !Array.isArray(step.approvedPaths)
+      || step.approvedPaths.some(
+        (value) => typeof value !== 'string' || value.length === 0,
+      )
+    ) {
+      throw new AdviserError(
+        'request-steps-invalid',
+        'A TCTBP apply step approvedPaths must be an array of non-empty strings.',
+      )
+    }
+    if (
+      !Array.isArray(step.approvedDeletionPaths)
+      || step.approvedDeletionPaths.some(
+        (value) => typeof value !== 'string' || value.length === 0,
+      )
+      || typeof step.confirmDeletions !== 'boolean'
+    ) {
+      throw new AdviserError(
+        'request-steps-invalid',
+        'A TCTBP apply step deletion approval is invalid.',
+      )
+    }
+    return {
+      mode: step.mode as TctbpApplyMode,
+      approvedPaths: Array.from(new Set(step.approvedPaths as string[])),
+      approvedDeletionPaths: Array.from(
+        new Set(step.approvedDeletionPaths as string[]),
+      ),
+      confirmDeletions: step.confirmDeletions,
+    }
+  })
 }

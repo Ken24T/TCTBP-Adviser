@@ -11,6 +11,7 @@ import {
   summarizePortfolioUpgrades,
   summarizeUpgradePlan,
 } from './tctbp-portfolio'
+import { resolveRepositoryFavicon } from './favicon'
 import type { RepositoryInspectionService } from './inspection'
 import { recommend } from './recommendations/engine'
 import type {
@@ -44,6 +45,51 @@ export class PortfolioService {
     } finally {
       this.#refreshing = null
     }
+  }
+
+  /** Drops the cached snapshot so the next read re-inspects repositories. */
+  invalidate(): void {
+    this.#cached = null
+  }
+
+  /**
+   * Re-inspects a single registered repository and swaps its summary into the
+   * cached snapshot, recomputing the aggregate counts. Used for the per-card
+   * "Refresh" action on the portfolio dashboard.
+   */
+  async refreshRepository(repositoryId: string): Promise<PortfolioSnapshot> {
+    const repository = await this.registry.require(repositoryId)
+    const refreshed = await this.summarise(repository, true)
+    const base = this.#cached ?? await this.get(true)
+    const repositories = base.repositories.map((candidate) => (
+      candidate.id === repositoryId ? refreshed : candidate
+    ))
+    const snapshot: PortfolioSnapshot = {
+      ...base,
+      generatedAt: new Date().toISOString(),
+      cache: {
+        status: 'refreshed',
+        ageMs: 0,
+        ttlMs: this.config.portfolioCacheTtlMs,
+      },
+      github: {
+        enabled: this.config.github.enabled,
+        localMappings: repositories.filter(
+          (candidate) => candidate.github.status === 'available'
+            || candidate.github.status === 'unavailable',
+        ).length,
+        githubOnly: repositories.filter(
+          (candidate) => candidate.source === 'github-only',
+        ).length,
+        unavailable: repositories.filter(
+          (candidate) => candidate.github.status === 'unavailable',
+        ).length,
+      },
+      upgrade: summarizePortfolioUpgrades(repositories),
+      repositories,
+    }
+    this.#cached = snapshot
+    return snapshot
   }
 
   private async refresh(forceDiscovery: boolean): Promise<PortfolioSnapshot> {
@@ -116,13 +162,20 @@ export class PortfolioService {
         basis: 'github-rest-api',
         retrievedAt: null,
       } as const
+    const faviconPath = await resolveRepositoryFavicon(repository.path)
+    const directoryName = repository.name
     if (inspectionResult.status === 'fulfilled') {
       const upgrade = this.tctbpSource?.sourceRoot
         ? await this.tctbpSource.plan(repository.path, inspectionResult.value)
           .then(summarizeUpgradePlan)
           .catch(() => null)
         : null
-      return availableSummary(inspectionResult.value, github, upgrade)
+      return availableSummary(
+        inspectionResult.value,
+        github,
+        upgrade,
+        { directoryName, faviconPath },
+      )
     } else {
       return {
         id: repository.id,
@@ -139,6 +192,8 @@ export class PortfolioService {
           code: errorCode(inspectionResult.reason),
           message: 'Local repository inspection failed safely.',
         },
+        directoryName,
+        faviconPath,
         github,
         upgrade: null,
       }
@@ -150,8 +205,9 @@ function availableSummary(
   observation: RepositoryObservation,
   github: PortfolioRepository['github'],
   upgrade: PortfolioRepository['upgrade'],
+  options: { directoryName: string; faviconPath: string | null },
 ): PortfolioRepository {
-  const recommendation = recommend(observation, 'none', new Date())
+  const recommendation = recommend(observation, 'none', new Date(), undefined, upgrade)
   return {
     id: observation.repository.id,
     name: observation.repository.name,
@@ -183,6 +239,8 @@ function availableSummary(
       severity: recommendation.severity,
     },
     error: null,
+    directoryName: options.directoryName,
+    faviconPath: options.faviconPath,
     github,
     upgrade,
   }
