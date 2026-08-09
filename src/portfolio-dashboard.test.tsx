@@ -31,9 +31,8 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('TCTBP review')
     expect(markup).toContain('TCTBP review required')
     expect(markup).toContain('TCTBP blocked')
-    expect(markup).toContain('Bootstrap required')
-    expect(markup).toContain('Source outdated')
-    expect(markup).toContain('Policy drift')
+    expect(markup).toContain('Filters')
+    expect(markup).not.toContain('Bootstrap required')
     expect(markup).toContain('Plain-Repo')
     expect(markup).toContain('TCTBP not installed')
     expect(markup).toContain('Install TCTBP')
@@ -84,7 +83,7 @@ describe('portfolio dashboard', () => {
     expect(markup).not.toContain('Opening repository')
   })
 
-  it('omits hidden repositories from the initial view', () => {
+  it('omits hidden repositories from the view', () => {
     const snapshot = portfolioFixture()
     const markup = renderToStaticMarkup(
       <PortfolioDashboard
@@ -104,7 +103,7 @@ describe('portfolio dashboard', () => {
     )
 
     expect(markup).not.toContain('<h2>Plain-Repo</h2>')
-    expect(markup).toContain('Show hidden (1)')
+    expect(markup).not.toContain('Show hidden')
   })
 
   it('marks stale cache and unavailable repository state explicitly', () => {

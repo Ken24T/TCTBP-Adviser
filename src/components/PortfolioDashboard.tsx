@@ -20,9 +20,6 @@ type PortfolioFilter =
   | 'tctbp-review'
   | 'tctbp-bootstrap'
   | 'tctbp-blocked'
-  | 'tctbp-outdated'
-  | 'tctbp-files'
-  | 'tctbp-policy'
 
 interface PortfolioDashboardProps {
   snapshot: PortfolioSnapshot
@@ -49,19 +46,15 @@ export function PortfolioDashboard({
   onRefreshRepository,
 }: PortfolioDashboardProps) {
   const [filter, setFilter] = useState<PortfolioFilter>('all')
-  const [showHidden, setShowHidden] = useState(false)
-  const hiddenCount = snapshot.repositories.filter(
-    (repository) => preferences[repository.id]?.hidden,
-  ).length
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const repositories = useMemo(
     () => visibleRepositories(
       snapshot.repositories,
       preferences,
       query,
       filter,
-      showHidden,
     ),
-    [snapshot.repositories, preferences, query, filter, showHidden],
+    [snapshot.repositories, preferences, query, filter],
   )
   const healthyCount = snapshot.repositories.filter(
     (repository) => repository.recommendation?.severity === 'healthy',
@@ -107,48 +100,56 @@ export function PortfolioDashboard({
               <MetricChip label="TCTBP blocked" value={snapshot.upgrade.blocked} tone="danger" />
             </>
           )}
-          <div className="flex items-center gap-2 text-xs text-text-muted ml-auto">
-            <span
-              aria-hidden="true"
-              className={`w-2 h-2 rounded-full ${cacheStale ? 'bg-amber-500' : 'bg-teal-500'}`}
-            />
-            <span>
-              {cacheStale
-                ? 'Stale portfolio'
-                : snapshot.cache.status === 'fresh'
-                  ? 'Cached portfolio'
-                  : 'Freshly inspected'}
-              {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
-            </span>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
-          {filterOptions(snapshot).map((option) => (
+          <div className="flex flex-wrap items-center gap-3 ml-auto">
             <button
+              aria-expanded={filtersOpen}
               className={[
                 'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
-                filter === option
+                filtersOpen
                   ? 'bg-teal-600 text-white shadow-soft'
                   : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
               ].join(' ')}
-              key={option}
               type="button"
-              onClick={() => setFilter(option)}
+              onClick={() => setFiltersOpen(!filtersOpen)}
             >
-              {filterLabel(option)}
+              Filters{filter !== 'all' ? ` · ${filterLabel(filter)}` : ''}
             </button>
-          ))}
-          {hiddenCount > 0 && (
-            <button
-              className="px-3 py-1.5 text-xs font-medium rounded-full bg-butter-100 text-ink-900 hover:bg-butter-200 transition-colors border border-butter-300"
-              type="button"
-              onClick={() => setShowHidden(!showHidden)}
-            >
-              {showHidden ? 'Hide hidden' : `Show hidden (${hiddenCount})`}
-            </button>
-          )}
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <span
+                aria-hidden="true"
+                className={`w-2 h-2 rounded-full ${cacheStale ? 'bg-amber-500' : 'bg-teal-500'}`}
+              />
+              <span>
+                {cacheStale
+                  ? 'Stale portfolio'
+                  : snapshot.cache.status === 'fresh'
+                    ? 'Cached portfolio'
+                    : 'Freshly inspected'}
+                {' · '}{formatAge(snapshot.cache.ageMs)} · No Git fetch performed
+              </span>
+            </div>
+          </div>
         </div>
+
+        {filtersOpen && (
+          <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-border">
+            {filterOptions(snapshot).map((option) => (
+              <button
+                className={[
+                  'px-3 py-1.5 text-xs font-medium rounded-full transition-colors',
+                  filter === option
+                    ? 'bg-teal-600 text-white shadow-soft'
+                    : 'bg-surface-soft text-text-secondary hover:bg-surface-hover border border-border',
+                ].join(' ')}
+                key={option}
+                type="button"
+                onClick={() => setFilter(option)}
+              >
+                {filterLabel(option)}
+              </button>
+            ))}
+          </div>
+        )}
       </Card>
 
       {repositories.length > 0 ? (
@@ -202,12 +203,11 @@ function visibleRepositories(
   preferences: PortfolioPreferences,
   query: string,
   filter: PortfolioFilter,
-  showHidden: boolean,
 ): PortfolioRepository[] {
   const needle = query.trim().toLocaleLowerCase()
   return repositories.filter((repository) => {
     const preference = preferences[repository.id]
-    if (preference?.hidden && !showHidden) return false
+    if (preference?.hidden) return false
     const name = `${repository.name} ${preference?.name ?? ''}`
       .toLocaleLowerCase()
     return name.includes(needle) && matchesFilter(repository, filter)
@@ -249,14 +249,7 @@ function matchesFilter(
   if (filter === 'tctbp-blocked') {
     return repository.upgrade.blockerCount > 0
   }
-  if (filter === 'tctbp-outdated') {
-    return repository.upgrade.sourceAlignment === 'outdated'
-  }
-  if (filter === 'tctbp-files') {
-    return repository.upgrade.actionCounts.add > 0
-      || repository.upgrade.actionCounts.review > 0
-  }
-  return repository.upgrade.policyDifferenceCount > 0
+  return false
 }
 
 function filterOptions(snapshot: PortfolioSnapshot): PortfolioFilter[] {
@@ -267,9 +260,6 @@ function filterOptions(snapshot: PortfolioSnapshot): PortfolioFilter[] {
       'tctbp-review',
       'tctbp-bootstrap',
       'tctbp-blocked',
-      'tctbp-outdated',
-      'tctbp-files',
-      'tctbp-policy',
     )
   }
   return options
@@ -296,9 +286,6 @@ function filterLabel(filter: PortfolioFilter): string {
     'tctbp-review': 'TCTBP review',
     'tctbp-bootstrap': 'Bootstrap required',
     'tctbp-blocked': 'TCTBP blocked',
-    'tctbp-outdated': 'Source outdated',
-    'tctbp-files': 'File changes',
-    'tctbp-policy': 'Policy drift',
   }
   return labels[filter]
 }
