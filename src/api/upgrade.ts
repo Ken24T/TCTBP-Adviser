@@ -2,6 +2,7 @@ import type { AiReviewResult } from '../../shared/ai-review'
 import type {
   TctbpApplyMode,
   TctbpApplyResult,
+  TctbpApplyStep,
   TctbpUpgradePlan,
 } from '../../shared/tctbp-upgrade'
 import { requestJson } from './client'
@@ -23,6 +24,7 @@ export async function applyTctbpUpgradePlan(
   approvedPaths: string[] = [],
   approvedDeletionPaths: string[] = [],
   confirmDeletions = false,
+  steps?: TctbpApplyStep[],
 ): Promise<TctbpApplyResult> {
   return requestJson<TctbpApplyResult>(
     `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-apply`,
@@ -38,6 +40,7 @@ export async function applyTctbpUpgradePlan(
         approvedPaths,
         approvedDeletionPaths,
         confirmDeletions,
+        ...(steps && steps.length > 0 ? { steps } : {}),
       }),
     },
   )

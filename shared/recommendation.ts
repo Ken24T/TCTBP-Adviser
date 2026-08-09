@@ -47,6 +47,7 @@ export type RecommendationReasonCode =
   | 'branch-unpublished'
   | 'branch-ahead'
   | 'handover-ready'
+  | 'remote-origin-missing'
   | 'tctbp-not-installed'
   | 'tctbp-contract-incompatible'
   | 'tctbp-update-available'

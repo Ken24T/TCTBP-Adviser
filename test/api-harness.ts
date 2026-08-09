@@ -39,7 +39,11 @@ export async function startApi(
 ): Promise<RunningApi> {
   const root = await createTemporaryDirectory()
   temporaryDirectories.push(root)
-  const repository = await createGitRepository(root)
+  const repository = await createGitRepository(
+    root,
+    'repository',
+    'https://github.com/Ken24T/fixture.git',
+  )
   if (includePlainRepository) {
     await createGitRepository(root, 'plain-repository')
   }

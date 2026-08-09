@@ -179,7 +179,7 @@ export function cardSurfaceVars(tone: CardTone, isDark: boolean): CardSurfaceVar
     ? blendTowardBlack(accent, 0.4)
     : blendTowardWhite(accent, 0.55)
   const textBlockBg = isDark
-    ? blendTowardBlack(accent, 0.5)
+    ? blendTowardBlack(accent, 0.3)
     : blendTowardWhite(accent, 0.9)
   const btnBg = isDark
     ? blendTowardBlack(accent, 0.5)

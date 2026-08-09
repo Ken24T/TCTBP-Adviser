@@ -45,8 +45,9 @@ export interface UpgradeApply {
 /**
  * Owns how canonical TCTBP managed files are applied from the upgrade panel:
  * the confirmation prompt, the plan-fingerprint handshake with Jasper's review,
- * and the guided "apply in order" run that executes the applicable steps in
- * sequence. Everything is working-tree only — nothing is committed or pushed.
+ * and the guided "apply in order" run that applies the applicable steps in a
+ * single atomic request against one plan and one review. Everything is
+ * working-tree only — nothing is committed or pushed.
  */
 export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
   const {
@@ -159,28 +160,45 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     setUpgradeFeedback(null)
     setError(null)
     try {
-      let appliedCount = 0
-      for (const step of steps) {
-        const result = await applyTctbpUpgradePlan(
-          selectedId,
-          upgradePlan.fingerprint,
-          aiReview.reviewId,
-          step.mode,
-          step.approvedPaths,
-          step.approvedDeletionPaths,
-          step.confirmDeletions,
-        )
-        appliedCount += result.appliedPaths.length
-      }
-      if (appliedCount > 0) markMutated()
+      const first = steps[0]
+      if (!first) return
+      // A single reviewed plan is applied in one request: when multiple
+      // steps are present they are sent as ordered steps so the server can
+      // apply the whole plan against one fingerprint + one Jasper review.
+      const result = steps.length > 1
+        ? await applyTctbpUpgradePlan(
+            selectedId,
+            upgradePlan.fingerprint,
+            aiReview.reviewId,
+            first.mode,
+            [],
+            [],
+            false,
+            steps.map((step) => ({
+              mode: step.mode,
+              approvedPaths: step.approvedPaths,
+              approvedDeletionPaths: step.approvedDeletionPaths,
+              confirmDeletions: step.confirmDeletions,
+            })),
+          )
+        : await applyTctbpUpgradePlan(
+            selectedId,
+            upgradePlan.fingerprint,
+            aiReview.reviewId,
+            first.mode,
+            first.approvedPaths,
+            first.approvedDeletionPaths,
+            first.confirmDeletions,
+          )
+      if (result.appliedPaths.length > 0) markMutated()
       await refreshDetail(selectedId, intent)
       await refreshUpgradePlan(selectedId)
       // Set feedback after the refresh so the plan's "commit before
       // continuing" notice is paired with the success message instead of
       // being wiped by refreshUpgradePlan.
       setUpgradeFeedback(
-        appliedCount > 0
-          ? `Applied ${appliedCount} change(s). Review the working tree, then checkpoint from the card.`
+        result.appliedPaths.length > 0
+          ? `Applied ${result.appliedPaths.length} change(s). Review the working tree, then checkpoint from the card.`
           : 'There were no approved changes to apply.',
       )
     } catch (cause) {

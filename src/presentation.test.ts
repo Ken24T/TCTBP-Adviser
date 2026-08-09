@@ -73,7 +73,7 @@ describe('repository detail presentation', () => {
       disposition: 'stop',
       primaryAction: null,
       reasonCodes: ['tctbp-contract-incompatible'],
-    })).toBe('Review TCTBP compatibility')
+    })).toBe('Review TCTBP')
     expect(recommendationTitleFor({
       disposition: 'action',
       primaryAction: 'update-tctbp',

@@ -212,7 +212,7 @@ describe('TCTBP upgrade preview panel', () => {
       />,
     )
 
-    expect(markup).toContain('Review TCTBP compatibility:')
+    expect(markup).toContain('Review TCTBP:')
     expect(markup).toContain('TCTBP contract is incompatible with the canonical source')
     expect(markup).toContain('Preview the upgrade plan below to see what needs reconciling')
     expect(markup).toContain('Preview upgrade plan')

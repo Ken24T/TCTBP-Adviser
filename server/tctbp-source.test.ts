@@ -233,6 +233,59 @@ describe('canonical TCTBP-Web source planning', () => {
     expect(plan.fingerprint).not.toBe('b'.repeat(64))
   })
 
+  it('applies multiple in-order steps in a single request against one plan', async () => {
+    // The "Apply in order (N steps)" button sends all applicable steps as an
+    // ordered list in ONE request, so the whole reviewed plan is applied
+    // against a single fingerprint without any intermediate re-plan.
+    const { source, target } = await fixtureRepositories()
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: 'old'.repeat(10),
+      sourceVersion: '0.2.0',
+    })
+    const plan = await service.plan(target, observation)
+    const driftedPaths = plan.drift.files
+      .filter((file) => file.state === 'drifted')
+      .map((file) => file.path)
+    const request: TctbpApplyRequest = {
+      confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
+      planFingerprint: plan.fingerprint ?? '',
+      mode: 'additions-only',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+      steps: [
+        {
+          mode: 'additions-only',
+          approvedPaths: [],
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        },
+        {
+          mode: 'approved-managed-files',
+          approvedPaths: driftedPaths,
+          approvedDeletionPaths: [],
+          confirmDeletions: false,
+        },
+      ],
+    }
+
+    const result = await service.apply(target, observation, request)
+
+    expect(result.status).toBe('applied')
+    expect(result.appliedPaths).toEqual(expect.arrayContaining([
+      'schemas/contract.json',
+      '.github/TCTBP Agent.md',
+    ]))
+    await expect(readFile(path.join(target, 'schemas', 'contract.json'), 'utf8'))
+      .resolves.toBe('{}\n')
+    await expect(readFile(path.join(target, '.github', 'TCTBP Agent.md'), 'utf8'))
+      .resolves.toBe('source\n')
+  })
+
   it('merges canonical policy sections while preserving project fields', async () => {
     const { source, target } = await fixtureRepositories()
     await writeFile(

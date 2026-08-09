@@ -10,11 +10,20 @@ import type { PortfolioPreference } from '../portfolio-preferences'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
 import { Button, Card } from './primitives'
-import { CardCallout } from './CardCallout'
+import { CardCallout, type CardCalloutPlacement } from './CardCallout'
 import { PortfolioCardMenu } from './PortfolioCardMenu'
 
 /** Matches the Intranet FunctionCard's FLIP_ANIMATION_DURATION (650 ms). */
 const FLIP_DURATION_MS = 650
+
+/** Width of the hover callout, used to pick which side it fits on. */
+const CALLOUT_WIDTH_PX = 288
+/** Rough callout height used to keep it inside the viewport. */
+const CALLOUT_HEIGHT_ESTIMATE_PX = 320
+/** Gap between the card and its callout. */
+const CALLOUT_GAP_PX = 8
+/** Allow crossing the gap between card and callout without closing. */
+const CALLOUT_CLOSE_DELAY_MS = 180
 
 /**
  * Session-scoped last-seen tone per repository, so a card can pulse when its
@@ -62,6 +71,9 @@ export function PortfolioCard({
   )
   const [renaming, setRenaming] = useState(false)
   const [calloutOpen, setCalloutOpen] = useState(false)
+  const [calloutPlacement, setCalloutPlacement] = useState<CardCalloutPlacement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const calloutCloseTimerRef = useRef<number | null>(null)
   const prevToneRef = useRef<string | null>(null)
   const [tonePulse, setTonePulse] = useState(false)
 
@@ -85,6 +97,71 @@ export function PortfolioCard({
     return undefined
   }, [repository.id, tone])
 
+  useEffect(() => () => {
+    if (calloutCloseTimerRef.current !== null) {
+      window.clearTimeout(calloutCloseTimerRef.current)
+    }
+  }, [])
+
+  /**
+   * Chooses which side of the card the callout should sit on (preferring the
+   * side with room in the viewport) and returns viewport coordinates so the
+   * portaled callout can render beside the card without covering it.
+   */
+  function computeCalloutPlacement(): CardCalloutPlacement | null {
+    const el = containerRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    const rightSpace = window.innerWidth - rect.right - CALLOUT_GAP_PX
+    const leftSpace = rect.left - CALLOUT_GAP_PX
+    const side: 'left' | 'right' = rightSpace >= CALLOUT_WIDTH_PX
+      ? 'right'
+      : leftSpace >= CALLOUT_WIDTH_PX
+        ? 'left'
+        : rightSpace >= leftSpace
+          ? 'right'
+          : 'left'
+    const left = side === 'right'
+      ? Math.min(
+          rect.right + CALLOUT_GAP_PX,
+          window.innerWidth - CALLOUT_WIDTH_PX - CALLOUT_GAP_PX,
+        )
+      : Math.max(CALLOUT_GAP_PX, rect.left - CALLOUT_WIDTH_PX - CALLOUT_GAP_PX)
+    const overhang = rect.top + CALLOUT_HEIGHT_ESTIMATE_PX + CALLOUT_GAP_PX - window.innerHeight
+    const top = Math.max(CALLOUT_GAP_PX, rect.top - Math.max(0, overhang))
+    return { left, top }
+  }
+
+  function openCallout(): void {
+    if (calloutCloseTimerRef.current !== null) {
+      window.clearTimeout(calloutCloseTimerRef.current)
+      calloutCloseTimerRef.current = null
+    }
+    if (!calloutOpen) {
+      setCalloutPlacement(computeCalloutPlacement())
+      setCalloutOpen(true)
+    }
+  }
+
+  /** Close after a short delay so moving across the gap stays open. */
+  function scheduleCloseCallout(): void {
+    if (calloutCloseTimerRef.current !== null) return
+    calloutCloseTimerRef.current = window.setTimeout(() => {
+      calloutCloseTimerRef.current = null
+      setCalloutOpen(false)
+      setCalloutPlacement(null)
+    }, CALLOUT_CLOSE_DELAY_MS)
+  }
+
+  function closeCallout(): void {
+    if (calloutCloseTimerRef.current !== null) {
+      window.clearTimeout(calloutCloseTimerRef.current)
+      calloutCloseTimerRef.current = null
+    }
+    setCalloutOpen(false)
+    setCalloutPlacement(null)
+  }
+
   function activate(): void {
     if (!canOpen || flipping) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -106,11 +183,12 @@ export function PortfolioCard({
   return (
     <div
       className="flip-card relative"
+      ref={containerRef}
       style={surface}
-      onBlur={() => setCalloutOpen(false)}
-      onFocus={() => setCalloutOpen(true)}
-      onMouseEnter={() => setCalloutOpen(true)}
-      onMouseLeave={() => setCalloutOpen(false)}
+      onBlur={closeCallout}
+      onFocus={openCallout}
+      onMouseEnter={openCallout}
+      onMouseLeave={scheduleCloseCallout}
     >
       <div
         className={[
@@ -179,7 +257,7 @@ export function PortfolioCard({
             githubUrl={githubUrl(repository)}
             hidden={preference.hidden}
             onOpen={activate}
-            onOpenChange={(open) => { if (open) setCalloutOpen(false) }}
+            onOpenChange={(open) => { if (open) closeCallout() }}
             onRefresh={onRefresh}
             onRename={() => setRenaming(true)}
             onToggleHide={() => onPreferenceChange({ hidden: !preference.hidden })}
@@ -192,6 +270,7 @@ export function PortfolioCard({
             sourceTone={repository.source === 'local'
               ? repository.available ? 'success' : 'warning'
               : 'info'}
+            surface={surface}
             tctbpStatus={tctbpLabel(repository)}
             upgradeReasons={repository.upgrade?.reasons ?? []}
             upgradeStatus={repository.upgrade
@@ -233,7 +312,14 @@ export function PortfolioCard({
           <small className="flip-card-back-sub">{displayName}</small>
         </div>
       </div>
-      <CardCallout repository={repository} visible={calloutOpen} />
+      <CardCallout
+        onMouseEnter={openCallout}
+        onMouseLeave={scheduleCloseCallout}
+        placement={calloutPlacement}
+        repository={repository}
+        surface={surface}
+        visible={calloutOpen}
+      />
     </div>
   )
 }

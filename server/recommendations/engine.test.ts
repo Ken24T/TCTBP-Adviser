@@ -51,6 +51,24 @@ const RULE_CASES: RuleCase[] = [
     reason: 'branch-unpublished',
   },
   {
+    name: 'clean and unpublished without a remote origin',
+    options: { syncState: 'unpublished', remoteOrigin: null },
+    disposition: 'inspect',
+    action: null,
+    reason: 'remote-origin-missing',
+  },
+  {
+    name: 'clean without a remote origin but with a TCTBP update available',
+    options: { syncState: 'unpublished', remoteOrigin: null },
+    upgrade: {
+      disposition: 'review-required',
+      actionCounts: { preserve: 0, add: 1, review: 1, unavailable: 0 },
+    },
+    disposition: 'action',
+    action: 'update-tctbp',
+    reason: 'tctbp-update-available',
+  },
+  {
     name: 'clean and behind',
     options: { syncState: 'behind' },
     disposition: 'action',
@@ -177,6 +195,38 @@ describe('deterministic recommendation engine', () => {
       expect(result.observationIds).toHaveLength(1)
     },
   )
+
+  it('never offers publish when no remote origin is configured', () => {
+    const result = recommend(
+      observationFixture({ syncState: 'unpublished', remoteOrigin: null }),
+      'none',
+      NOW,
+    )
+
+    expect(result.primaryAction).not.toBe('publish')
+    expect(result.reasonCodes).toContain('remote-origin-missing')
+    expect(result.blockedActions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'publish' }),
+      expect.objectContaining({ action: 'handover' }),
+    ]))
+  })
+
+  it('prefers an actionable TCTBP update over the missing-remote notice', () => {
+    const result = recommend(
+      observationFixture({
+        syncState: 'unpublished',
+        remoteOrigin: null,
+      }),
+      'none',
+      NOW,
+      undefined,
+      { disposition: 'review-required' },
+    )
+
+    expect(result.primaryAction).toBe('update-tctbp')
+    expect(result.reasonCodes).toContain('tctbp-update-available')
+    expect(result.reasonCodes).not.toContain('remote-origin-missing')
+  })
 
   it('recommends a TCTBP update for an otherwise-healthy but out-of-date repo', () => {
     const result = recommend(

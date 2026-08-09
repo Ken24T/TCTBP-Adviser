@@ -52,6 +52,7 @@ export class RepositoryInspectionService {
       },
       operations: git.operations,
       localTracking: git.tracking,
+      remoteOrigin: git.remoteOrigin,
       tctbp,
       errors: [...tctbp.errors],
     }

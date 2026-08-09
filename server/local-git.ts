@@ -12,16 +12,18 @@ import { parsePorcelainV2, type ParsedGitStatus } from './git-status'
 
 export interface LocalGitObservation extends ParsedGitStatus {
   operations: GitOperation[]
+  remoteOrigin: string | null
 }
 
 export class LocalGitInspector {
   constructor(readonly executor: GitExecutor) {}
 
   async inspect(repositoryPath: string): Promise<LocalGitObservation> {
-    const [topLevelResult, gitDirResult, statusResult] = await Promise.all([
+    const [topLevelResult, gitDirResult, statusResult, originResult] = await Promise.all([
       this.executor.run(repositoryPath, GIT_COMMANDS.topLevel),
       this.executor.run(repositoryPath, GIT_COMMANDS.gitDir),
       this.executor.run(repositoryPath, GIT_COMMANDS.status),
+      this.executor.run(repositoryPath, GIT_COMMANDS.originUrl),
     ])
 
     const topLevel = await realpath(topLevelResult.stdout.trim())
@@ -47,6 +49,7 @@ export class LocalGitInspector {
     return {
       ...parsePorcelainV2(statusResult.stdout),
       operations: await detectOperations(gitDir),
+      remoteOrigin: originResult.stdout.trim() || null,
     }
   }
 

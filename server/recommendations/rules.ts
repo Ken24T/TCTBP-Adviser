@@ -101,9 +101,18 @@ export function resolveDefinition(
     )
   }
   if (observation.localTracking.state === 'unpublished') {
+    if (!observation.remoteOrigin) {
+      // A TCTBP update is locally actionable (apply touches only the working
+      // tree and needs no remote), so it outranks the missing-remote notice;
+      // publish/handover stay unavailable via the detail-plan blockers.
+      return context.upgrade?.disposition === 'review-required'
+        ? tctbpUpdateAvailable(context)
+        : missingRemoteOrigin(context)
+    }
     return workflowAction(context, 'publish', 'branch-unpublished')
   }
   if (observation.localTracking.state === 'ahead') {
+    if (!observation.remoteOrigin) return missingRemoteOrigin(context)
     return workflowAction(context, 'publish', 'branch-ahead')
   }
   // The repository is otherwise healthy but its TCTBP managed surface is
@@ -356,8 +365,7 @@ function stoppingDefinition(
 function unavailableWorkflow(
   context: EvaluationContext,
   action: RecommendationAction,
-): ResultDefinition {
-  return {
+): ResultDefinition {  return {
     disposition: 'inspect',
     primaryAction: null,
     reasonCodes: ['inspection-required'],
@@ -371,6 +379,31 @@ function unavailableWorkflow(
     uncertainties: [{
       code: 'workflow-unavailable',
       message: `Required workflow '${action}' is not advertised.`,
+    }],
+  }
+}
+
+/**
+ * No git remote 'origin' is configured, so publish (and handover, which also
+ * publishes) can never succeed. Surface the missing remote instead of
+ * offering an action that is guaranteed to fail at runtime.
+ */
+function missingRemoteOrigin(context: EvaluationContext): ResultDefinition {
+  return {
+    disposition: 'inspect',
+    primaryAction: null,
+    reasonCodes: ['remote-origin-missing'],
+    severity: 'attention',
+    actions: [],
+    blockedActions: block(['publish', 'handover'], ['remote-origin-missing']),
+    evidence: [
+      evidence(context, 'remoteOrigin', context.observation.remoteOrigin),
+      evidence(context, 'localTracking.state',
+        context.observation.localTracking.state),
+    ],
+    uncertainties: [{
+      code: 'remote-origin-missing',
+      message: 'No git remote \'origin\' is configured, so nothing can be published.',
     }],
   }
 }

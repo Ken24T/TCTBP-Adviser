@@ -20,7 +20,7 @@ const ACTION_LABELS: Record<RecommendationAction, string> = {
   'inspect-recovery': 'Investigate safely',
   'reattach-branch': 'Reattach a branch',
   'install-tctbp': 'Install TCTBP',
-  'review-compatibility': 'Review compatibility',
+  'review-compatibility': 'Review TCTBP',
   'update-tctbp': 'Update TCTBP',
 }
 
@@ -36,6 +36,7 @@ const REASON_LABELS: Record<RecommendationReasonCode, string> = {
   'branch-unpublished': 'The current branch has no tracking ref',
   'branch-ahead': 'Local commits have not been published',
   'handover-ready': 'The repository is ready for a machine handover',
+  'remote-origin-missing': 'No remote origin configured',
   'tctbp-not-installed': 'TCTBP is not installed',
   'tctbp-contract-incompatible': 'The Adviser contract is incompatible',
   'tctbp-update-available': 'TCTBP infrastructure update available',
@@ -174,7 +175,10 @@ export function recommendationTitleFor(
     return 'Install TCTBP'
   }
   if (recommendation.reasonCodes.includes('tctbp-contract-incompatible')) {
-    return 'Review TCTBP compatibility'
+    return 'Review TCTBP'
+  }
+  if (recommendation.reasonCodes.includes('remote-origin-missing')) {
+    return 'No remote configured'
   }
   return recommendation.primaryAction
     ? actionLabel(recommendation.primaryAction)

@@ -75,7 +75,7 @@ export function ActionerProgress({ job, onRepairCompatibility }: ActionerProgres
         && job.error?.includes('require is not defined')
         && onRepairCompatibility && (
         <Button className="mt-3" size="sm" onClick={onRepairCompatibility}>
-          Repair TCTBP script compatibility
+          Repair TCTBP scripts
         </Button>
       )}
 

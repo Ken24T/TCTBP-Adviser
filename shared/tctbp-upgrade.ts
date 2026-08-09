@@ -98,6 +98,14 @@ export type { TctbpBootstrapPlan } from './tctbp-bootstrap'
 
 export type TctbpApplyMode = 'additions-only' | 'approved-managed-files'
 
+/** One ordered step of an atomic apply-in-order request. */
+export interface TctbpApplyStep {
+  mode: TctbpApplyMode
+  approvedPaths: string[]
+  approvedDeletionPaths: string[]
+  confirmDeletions: boolean
+}
+
 export interface TctbpApplyRequest {
   confirm: true
   aiReviewId: string
@@ -107,6 +115,13 @@ export interface TctbpApplyRequest {
   approvedPaths: string[]
   approvedDeletionPaths: string[]
   confirmDeletions: boolean
+  /**
+   * Optional ordered in-order steps. When present, all steps are applied in
+   * this order within a single request against one plan fingerprint and one
+   * Jasper review (no intermediate re-plan), so the whole reviewed plan can
+   * be applied together.
+   */
+  steps?: TctbpApplyStep[]
 }
 
 export interface TctbpApplyResult {
