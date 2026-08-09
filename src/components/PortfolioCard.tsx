@@ -27,6 +27,7 @@ interface PortfolioCardProps {
   onOpen: () => void
   onPreferenceChange: (patch: Partial<PortfolioPreference>) => void
   busy?: boolean
+  startFlipped?: boolean
 }
 
 export function PortfolioCard({
@@ -35,6 +36,7 @@ export function PortfolioCard({
   onOpen,
   onPreferenceChange,
   busy = false,
+  startFlipped = false,
 }: PortfolioCardProps) {
   const displayName = preference.name.trim() || repository.name
   const tone = repository.source === 'github-only'
@@ -49,9 +51,20 @@ export function PortfolioCard({
   const isDark = resolved === 'dark'
   const surface = cardSurfaceVars(statusTone, isDark)
   const canOpen = repository.available && repository.source === 'local'
-  const [flipping, setFlipping] = useState(false)
+  const [flipping, setFlipping] = useState(startFlipped)
+  const [flipDirection, setFlipDirection] = useState<'forward' | 'return' | null>(
+    startFlipped ? 'return' : null,
+  )
   const prevToneRef = useRef<string | null>(null)
   const [tonePulse, setTonePulse] = useState(false)
+
+  useEffect(() => {
+    if (!startFlipped) return
+    // Mount flipped (back face showing) and rotate back to the front so the
+    // return to the dashboard animates the card closing, mirroring the open.
+    const timer = window.setTimeout(() => setFlipping(false), 150)
+    return () => window.clearTimeout(timer)
+  }, [startFlipped])
 
   useEffect(() => {
     const previous = prevToneRef.current ?? lastSeenTone.get(repository.id)
@@ -72,6 +85,7 @@ export function PortfolioCard({
       return
     }
     setFlipping(true)
+    setFlipDirection('forward')
     window.setTimeout(onOpen, FLIP_DURATION_MS)
   }
 
@@ -255,7 +269,9 @@ export function PortfolioCard({
         <div className="flip-card-face flip-card-back" aria-hidden="true">
           <span className="flip-card-back-dot" />
           <strong className="flip-card-back-title">
-            {busy ? 'Inspecting repository…' : 'Opening repository…'}
+            {flipDirection === 'return'
+              ? 'Returning to portfolio…'
+              : busy ? 'Inspecting repository…' : 'Opening repository…'}
           </strong>
           <small className="flip-card-back-sub">{displayName}</small>
         </div>

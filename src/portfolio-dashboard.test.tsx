@@ -41,6 +41,23 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Opening repository')
   })
 
+  it('mounts the returned card flipped and flips it back on return', () => {
+    const snapshot = portfolioFixture()
+    const markup = renderToStaticMarkup(
+      <PortfolioDashboard
+        snapshot={snapshot}
+        preferences={{}}
+        query=""
+        returningId={'A'.repeat(24)}
+        onOpen={() => undefined}
+        onPreferenceChange={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('flip-card-flipped')
+    expect(markup).toContain('Returning to portfolio')
+  })
+
   it('shows the inspecting state on the card back face while refreshing', () => {
     const snapshot = portfolioFixture()
     const markup = renderToStaticMarkup(

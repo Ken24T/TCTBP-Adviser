@@ -80,6 +80,7 @@ function App() {
   const requestId = useRef(0)
   const started = useRef(false)
   const mutatedRef = useRef(false)
+  const returningIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (
@@ -380,6 +381,7 @@ function App() {
   }
 
   function openRepository(repositoryId: string): void {
+    returningIdRef.current = repositoryId
     setReferenceOpen(false)
     setSelectedId(repositoryId)
     setDetail(null)
@@ -437,6 +439,12 @@ function App() {
     setSettingsOpen(false)
     setBusy(false)
     setError(null)
+    if (returningIdRef.current) {
+      const returning = returningIdRef.current
+      window.setTimeout(() => {
+        if (returningIdRef.current === returning) returningIdRef.current = null
+      }, 1200)
+    }
     if (mutatedRef.current) {
       mutatedRef.current = false
       void refreshPortfolio()
@@ -446,6 +454,7 @@ function App() {
   function showReference(): void {
     requestId.current += 1
     resetSession()
+    returningIdRef.current = null
     setSettingsOpen(false)
     setReferenceOpen(true)
     setError(null)
@@ -456,6 +465,7 @@ function App() {
   function showSettings(): void {
     requestId.current += 1
     resetSession()
+    returningIdRef.current = null
     setReferenceOpen(false)
     setSettingsOpen(true)
     setBusy(false)
@@ -552,6 +562,7 @@ function App() {
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard
             busy={busy}
+            returningId={returningIdRef.current}
             snapshot={portfolio}
             preferences={preferences}
             query={query}

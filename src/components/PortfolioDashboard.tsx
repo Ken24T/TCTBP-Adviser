@@ -29,6 +29,7 @@ interface PortfolioDashboardProps {
   preferences: PortfolioPreferences
   query: string
   busy?: boolean
+  returningId?: string | null
   onOpen: (repositoryId: string) => void
   onPreferenceChange: (
     repositoryId: string,
@@ -41,6 +42,7 @@ export function PortfolioDashboard({
   preferences,
   query,
   busy = false,
+  returningId = null,
   onOpen,
   onPreferenceChange,
 }: PortfolioDashboardProps) {
@@ -159,6 +161,7 @@ export function PortfolioDashboard({
                 key={repository.id}
                 repository={repository}
                 preference={preferences[repository.id] ?? emptyPreference()}
+                startFlipped={repository.id === returningId}
                 onOpen={() => onOpen(repository.id)}
                 onPreferenceChange={(patch) => (
                   onPreferenceChange(repository.id, patch)
