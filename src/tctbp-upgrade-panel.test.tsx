@@ -68,6 +68,8 @@ describe('TCTBP upgrade preview panel', () => {
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
       />,
@@ -89,6 +91,8 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('scripts/tctbp-core.js')
     expect(markup).toContain('Apply in this order')
     expect(markup).toContain('Apply policy merge')
+    expect(markup).toContain('Apply drifted files')
+    expect(markup).toContain('Reconcile 1 drifted managed file with the canonical source.')
     expect(markup).toContain('Nothing to apply for this repository.')
   })
 
@@ -140,6 +144,8 @@ describe('TCTBP upgrade preview panel', () => {
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
       />,
@@ -199,6 +205,8 @@ describe('TCTBP upgrade preview panel', () => {
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
       />,
@@ -208,6 +216,64 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('TCTBP contract is incompatible with the canonical source')
     expect(markup).toContain('Preview the upgrade plan below to see what needs reconciling')
     expect(markup).toContain('Preview upgrade plan')
+  })
+
+  it('offers to record source alignment when only provenance is missing', () => {
+    const plan = {
+      disposition: 'review-required' as const,
+      sourceAlignment: 'unknown' as const,
+      actionCounts: { preserve: 49, add: 0, review: 0, unavailable: 0 },
+      blockers: [],
+      policy: { state: 'aligned' as const, differences: [] },
+      source: {
+        state: 'available' as const,
+        repository: 'TCTBP-Web',
+        revision: 'a'.repeat(40),
+        version: '0.2.0',
+        managedFileCount: 49,
+        message: null,
+      },
+      target: {
+        sourceRepository: null,
+        sourceRevision: null,
+        sourceVersion: null,
+      },
+      drift: {
+        files: [],
+        counts: { current: 49, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
+      },
+    } satisfies TctbpUpgradePlan
+
+    const markup = renderToStaticMarkup(
+      <TctbpUpgradePanel
+        repositoryName="example-repository"
+        plan={plan}
+        busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
+        onLoad={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
+        onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Record source alignment')
+    expect(markup).toContain('Write .tctbp/source.json so future plans can confirm alignment.')
+    expect(markup).toContain('Apply in order (1 step)')
   })
 
   it('requires bootstrap preparation before enabling Jasper review', () => {
@@ -255,6 +321,8 @@ describe('TCTBP upgrade preview panel', () => {
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
       />,

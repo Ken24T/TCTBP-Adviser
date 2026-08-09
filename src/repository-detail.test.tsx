@@ -51,6 +51,8 @@ describe('repository detail view', () => {
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
       />,
@@ -119,6 +121,8 @@ describe('repository detail view', () => {
         onReviewAi={() => undefined}
         onApplyAdditions={() => undefined}
         onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
       />,

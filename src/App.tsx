@@ -292,6 +292,8 @@ function App() {
   const {
     applyAdditions,
     applyPolicy,
+    applyDrifted,
+    applyAlignment,
     applyDeleteObsolete,
     applyInOrder,
   } = useUpgradeApply({
@@ -501,6 +503,8 @@ function App() {
             onReviewAi={() => void refreshAiReview()}
             onApplyAdditions={() => void applyAdditions()}
             onApplyPolicy={() => void applyPolicy()}
+            onApplyDrifted={() => void applyDrifted()}
+            onApplyAlignment={() => void applyAlignment()}
             onDeleteObsolete={() => void applyDeleteObsolete()}
             onApplyInOrder={() => void applyInOrder()}
           />

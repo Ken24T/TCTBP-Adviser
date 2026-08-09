@@ -394,10 +394,34 @@ export class CanonicalTctbpSourceService {
       await deleteManagedFile(targetRoot, filePath)
     }
 
+    // Record the canonical alignment in the source manifest, exactly as
+    // bootstrap does. Without it the plan cannot verify the target came from
+    // TCTBP-Web (alignment stays 'unknown') and can never reach 'current'
+    // even after a full reconcile.
+    const sourceJson = JSON.stringify({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: source.revision,
+      sourceVersion: source.version,
+      installedSchemaVersion: 11,
+      adviserContract: {
+        major: 1,
+        minor: 0,
+        capabilities: [
+          'inspection.local-v1',
+          'workflow-catalogue.core-v1',
+          'reason-codes.core-v1',
+        ],
+      },
+      installedAt: new Date().toISOString().slice(0, 10),
+      managedSurface: source.managedPaths,
+    }, null, 2) + '\n'
+    await writeManagedFile(targetRoot, '.tctbp/source.json', sourceJson)
+
     const appliedPaths = [
       ...filesToApply.map((file) => file.path),
       ...(mergedPolicy !== null ? ['.github/TCTBP.json'] : []),
       ...deletionPaths.map((filePath) => `deleted:${filePath}`),
+      '.tctbp/source.json',
     ]
     return {
       status: appliedPaths.length > 0 ? 'applied' : 'nothing-to-apply',

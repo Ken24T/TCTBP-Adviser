@@ -54,6 +54,8 @@ interface RepositoryDetailProps {
   onReviewAi: () => void
   onApplyAdditions: () => void
   onApplyPolicy: () => void
+  onApplyDrifted: () => void
+  onApplyAlignment: () => void
   onDeleteObsolete: () => void
   onApplyInOrder: () => void
 }
@@ -88,6 +90,8 @@ export function RepositoryDetail({
   onReviewAi,
   onApplyAdditions,
   onApplyPolicy,
+  onApplyDrifted,
+  onApplyAlignment,
   onDeleteObsolete,
   onApplyInOrder,
 }: RepositoryDetailProps) {
@@ -187,6 +191,8 @@ export function RepositoryDetail({
               onReviewAi={onReviewAi}
               onApplyAdditions={onApplyAdditions}
               onApplyPolicy={onApplyPolicy}
+              onApplyDrifted={onApplyDrifted}
+              onApplyAlignment={onApplyAlignment}
               onDeleteObsolete={onDeleteObsolete}
               onApplyInOrder={onApplyInOrder}
             />

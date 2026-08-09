@@ -39,6 +39,8 @@ interface TctbpUpgradePanelProps {
   onReviewAi: () => void
   onApplyAdditions: () => void
   onApplyPolicy: () => void
+  onApplyDrifted: () => void
+  onApplyAlignment: () => void
   onDeleteObsolete: () => void
   onApplyInOrder: () => void
 }
@@ -63,6 +65,8 @@ export function TctbpUpgradePanel({
   onReviewAi,
   onApplyAdditions,
   onApplyPolicy,
+  onApplyDrifted,
+  onApplyAlignment,
   onDeleteObsolete,
   onApplyInOrder,
 }: TctbpUpgradePanelProps) {
@@ -75,11 +79,21 @@ export function TctbpUpgradePanel({
     && aiReview.planFingerprint === reviewFingerprint
     && aiAcknowledged,
   )
+  const alignmentPending = Boolean(
+    plan
+    && plan.sourceAlignment !== 'current'
+    && plan.actionCounts.add === 0
+    && plan.actionCounts.review === 0
+    && plan.policy.state === 'aligned'
+    && (plan.drift.obsoleteTargets?.length ?? 0) === 0
+  )
   const applicableCount = plan
     ? [
         plan.policy.state === 'drifted',
         plan.actionCounts.add > 0,
+        plan.actionCounts.review > 0,
         (plan.drift.obsoleteTargets?.length ?? 0) > 0,
+        alignmentPending,
       ].filter(Boolean).length
     : 0
 
@@ -252,9 +266,29 @@ export function TctbpUpgradePanel({
                 </Button>
               </ApplyStep>
               <ApplyStep
+                active={plan.actionCounts.review > 0}
+                description={`Reconcile ${plan.actionCounts.review} drifted managed file${plan.actionCounts.review === 1 ? '' : 's'} with the canonical source.`}
+                number={3}
+                title="Apply drifted files"
+              >
+                <Button
+                  className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                  disabled={
+                    applyBusy
+                    || !aiApplyReady
+                    || !plan.fingerprint
+                    || plan.blockers.length > 0
+                  }
+                  size="sm"
+                  onClick={onApplyDrifted}
+                >
+                  {applyBusy ? 'Applying…' : 'Apply drifted files'}
+                </Button>
+              </ApplyStep>
+              <ApplyStep
                 active={(plan.drift.obsoleteTargets?.length ?? 0) > 0}
                 description={`Remove ${plan.drift.obsoleteTargets?.length ?? 0} file(s) the canonical TCTBP source no longer tracks.`}
-                number={3}
+                number={4}
                 title="Delete obsolete files"
               >
                 <Button
@@ -271,6 +305,28 @@ export function TctbpUpgradePanel({
                   {applyBusy ? 'Applying…' : 'Delete obsolete files'}
                 </Button>
               </ApplyStep>
+              {alignmentPending && (
+                <ApplyStep
+                  active
+                  description="The managed files match canonical, but the repository's source alignment is not recorded. Write .tctbp/source.json so future plans can confirm alignment."
+                  number={5}
+                  title="Record source alignment"
+                >
+                  <Button
+                    className="bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                    disabled={
+                      applyBusy
+                      || !aiApplyReady
+                      || !plan.fingerprint
+                      || plan.blockers.length > 0
+                    }
+                    size="sm"
+                    onClick={onApplyAlignment}
+                  >
+                    {applyBusy ? 'Applying…' : 'Record source alignment'}
+                  </Button>
+                </ApplyStep>
+              )}
             </ol>
             <p className="mt-2 text-xs text-text-faint">
               Every apply only touches the working tree — nothing is committed or

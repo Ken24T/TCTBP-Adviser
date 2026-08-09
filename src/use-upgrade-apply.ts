@@ -36,6 +36,8 @@ export interface UpgradeApplyDependencies {
 export interface UpgradeApply {
   applyAdditions: () => Promise<void>
   applyPolicy: () => Promise<void>
+  applyDrifted: () => Promise<void>
+  applyAlignment: () => Promise<void>
   applyDeleteObsolete: () => Promise<void>
   applyInOrder: () => Promise<void>
 }
@@ -72,6 +74,44 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     }
   }
 
+  function driftedStep(): ApplyStepDefinition {
+    const driftedPaths = upgradePlan?.drift.files
+      ?.filter((file) => file.state === 'drifted')
+      .map((file) => file.path) ?? []
+    return {
+      mode: 'approved-managed-files',
+      approvedPaths: driftedPaths,
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+      confirmation: `Overwrite ${driftedPaths.length} drifted managed file(s) with canonical content? Local versions will be replaced. No commit or push will be performed.`,
+      label: 'Apply drifted files',
+    }
+  }
+
+  /** True when the only remaining work is recording the source alignment. */
+  function alignmentOnly(): boolean {
+    const plan = upgradePlan
+    return Boolean(
+      plan
+      && plan.sourceAlignment !== 'current'
+      && plan.actionCounts.add === 0
+      && plan.actionCounts.review === 0
+      && plan.policy.state === 'aligned'
+      && (plan.drift.obsoleteTargets?.length ?? 0) === 0
+    )
+  }
+
+  function alignmentStep(): ApplyStepDefinition {
+    return {
+      mode: 'approved-managed-files',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+      confirmation: 'Record the canonical TCTBP-Web source alignment? This writes .tctbp/source.json. No commit or push will be performed.',
+      label: 'Record source alignment',
+    }
+  }
+
   function policyStep(): ApplyStepDefinition {
     return {
       mode: 'approved-managed-files',
@@ -101,9 +141,11 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     const steps: ApplyStepDefinition[] = []
     if (upgradePlan.policy.state === 'drifted') steps.push(policyStep())
     if (upgradePlan.actionCounts.add > 0) steps.push(additionsStep())
+    if (upgradePlan.actionCounts.review > 0) steps.push(driftedStep())
     if ((upgradePlan.drift.obsoleteTargets?.length ?? 0) > 0) {
       steps.push(deleteStep())
     }
+    if (alignmentOnly()) steps.push(alignmentStep())
     return steps
   }
 
@@ -153,6 +195,16 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     return runSteps([step], step.confirmation)
   }
 
+  function applyDrifted(): Promise<void> {
+    const step = driftedStep()
+    return runSteps([step], step.confirmation)
+  }
+
+  function applyAlignment(): Promise<void> {
+    const step = alignmentStep()
+    return runSteps([step], step.confirmation)
+  }
+
   function applyPolicy(): Promise<void> {
     const step = policyStep()
     return runSteps([step], step.confirmation)
@@ -175,6 +227,8 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
   return {
     applyAdditions,
     applyPolicy,
+    applyDrifted,
+    applyAlignment,
     applyDeleteObsolete,
     applyInOrder,
   }
