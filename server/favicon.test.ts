@@ -33,6 +33,44 @@ describe('repository favicon resolver', () => {
     expect(await resolveRepositoryFavicon(root)).toBeNull()
   })
 
+  it('finds a favicon nested deep in the repository tree', async () => {
+    const root = await createTemporaryDirectory()
+    temporaryDirectories.push(root)
+    await mkdir(path.join(root, 'spfx', 'intranet-core', 'dev', 'public'), {
+      recursive: true,
+    })
+    await writeFile(
+      path.join(root, 'spfx', 'intranet-core', 'dev', 'public', 'favicon.svg'),
+      '<svg />',
+    )
+
+    expect(await resolveRepositoryFavicon(root))
+      .toBe('spfx/intranet-core/dev/public/favicon.svg')
+  })
+
+  it('ignores node_modules when scanning for a deep favicon', async () => {
+    const root = await createTemporaryDirectory()
+    temporaryDirectories.push(root)
+    await mkdir(path.join(root, 'node_modules', 'dep'), { recursive: true })
+    await writeFile(
+      path.join(root, 'node_modules', 'dep', 'favicon.png'),
+      'noise',
+    )
+
+    expect(await resolveRepositoryFavicon(root)).toBeNull()
+  })
+
+  it('prefers a public/ favicon over a deeper root-level one', async () => {
+    const root = await createTemporaryDirectory()
+    temporaryDirectories.push(root)
+    await mkdir(path.join(root, 'assets'), { recursive: true })
+    await writeFile(path.join(root, 'assets', 'favicon.ico'), 'old')
+    await mkdir(path.join(root, 'src', 'public'), { recursive: true })
+    await writeFile(path.join(root, 'src', 'public', 'favicon.svg'), '<svg />')
+
+    expect(await resolveRepositoryFavicon(root)).toBe('src/public/favicon.svg')
+  })
+
   it('reads a favicon with the matching content type', async () => {
     const root = await createTemporaryDirectory()
     temporaryDirectories.push(root)

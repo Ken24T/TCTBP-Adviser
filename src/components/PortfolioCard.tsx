@@ -135,33 +135,42 @@ export function PortfolioCard({
           onClick={handleCardClick}
         >
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          {faviconUrl && (
-            <img
-              alt=""
-              className="w-8 h-8 rounded-full shrink-0 mt-0.5"
-              src={faviconUrl}
-            />
-          )}
-          <div className="min-w-0">
-            {(repository.source === 'github-only' || !repository.available) && (
-              <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
-                {repository.source === 'github-only'
-                  ? 'GitHub-only repository'
-                  : 'Unavailable'}
-              </p>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
+            {faviconUrl ? (
+              <img
+                alt=""
+                className="w-8 h-8 rounded-full shrink-0"
+                src={faviconUrl}
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="grid place-items-center w-8 h-8 rounded-full shrink-0 bg-[var(--card-icon-bg)] text-[var(--card-icon-color)] text-sm font-bold"
+              >
+                {displayName.trim().charAt(0).toUpperCase() || '?'}
+              </span>
             )}
-            <h2 className="mt-1 text-xl font-semibold text-text-primary truncate">
-              {displayName}
-            </h2>
-            {repository.directoryName && repository.directoryName !== displayName && (
-              <small className="block text-text-faint truncate">{repository.directoryName}</small>
-            )}
-            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
-              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
-              {tone}
-            </span>
+            <div className="min-w-0">
+              {(repository.source === 'github-only' || !repository.available) && (
+                <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                  {repository.source === 'github-only'
+                    ? 'GitHub-only repository'
+                    : 'Unavailable'}
+                </p>
+              )}
+              <h2 className="mt-1 text-xl font-semibold text-text-primary truncate">
+                {displayName}
+              </h2>
+              {repository.directoryName && repository.directoryName !== displayName && (
+                <small className="block text-text-faint truncate">{repository.directoryName}</small>
+              )}
+            </div>
           </div>
+          <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
+            <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
+            {tone}
+          </span>
         </div>
         <div className="shrink-0 mt-1">
           <PortfolioCardMenu
