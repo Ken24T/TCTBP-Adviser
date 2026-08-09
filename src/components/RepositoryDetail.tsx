@@ -8,19 +8,19 @@ import type {
 import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
-import { Panel, Select } from './primitives'
+import { Panel, Section, Select } from './primitives'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { recommendationTitleFor } from '../presentation'
 import { workflowForRecommendation } from '../action-workflows'
 import { useTheme } from '../theme'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
+import { ActionerProgress } from './ActionerProgress'
 import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
 import { GitHubPanel } from './GitHubPanel'
 import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
-import { intentForRecommendation } from '../recommended-intent'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 
@@ -118,13 +118,10 @@ export function RepositoryDetail({
         severity={recommendation.severity}
       />
 
-      <Panel
-        eyebrow="Intent adviser"
-        title="What are you trying to do?"
-      >
-        <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
+      <Section eyebrow="Take action">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <label className="flex items-center gap-3 text-sm text-text-secondary">
-            <span className="shrink-0">Selected outcome</span>
+            <span className="shrink-0 font-medium">Selected outcome</span>
             <Select
               disabled={busy}
               value={intent}
@@ -145,78 +142,87 @@ export function RepositoryDetail({
               : 'No primary trigger suggested.'}
           </p>
         </div>
-      </Panel>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-        <div className="xl:col-span-7 space-y-8">
-          <RecommendationPanel
-            recommendation={recommendation}
-            onReviewPlan={() => {
-              const suggestedIntent = intentForRecommendation(recommendation.primaryAction)
-              if (suggestedIntent) onIntentChange(suggestedIntent)
-            }}
-          />
-          <IntentPlanPanel
-            plan={detail.intentPlan}
-            actionJob={actionJob}
-            actionBusy={actionBusy}
-            inspectionBusy={busy}
-            actionFeedback={actionFeedback}
-            onRunAction={onRunAction}
+        {actionJob && (
+          <ActionerProgress
+            job={actionJob}
             onRepairCompatibility={onRepairCompatibility}
           />
-          <RepositoryState
-            observation={observation}
-            recommendation={recommendation}
-          />
+        )}
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          <div className="xl:col-span-7 space-y-8">
+            <IntentPlanPanel
+              plan={detail.intentPlan}
+              actionJob={actionJob}
+              actionBusy={actionBusy}
+              inspectionBusy={busy}
+              actionFeedback={actionFeedback}
+              onRunAction={onRunAction}
+            />
+            <RecommendationPanel recommendation={recommendation} />
+          </div>
+          <div className="xl:col-span-5 space-y-8">
+            <TctbpUpgradePanel
+              repositoryName={observation.repository.name}
+              plan={upgradePlan}
+              busy={upgradeBusy}
+              applyBusy={applyBusy}
+              upgradeFeedback={upgradeFeedback}
+              aiReview={aiReview}
+              aiBusy={aiBusy}
+              bootstrapPlan={bootstrapPlan}
+              bootstrapBusy={bootstrapBusy}
+              bootstrapApplyBusy={bootstrapApplyBusy}
+              bootstrapApplyFeedback={bootstrapApplyFeedback}
+              bootstrapJob={bootstrapJob}
+              onPrepareBootstrap={onPrepareBootstrap}
+              onApplyBootstrap={onApplyBootstrap}
+              onLoad={onLoadUpgradePlan}
+              onReviewAi={onReviewAi}
+              onApplyAdditions={onApplyAdditions}
+              onApplyPolicy={onApplyPolicy}
+              onDeleteObsolete={onDeleteObsolete}
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Section eyebrow="Repository details">
+        <RepositoryState
+          observation={observation}
+          recommendation={recommendation}
+        />
+
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+          <div className="xl:col-span-7 space-y-8">
+            <TctbpPanel observation={observation} />
+          </div>
+          <div className="xl:col-span-5 space-y-8">
+            <RepositoryReferencePanel reference={detail.reference} />
+            <GitHubPanel
+              evidence={detail.github}
+              localBranch={observation.head.branch}
+              localSha={observation.head.sha}
+            />
+          </div>
         </div>
 
-        <div className="xl:col-span-5 space-y-8">
-          <TctbpPanel observation={observation} />
-          <TctbpUpgradePanel
-            repositoryName={observation.repository.name}
-            plan={upgradePlan}
-            busy={upgradeBusy}
-            applyBusy={applyBusy}
-            upgradeFeedback={upgradeFeedback}
-            aiReview={aiReview}
-            aiBusy={aiBusy}
-            bootstrapPlan={bootstrapPlan}
-            bootstrapBusy={bootstrapBusy}
-            bootstrapApplyBusy={bootstrapApplyBusy}
-            bootstrapApplyFeedback={bootstrapApplyFeedback}
-            bootstrapJob={bootstrapJob}
-            onPrepareBootstrap={onPrepareBootstrap}
-            onApplyBootstrap={onApplyBootstrap}
-            onLoad={onLoadUpgradePlan}
-            onReviewAi={onReviewAi}
-            onApplyAdditions={onApplyAdditions}
-            onApplyPolicy={onApplyPolicy}
-            onDeleteObsolete={onDeleteObsolete}
-          />
-          <RepositoryReferencePanel reference={detail.reference} />
-          <GitHubPanel
-            evidence={detail.github}
-            localBranch={observation.head.branch}
-            localSha={observation.head.sha}
-          />
-        </div>
-      </div>
-
-      <Panel eyebrow="Known limits" title="What this inspection cannot prove" id="uncertainty-title">
-        <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
-          {recommendation.uncertainties.map((issue) => (
-            <li key={`${issue.code}-${issue.message}`}>{issue.message}</li>
-          ))}
-          {observation.tctbp.scaffold.uncertainties.map((message) => (
-            <li key={message}>{message}</li>
-          ))}
-          <li>
-            No fetch was performed. Remote comparisons use locally cached
-            tracking refs and may not reflect current GitHub state.
-          </li>
-        </ul>
-      </Panel>
+        <Panel eyebrow="Known limits" title="What this inspection cannot prove" id="uncertainty-title">
+          <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
+            {recommendation.uncertainties.map((issue) => (
+              <li key={`${issue.code}-${issue.message}`}>{issue.message}</li>
+            ))}
+            {observation.tctbp.scaffold.uncertainties.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+            <li>
+              No fetch was performed. Remote comparisons use locally cached
+              tracking refs and may not reflect current GitHub state.
+            </li>
+          </ul>
+        </Panel>
+      </Section>
     </div>
   )
 }

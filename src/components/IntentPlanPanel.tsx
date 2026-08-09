@@ -1,6 +1,5 @@
 import type { ActionerJob, ActionerWorkflowId } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
-import { ActionerProgress } from './ActionerProgress'
 import { Button, Panel } from './primitives'
 
 interface IntentPlanPanelProps {
@@ -10,7 +9,6 @@ interface IntentPlanPanelProps {
   inspectionBusy: boolean
   actionFeedback: string | null
   onRunAction: (workflowId: ActionerWorkflowId) => void
-  onRepairCompatibility: () => void
 }
 
 export function IntentPlanPanel({
@@ -20,7 +18,6 @@ export function IntentPlanPanel({
   inspectionBusy,
   actionFeedback,
   onRunAction,
-  onRepairCompatibility,
 }: IntentPlanPanelProps) {
   if (!plan) {
     return (
@@ -47,12 +44,6 @@ export function IntentPlanPanel({
         </span>
       </div>
 
-      {actionJob && (
-        <ActionerProgress
-          job={actionJob}
-          onRepairCompatibility={onRepairCompatibility}
-        />
-      )}
       {actionFeedback && (
         <p className="mt-4 p-4 text-sm bg-surface-soft border border-border rounded-lg text-text-secondary">
           {actionFeedback}

@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+
   /* Surface palette: cream, warm neutrals */
   --ad-surface-base: #FFFBF5;
   --ad-surface-elevated: #FFFFFF;
@@ -94,6 +96,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --ad-surface-base: #0F172A;
   --ad-surface-elevated: #1E293B;
   --ad-surface-soft: #1E293B;

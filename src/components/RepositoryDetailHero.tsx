@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { pillSurfaceVars } from '../card-surface'
-import { useTheme } from '../theme'
-import { Badge, Button } from './primitives'
+import { Button } from './primitives'
 
 interface RepositoryDetailHeroProps {
   name: string
@@ -32,8 +30,6 @@ export function RepositoryDetailHero({
   busy = false,
   runBusy = false,
 }: RepositoryDetailHeroProps) {
-  const { resolved } = useTheme()
-  const isDark = resolved === 'dark'
   const prevSeverity = useRef(severity)
   const [pulse, setPulse] = useState(false)
 
@@ -65,12 +61,8 @@ export function RepositoryDetailHero({
           )}
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
-              Configured local repository
+              Configured local repository · {severity}
             </p>
-            <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
-              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
-              {severity}
-            </span>
             {recommendedAction && (
               <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
                 <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
@@ -86,12 +78,6 @@ export function RepositoryDetailHero({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Badge surface style={pillSurfaceVars('neutral', isDark)}>
-            Local evidence
-          </Badge>
-          <Badge surface style={pillSurfaceVars('success', isDark)}>
-            Read-only
-          </Badge>
           {onRunRecommended && recommendedAction && (
             <Button
               disabled={busy || runBusy}

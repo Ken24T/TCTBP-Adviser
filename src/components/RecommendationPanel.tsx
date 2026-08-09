@@ -1,89 +1,51 @@
 import type { RecommendationResult } from '../../shared/recommendation'
-import { intentForRecommendation, intentLabel } from '../recommended-intent'
-import {
-  actionLabel,
-  dispositionLabel,
-  formatAge,
-  reasonLabel,
-} from '../presentation'
-import { Button, Card, Panel } from './primitives'
+import { formatAge, reasonLabel } from '../presentation'
+import { Card } from './primitives'
 
 interface RecommendationPanelProps {
   recommendation: RecommendationResult
-  onReviewPlan?: () => void
 }
 
+/**
+ * Compact, informational strip explaining *why* the state-driven
+ * recommendation exists. Deliberately de-emphasised: the plan panel above it
+ * owns the workflow steps and run buttons; this only adds the reasons and the
+ * "what this action does / does not do" reassurance.
+ */
 export function RecommendationPanel({
   recommendation,
-  onReviewPlan,
 }: RecommendationPanelProps) {
-  const title = recommendation.primaryAction
-    ? actionLabel(recommendation.primaryAction)
-    : dispositionLabel(recommendation.disposition)
-
-  const tone = recommendation.severity === 'healthy' ? 'success'
-    : recommendation.severity === 'attention' ? 'warning'
-    : recommendation.severity === 'stop' ? 'danger'
-    : 'neutral'
+  const tone = recommendation.severity === 'healthy' ? 'bg-teal-500'
+    : recommendation.severity === 'attention' ? 'bg-amber-500'
+    : recommendation.severity === 'stop' ? 'bg-red-500'
+    : 'bg-ink-400'
 
   return (
-    <Panel eyebrow="State-driven recommendation" title={title}>
-      <div className="flex flex-col md:flex-row md:items-start gap-4 justify-between mb-4">
-        <div>
-          <p className="text-sm text-text-muted">
-            {dispositionLabel(recommendation.disposition)}
-          </p>
-          <div className="flex items-center gap-2 mt-1 text-sm text-text-muted">
-            <span
-              aria-hidden="true"
-              className={`w-2 h-2 rounded-full ${
-                tone === 'success' ? 'bg-teal-500'
-                : tone === 'warning' ? 'bg-amber-500'
-                : tone === 'danger' ? 'bg-red-500'
-                : 'bg-ink-400'
-              }`}
-            />
-            {formatAge(recommendation.freshness.ageMs)}
-          </div>
-        </div>
-        {onReviewPlan && intentForRecommendation(recommendation.primaryAction) && (
-          <Button size="sm" onClick={onReviewPlan}>
-            Review {intentLabel(intentForRecommendation(recommendation.primaryAction)!)} plan
-          </Button>
-        )}
+    <div className="ad-surface-soft rounded-xl p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+          Why this is recommended
+        </h3>
+        <span className="flex items-center gap-1.5 text-xs text-text-muted">
+          <span aria-hidden="true" className={`w-2 h-2 rounded-full ${tone}`} />
+          {formatAge(recommendation.freshness.ageMs)}
+        </span>
       </div>
 
       {recommendation.reasonCodes.length > 0 && (
-        <div className="ad-surface-soft p-4 mb-4 rounded-lg">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2">Reasons</h3>
-          <ul className="space-y-1 text-sm text-text-secondary list-disc list-inside">
-            {recommendation.reasonCodes.map((reason) => (
-              <li key={reason}>{reasonLabel(reason)}</li>
-            ))}
-          </ul>
-        </div>
+        <ul className="mt-2.5 flex flex-wrap gap-1.5">
+          {recommendation.reasonCodes.map((reason) => (
+            <li
+              className="px-2 py-1 text-xs rounded-full bg-surface-inset border border-border text-text-secondary"
+              key={reason}
+            >
+              {reasonLabel(reason)}
+            </li>
+          ))}
+        </ul>
       )}
 
-      {recommendation.steps.length > 0 && (
-        <div className="mb-4" aria-label="Recommended workflow">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">Recommended workflow</h3>
-          <ol className="space-y-3">
-            {recommendation.steps.map((step, index) => (
-              <li key={`${step.action}-${index}`} className="flex items-start gap-3">
-                <span className="flex-none grid w-6 h-6 text-xs font-bold place-items-center rounded-full bg-teal-100 text-teal-800">
-                  {index + 1}
-                </span>
-                <div>
-                  <strong className="block text-sm font-medium text-text-primary">{actionLabel(step.action)}</strong>
-                  <small className="text-xs text-text-muted">{step.kind}</small>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
         <EffectList
           title="What this action does"
           items={recommendation.effects.does}
@@ -95,7 +57,7 @@ export function RecommendationPanel({
           variant="does-not"
         />
       </div>
-    </Panel>
+    </div>
   )
 }
 

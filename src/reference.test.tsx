@@ -41,7 +41,6 @@ describe('intent and reference views', () => {
       inspectionBusy={false}
       actionFeedback={null}
       onRunAction={() => undefined}
-      onRepairCompatibility={() => undefined}
     />)
 
     expect(markup).toContain('Prepare a production release')

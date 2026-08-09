@@ -250,10 +250,24 @@ export function Select({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      className={`px-4 py-2.5 pr-8 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${className}`}
-      {...props}
-    />
+    <span className="relative inline-flex">
+      <select
+        className={`appearance-none px-4 py-2.5 pr-9 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${className}`}
+        {...props}
+      />
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        viewBox="0 0 16 16"
+      >
+        <path d="M4 6l4 4 4-4" />
+      </svg>
+    </span>
   )
 }
 

@@ -125,7 +125,7 @@ describe('repository detail view', () => {
     expect(markup).toContain('Handover')
     expect(markup).toContain('handover please')
     expect(markup).toContain('Continue on another machine')
-    expect(markup).toContain('State-driven recommendation')
+    expect(markup).toContain('Why this is recommended')
     expect(markup).toContain('Intent-driven plan')
   })
 })
