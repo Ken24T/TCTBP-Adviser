@@ -37,6 +37,8 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('TCTBP not installed')
     expect(markup).toContain('Install TCTBP')
     expect(markup).toContain('No Git fetch performed')
+    expect(markup).toContain('flip-card-inner')
+    expect(markup).toContain('Opening repository')
   })
 
   it('omits hidden repositories from the initial view', () => {

@@ -1,6 +1,7 @@
 import {
   type ButtonHTMLAttributes,
   type CSSProperties,
+  type MouseEvent,
   type ReactNode,
   type SelectHTMLAttributes,
 } from 'react'
@@ -12,7 +13,7 @@ export function Button({
   className = '',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'secondary' | 'tertiary' | 'danger'
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'card-tertiary' | 'card-primary'
   size?: 'sm' | 'md' | 'lg'
 }) {
   const base = 'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -26,6 +27,8 @@ export function Button({
     secondary: 'bg-butter-100 text-ink-900 hover:bg-butter-200 focus:ring-butter-400 border border-butter-300',
     tertiary: 'bg-surface-soft text-text-primary hover:bg-surface-hover focus:ring-ink-400 border border-border',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    'card-tertiary': 'bg-[var(--card-btn-bg)] text-[var(--card-btn-text)] hover:bg-[var(--card-btn-hover-bg)] focus:ring-[var(--card-btn-text)] border border-[var(--card-btn-border)]',
+    'card-primary': 'bg-[var(--card-btn-primary-bg)] text-[var(--card-btn-primary-text)] hover:bg-[var(--card-btn-primary-hover-bg)] focus:ring-[var(--card-btn-primary-text)] shadow-soft',
   }
 
   return (
@@ -44,11 +47,13 @@ export function Card({
   className = '',
   hover = false,
   style,
+  onClick,
 }: {
   children: ReactNode
   className?: string
   hover?: boolean
   style?: CSSProperties
+  onClick?: (event: MouseEvent<HTMLDivElement>) => void
 }) {
   return (
     <div
@@ -57,6 +62,7 @@ export function Card({
         hover ? 'hover:shadow-lg hover:border-teal-300 cursor-pointer' : '',
         className,
       ].join(' ')}
+      onClick={onClick}
       style={style}
     >
       {children}
@@ -67,9 +73,13 @@ export function Card({
 export function Badge({
   children,
   tone = 'neutral',
+  surface = false,
+  style,
 }: {
   children: ReactNode
   tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+  surface?: boolean
+  style?: CSSProperties
 }) {
   const toneClasses = {
     neutral: 'bg-surface-soft text-text-secondary border border-border',
@@ -82,7 +92,10 @@ export function Badge({
 
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${toneClasses[tone]}`}
+      className={surface
+        ? 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[var(--pill-bg)] text-[var(--pill-text)] border border-[var(--pill-border)]'
+        : `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${toneClasses[tone]}`}
+      style={style}
     >
       {children}
     </span>

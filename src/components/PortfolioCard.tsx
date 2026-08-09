@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type MouseEvent } from 'react'
 import type { PortfolioRepository } from '../../shared/portfolio'
 import {
   actionLabel,
@@ -7,9 +7,12 @@ import {
   syncSummaryFromState,
 } from '../presentation'
 import type { PortfolioPreference } from '../portfolio-preferences'
-import { cardSurfaceVars } from '../card-surface'
+import { cardSurfaceVars, pillSurfaceVars } from '../card-surface'
 import { useTheme } from '../theme'
 import { Badge, Button, Card } from './primitives'
+
+/** Matches the Intranet FunctionCard's FLIP_ANIMATION_DURATION (650 ms). */
+const FLIP_DURATION_MS = 650
 
 interface PortfolioCardProps {
   repository: PortfolioRepository
@@ -37,24 +40,51 @@ export function PortfolioCard({
     : 'neutral'
 
   const { resolved } = useTheme()
-  const surface = cardSurfaceVars(statusTone, resolved === 'dark')
+  const isDark = resolved === 'dark'
+  const surface = cardSurfaceVars(statusTone, isDark)
+  const canOpen = repository.available && repository.source === 'local'
+  const [flipping, setFlipping] = useState(false)
+
+  function activate(): void {
+    if (!canOpen || flipping) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onOpen()
+      return
+    }
+    setFlipping(true)
+    window.setTimeout(onOpen, FLIP_DURATION_MS)
+  }
+
+  function handleCardClick(event: MouseEvent<HTMLDivElement>): void {
+    if (!canOpen || flipping) return
+    const target = event.target as HTMLElement
+    if (target.closest('button, a, input, label')) return
+    activate()
+  }
 
   return (
-    <Card
-      className={[
-        'flex flex-col h-full gap-5 border-t-[3px] border-t-[var(--card-accent)] bg-[var(--card-surface)]',
-        'shadow-[0_2px_8px_rgba(var(--card-accent-rgb),0.15),0_1px_3px_rgba(0,0,0,0.08)]',
-        'hover:bg-[var(--card-surface-hover)] hover:-translate-y-1 hover:scale-[1.01]',
-        'hover:shadow-[0_8px_24px_rgba(var(--card-accent-rgb),0.28),0_4px_12px_rgba(0,0,0,0.12)]',
-        'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--card-accent)]',
-        preference.pinned
-          ? 'border-[var(--card-accent)] shadow-[0_2px_12px_rgba(var(--card-accent-rgb),0.15)] animate-pin-pop'
-          : '',
-        repository.available ? 'cursor-pointer' : '',
-      ].join(' ')}
-      hover={false}
-      style={surface as CSSProperties}
-    >
+    <div className="flip-card" style={surface}>
+      <div
+        className={[
+          'flip-card-inner',
+          flipping ? 'flip-card-flipped' : '',
+        ].join(' ')}
+      >
+        <Card
+          className={[
+            'flip-card-face flip-card-front flex flex-col h-full gap-5 border-t-[3px] border-t-[var(--card-accent)] bg-[var(--card-surface)]',
+            'shadow-[0_2px_8px_rgba(var(--card-accent-rgb),0.15),0_1px_3px_rgba(0,0,0,0.08)]',
+            'hover:bg-[var(--card-surface-hover)] hover:-translate-y-1 hover:scale-[1.01]',
+            'hover:shadow-[0_8px_24px_rgba(var(--card-accent-rgb),0.28),0_4px_12px_rgba(0,0,0,0.12)]',
+            'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--card-accent)]',
+            preference.pinned
+              ? 'border-[var(--card-accent)] shadow-[0_2px_12px_rgba(var(--card-accent-rgb),0.15)] animate-pin-pop'
+              : '',
+            canOpen ? 'cursor-pointer' : '',
+          ].join(' ')}
+          hover={false}
+          onClick={handleCardClick}
+        >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
@@ -118,14 +148,27 @@ export function PortfolioCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="neutral">{tctbpLabel(repository)}</Badge>
-        <Badge tone={repository.source === 'local' ? (repository.available ? 'success' : 'warning') : 'info'}>
+        <Badge surface style={pillSurfaceVars('neutral', isDark)}>
+          {tctbpLabel(repository)}
+        </Badge>
+        <Badge
+          surface
+          style={pillSurfaceVars(
+            repository.source === 'local'
+              ? repository.available ? 'success' : 'warning'
+              : 'info',
+            isDark,
+          )}
+        >
           {repository.source === 'local'
             ? repository.available ? 'Local evidence' : 'Partial failure'
             : 'GitHub evidence'}
         </Badge>
         {repository.upgrade && (
-          <Badge tone={upgradeTone(repository.upgrade.disposition)}>
+          <Badge
+            surface
+            style={pillSurfaceVars(upgradeTone(repository.upgrade.disposition), isDark)}
+          >
             {upgradeLabel(repository.upgrade.disposition)}
           </Badge>
         )}
@@ -142,7 +185,7 @@ export function PortfolioCard({
           Custom name
           <input
             aria-label={`Custom name for ${repository.name}`}
-            className="mt-1 w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
+            className="mt-1 w-full px-3 py-2 text-sm text-text-primary bg-[var(--card-text-block-bg)] border border-[var(--card-btn-border)] rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
             maxLength={80}
             onChange={(event) => onPreferenceChange({
               name: event.currentTarget.value,
@@ -155,28 +198,29 @@ export function PortfolioCard({
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
-            variant="tertiary"
+            variant="card-tertiary"
             onClick={() => onPreferenceChange({ pinned: !preference.pinned })}
           >
             {preference.pinned ? 'Unpin' : 'Pin'}
           </Button>
           <Button
             size="sm"
-            variant="tertiary"
+            variant="card-tertiary"
             onClick={() => onPreferenceChange({ hidden: !preference.hidden })}
           >
             {preference.hidden ? 'Show' : 'Hide'}
           </Button>
           <Button
-            disabled={!repository.available || repository.source !== 'local'}
+            disabled={!canOpen}
             size="sm"
-            onClick={onOpen}
+            variant="card-primary"
+            onClick={activate}
           >
             {repository.source === 'local' ? 'View repository' : 'Local detail unavailable'}
           </Button>
           {githubUrl(repository) && (
             <a
-              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-teal-700 hover:text-teal-800 hover:bg-teal-100 transition-colors"
+              className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-lg text-[var(--card-link-text)] hover:text-[var(--card-link-hover-text)] hover:bg-[var(--card-link-hover-bg)] transition-colors"
               href={githubUrl(repository) ?? undefined}
               rel="noreferrer"
               target="_blank"
@@ -186,7 +230,14 @@ export function PortfolioCard({
           )}
         </div>
       </div>
-    </Card>
+        </Card>
+        <div className="flip-card-face flip-card-back" aria-hidden="true">
+          <span className="flip-card-back-dot" />
+          <strong className="flip-card-back-title">Opening repository…</strong>
+          <small className="flip-card-back-sub">{displayName}</small>
+        </div>
+      </div>
+    </div>
   )
 }
 
