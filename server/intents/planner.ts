@@ -1,3 +1,8 @@
+// TCTBP file-size justification: this module holds the eight intent-plan
+// builders (one per RecommendationIntent) plus the preservation/safety
+// helpers they all share. Shared step/block primitives already live in
+// plan-helpers.ts; the builders stay together because they share PlanContext
+// and the same plan shape.
 import type { RepositoryObservation } from '../../shared/inspection'
 import type { DeploymentEvidence } from '../../shared/deployment'
 import type { HandoverEvidence } from '../../shared/handover'
