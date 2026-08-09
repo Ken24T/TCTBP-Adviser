@@ -7,7 +7,7 @@ import {
   syncSummaryFromState,
 } from '../presentation'
 import type { PortfolioPreference } from '../portfolio-preferences'
-import { cardSurfaceVars, pillSurfaceVars } from '../card-surface'
+import { cardSurfaceVars, pillSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
 import { Badge, Button, Card } from './primitives'
 
@@ -34,10 +34,7 @@ export function PortfolioCard({
     ? repository.recommendation?.severity ?? 'attention'
     : 'stop'
 
-  const statusTone = tone === 'healthy' ? 'success'
-    : tone === 'attention' ? 'warning'
-    : tone === 'stop' ? 'danger'
-    : 'neutral'
+  const statusTone = severityTone(tone)
 
   const { resolved } = useTheme()
   const isDark = resolved === 'dark'

@@ -60,6 +60,24 @@ describe('portfolio snapshot service', () => {
     expect(inspect).toHaveBeenCalledTimes(2)
   })
 
+  it('invalidates the cached snapshot so the next read re-inspects', async () => {
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService([registered('one', 'One')], inspect)
+
+    const first = await service.get()
+    const second = await service.get()
+    service.invalidate()
+    const third = await service.get()
+
+    expect(first.cache.status).toBe('refreshed')
+    expect(second.cache.status).toBe('fresh')
+    expect(third.cache.status).toBe('refreshed')
+    expect(inspect).toHaveBeenCalledTimes(2)
+  })
+
   it('preserves local advice when GitHub enrichment rejects', async () => {
     const inspect = vi.fn(async (repository: RegisteredRepository) => ({
       ...observationFixture(),

@@ -87,6 +87,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const started = useRef(false)
+  const mutatedRef = useRef(false)
 
   useEffect(() => {
     if (
@@ -100,6 +101,7 @@ function App() {
         .then((nextJob) => {
           setBootstrapJob(nextJob)
           if (nextJob.status === 'completed') {
+            mutatedRef.current = true
             setBootstrapApplyBusy(false)
             setBootstrapApplyFeedback(
               `Bootstrap completed on ${nextJob.result?.branch ?? 'the dedicated branch'} with ${nextJob.result?.appliedPaths.length ?? 0} file(s). Review and checkpoint before publishing.`,
@@ -127,6 +129,7 @@ function App() {
         .then((nextJob) => {
           setActionJob(nextJob)
           if (nextJob.status === 'completed' || nextJob.status === 'failed') {
+            if (nextJob.status === 'completed') mutatedRef.current = true
             setActionBusy(false)
             void refreshDetail(selectedId, intent).then((refreshed) => {
               if (!refreshed) {
@@ -343,6 +346,7 @@ function App() {
           ? `Applied ${result.appliedPaths.length} change(s). Review and checkpoint the repository next.`
           : 'There were no approved changes to apply.',
       )
+      if (result.status === 'applied') mutatedRef.current = true
       await refreshDetail(selectedId, intent)
       await refreshUpgradePlan(selectedId)
     } catch (cause) {
@@ -460,6 +464,10 @@ function App() {
     setSettingsOpen(false)
     setBusy(false)
     setError(null)
+    if (mutatedRef.current) {
+      mutatedRef.current = false
+      void refreshPortfolio()
+    }
   }
 
   function showReference(): void {

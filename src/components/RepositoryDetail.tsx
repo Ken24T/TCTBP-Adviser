@@ -8,8 +8,10 @@ import type {
 import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
-import { Button, PageHeader, Panel, Select } from './primitives'
-import { Badge } from './primitives'
+import { Panel, Select } from './primitives'
+import { cardSurfaceVars, severityTone } from '../card-surface'
+import { useTheme } from '../theme'
+import { RepositoryDetailHero } from './RepositoryDetailHero'
 import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
@@ -87,22 +89,21 @@ export function RepositoryDetail({
   const description = observation.tctbp.projectDescription
     ?? 'No project description is available in the TCTBP profile.'
 
+  const { resolved } = useTheme()
+  const surface = cardSurfaceVars(
+    severityTone(recommendation.severity),
+    resolved === 'dark',
+  )
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      <PageHeader
+    <div className="space-y-8 animate-fade-in ad-detail-themed" style={surface}>
+      <RepositoryDetailHero
+        busy={busy}
         description={description}
-        eyebrow="Configured local repository"
+        name={observation.repository.name}
         onBack={onBack}
-        title={observation.repository.name}
-        actions={(
-          <>
-            <Badge tone="neutral">Local evidence</Badge>
-            <Badge tone="success">Read-only</Badge>
-            <Button disabled={busy} size="sm" onClick={onRefresh}>
-              {busy ? 'Inspecting…' : 'Refresh'}
-            </Button>
-          </>
-        )}
+        onRefresh={onRefresh}
+        severity={recommendation.severity}
       />
 
       <Panel

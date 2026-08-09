@@ -233,3 +233,17 @@ export function pillSurfaceVars(tone: CardTone, isDark: boolean): PillSurfaceVar
     '--pill-border': border,
   }
 }
+
+/**
+ * Maps a recommendation severity to a card tone — the single source of truth
+ * shared by the portfolio cards and the repository detail page so the two
+ * never drift apart.
+ */
+export function severityTone(
+  severity: 'action-recommended' | 'attention' | 'stop' | 'healthy' | 'neutral' | undefined,
+): CardTone {
+  if (severity === 'healthy') return 'success'
+  if (severity === 'attention') return 'warning'
+  if (severity === 'stop') return 'danger'
+  return 'neutral'
+}

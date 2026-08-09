@@ -64,6 +64,8 @@ describe('repository detail view', () => {
     expect(markup).toContain('What this action does not do')
     expect(markup).toContain('No fetch was performed')
     expect(markup).toContain('Preview upgrade plan')
+    expect(markup).toContain('ad-detail-themed')
+    expect(markup).toContain('Configured local repository')
   })
 
   it('renders the explicit machine-transfer intent path', () => {

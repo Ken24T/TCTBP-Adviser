@@ -217,6 +217,7 @@
       0 1px 3px rgba(0, 0, 0, 0.08);
     color: var(--ad-text-primary);
     pointer-events: none;
+    transform: rotateY(180deg);
   }
 
   .flip-card-back-dot {
@@ -252,6 +253,12 @@
       opacity: 0.6;
       transform: scale(0.85);
     }
+  }
+
+  /* Panels on a themed detail page pick up the tone accent from the page
+     root's cascading --card-* vars (mirrors the portfolio card language). */
+  .ad-detail-themed section.ad-surface {
+    border-top: 3px solid var(--card-accent);
   }
 }
 

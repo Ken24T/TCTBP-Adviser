@@ -46,6 +46,11 @@ export class PortfolioService {
     }
   }
 
+  /** Drops the cached snapshot so the next read re-inspects repositories. */
+  invalidate(): void {
+    this.#cached = null
+  }
+
   private async refresh(forceDiscovery: boolean): Promise<PortfolioSnapshot> {
     const registry = await this.registry.snapshot(forceDiscovery)
     const repositories = await mapWithConcurrency(

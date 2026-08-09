@@ -49,6 +49,7 @@ import {
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import { PortfolioService } from './portfolio'
 import { recommend } from './recommendations/engine'
+import type { ActionerResult } from '../shared/actioner'
 import { RepositoryRegistry } from './registry'
 import {
   readJsonBody,
@@ -337,6 +338,20 @@ function sanitiseActionerDetail(value: string): string {
     .trim()
 }
 
+/**
+ * Completes a workflow action job and drops the cached portfolio snapshot so
+ * the next read reflects the repository mutation (tone responsiveness).
+ */
+function completeActionJob(
+  jobs: ActionerJobStore,
+  portfolio: PortfolioService,
+  jobId: string,
+  result: ActionerResult,
+): void {
+  jobs.complete(jobId, result)
+  portfolio.invalidate()
+}
+
 function safeBootstrapJobError(error: unknown): string {
   if (error instanceof AdviserError) return `${error.code}: ${error.message}`
   return 'Bootstrap failed before completion.'
@@ -539,7 +554,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -568,7 +583,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -597,7 +612,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -635,7 +650,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               workflowCompleted: true,
               summary: 'Handover completed; continuation context and branch publication were handled by TCTBP.',
             })
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -664,7 +679,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -693,7 +708,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -733,7 +748,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               runtimeVerification: 'not-verified',
               summary: 'Development deployment workflow completed; runtime health verification is not configured.',
             })
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -768,7 +783,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -803,7 +818,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -832,7 +847,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               currentObservation.head.branch,
               (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
             )
-            runtime.actionerJobs.complete(job.jobId, result)
+            completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
           } catch (error) {
             runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
           }
@@ -889,6 +904,7 @@ export function createApiHandler(runtime: ApiRuntime) {
               progress,
             )
             runtime.bootstrapJobs.complete(job.jobId, result)
+            runtime.portfolio.invalidate()
           } catch (error) {
             runtime.bootstrapJobs.fail(job.jobId, safeBootstrapJobError(error))
           }
@@ -969,6 +985,7 @@ export function createApiHandler(runtime: ApiRuntime) {
           observation,
           applyRequest,
         )
+        runtime.portfolio.invalidate()
         sendJson(response, 200, result)
         return
       }
