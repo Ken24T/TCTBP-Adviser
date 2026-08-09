@@ -74,6 +74,49 @@ describe('TCTBP upgrade assessment', () => {
     expect(assessment.disposition).toBe('bootstrap-required')
   })
 
+  it('does not force review-required when only the environment branch blocks', () => {
+    const assessment = assessTctbpUpgrade({
+      source,
+      target,
+      drift: drift({ current: 1 }),
+      policy: alignedPolicy,
+      targetState: {
+        detached: false,
+        operationCount: 0,
+        workingTreeClean: true,
+        environmentBranch: true,
+        tctbpInstalled: true,
+        targetPolicyAvailable: true,
+      },
+    })
+
+    expect(assessment.disposition).toBe('current')
+    expect(assessment.sourceAlignment).toBe('current')
+    expect(assessment.blockers.map((blocker) => blocker.code)).toEqual([
+      'environment-branch',
+    ])
+  })
+
+  it('keeps review-required on an environment branch when work exists', () => {
+    const assessment = assessTctbpUpgrade({
+      source,
+      target: { ...target, sourceRevision: 'b'.repeat(40) },
+      drift: drift({ review: 1 }),
+      policy: alignedPolicy,
+      targetState: {
+        detached: false,
+        operationCount: 0,
+        workingTreeClean: true,
+        environmentBranch: true,
+        tctbpInstalled: true,
+        targetPolicyAvailable: true,
+      },
+    })
+
+    expect(assessment.disposition).toBe('review-required')
+    expect(assessment.sourceAlignment).toBe('outdated')
+  })
+
   it('reports safety blockers separately from review work', () => {
     const assessment = assessTctbpUpgrade({
       source,

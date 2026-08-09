@@ -46,13 +46,27 @@ export function assessTctbpUpgrade(
     || actionCounts.unavailable > 0
     || (input.drift.obsoleteTargets?.length ?? 0) > 0
   )
+  // The environment-branch blocker only constrains *where* changes may be
+  // applied (a dedicated upgrade branch); it is not evidence that the managed
+  // surface needs work. When the surface is otherwise fully aligned, being on
+  // an environment branch alone must not force 'review-required' — that would
+  // surface a spurious "Update TCTBP" on every clean, current repo checked out
+  // on development/review/main.
+  const applyOnlyBlocker = (
+    blockers.length === 1
+    && blockers[0]?.code === 'environment-branch'
+  )
+  const reviewWorkRequired = (
+    hasReviewWork
+    || (blockers.length > 0 && !applyOnlyBlocker)
+  )
 
   return {
     disposition: input.source.state !== 'available'
       ? 'source-unavailable'
       : !input.targetState.tctbpInstalled || !input.targetState.targetPolicyAvailable
         ? 'bootstrap-required'
-        : blockers.length > 0 || hasReviewWork
+        : reviewWorkRequired
           ? 'review-required'
           : 'current',
     sourceAlignment,
