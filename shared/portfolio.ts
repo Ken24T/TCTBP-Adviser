@@ -45,6 +45,8 @@ export interface PortfolioRepository {
     code: string
     message: string
   } | null
+  directoryName?: string | null
+  faviconPath?: string | null
   github: RepositoryGitHubEvidence
   upgrade?: PortfolioUpgradeSummary | null
 }

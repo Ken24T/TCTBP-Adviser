@@ -53,6 +53,13 @@ export function PortfolioCardMenu({
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
+  // Actions close the dropdown before running, so the menu never lingers
+  // after a selection.
+  const runAndClose = (action: () => void) => () => {
+    setOpen(false)
+    action()
+  }
+
   useEffect(() => {
     if (!open) return
     const closeOnOutside = (event: MouseEvent) => {
@@ -94,11 +101,11 @@ export function PortfolioCardMenu({
         onClick={(event) => event.stopPropagation()}
         role="menu"
       >
-        <MenuItem label={pinned ? 'Unpin from top' : 'Pin to top'} onClick={onTogglePin} />
-        <MenuItem label={hidden ? 'Show repository' : 'Hide repository'} onClick={onToggleHide} />
-        <MenuItem disabled={!canOpen} label="View repository" onClick={onOpen} />
+        <MenuItem label={pinned ? 'Unpin from top' : 'Pin to top'} onClick={runAndClose(onTogglePin)} />
+        <MenuItem label={hidden ? 'Show repository' : 'Hide repository'} onClick={runAndClose(onToggleHide)} />
+        <MenuItem disabled={!canOpen} label="View repository" onClick={runAndClose(onOpen)} />
         {githubUrl && <MenuItem href={githubUrl} label="View on GitHub" />}
-        <MenuItem label="Rename…" onClick={onRename} />
+        <MenuItem label="Rename…" onClick={runAndClose(onRename)} />
         <div className="my-1.5 h-px bg-[var(--ad-border)]" role="separator" />
         <InfoRow label="TCTBP" tone={null} value={tctbpStatus} />
         <InfoRow label="Source" tone={sourceTone} value={sourceStatus} />

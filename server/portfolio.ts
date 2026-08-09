@@ -11,6 +11,7 @@ import {
   summarizePortfolioUpgrades,
   summarizeUpgradePlan,
 } from './tctbp-portfolio'
+import { resolveRepositoryFavicon } from './favicon'
 import type { RepositoryInspectionService } from './inspection'
 import { recommend } from './recommendations/engine'
 import type {
@@ -121,13 +122,20 @@ export class PortfolioService {
         basis: 'github-rest-api',
         retrievedAt: null,
       } as const
+    const faviconPath = await resolveRepositoryFavicon(repository.path)
+    const directoryName = repository.name
     if (inspectionResult.status === 'fulfilled') {
       const upgrade = this.tctbpSource?.sourceRoot
         ? await this.tctbpSource.plan(repository.path, inspectionResult.value)
           .then(summarizeUpgradePlan)
           .catch(() => null)
         : null
-      return availableSummary(inspectionResult.value, github, upgrade)
+      return availableSummary(
+        inspectionResult.value,
+        github,
+        upgrade,
+        { directoryName, faviconPath },
+      )
     } else {
       return {
         id: repository.id,
@@ -144,6 +152,8 @@ export class PortfolioService {
           code: errorCode(inspectionResult.reason),
           message: 'Local repository inspection failed safely.',
         },
+        directoryName,
+        faviconPath,
         github,
         upgrade: null,
       }
@@ -155,6 +165,7 @@ function availableSummary(
   observation: RepositoryObservation,
   github: PortfolioRepository['github'],
   upgrade: PortfolioRepository['upgrade'],
+  options: { directoryName: string; faviconPath: string | null },
 ): PortfolioRepository {
   const recommendation = recommend(observation, 'none', new Date())
   return {
@@ -188,6 +199,8 @@ function availableSummary(
       severity: recommendation.severity,
     },
     error: null,
+    directoryName: options.directoryName,
+    faviconPath: options.faviconPath,
     github,
     upgrade,
   }

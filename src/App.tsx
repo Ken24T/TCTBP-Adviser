@@ -35,20 +35,16 @@ import { RepositoryDetail } from './components/RepositoryDetail'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
 import { SettingsPanel } from './components/SettingsPanel'
 import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkeleton'
-import {
-  loadPortfolioPreferences,
-  savePortfolioPreferences,
-  updatePortfolioPreference,
-  type PortfolioPreference,
-  type PortfolioPreferences,
-} from './portfolio-preferences'
+import { usePortfolioPreferences } from './use-portfolio-preferences'
 
-// File-size note: 577 lines — above the 400-line warning threshold but below the 600-line hard split.
+// File-size note: 572 lines — above the 400-line warning threshold but below the 600-line hard split.
 // App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
 // view routing. The presentational layers are already extracted (TopNav, ErrorBanner, LoadingState,
-// and the view components), workflow-action confirmation/start maps live in action-workflows.ts, and
-// the shared view reset lives in resetSession(). Splitting further means extracting the coupled async
-// handlers and state into a custom hook (e.g. useAdviser), deferred as a larger, riskier refactor.
+// and the view components), workflow-action confirmation/start maps live in action-workflows.ts, the
+// shared view reset lives in resetSession(), and the portfolio-preferences state (hydration from the
+// shared server file plus debounced saves) lives in use-portfolio-preferences.ts. Splitting further
+// means extracting the coupled async handlers and state into a custom hook (e.g. useAdviser),
+// deferred as a larger, riskier refactor.
 function App() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot | null>(null)
   const [detail, setDetail] = useState<RepositoryDetailResult | null>(null)
@@ -71,10 +67,10 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [catalogue, setCatalogue] = useState<ReferenceCatalogue | null>(null)
   const [intent, setIntent] = useState<RecommendationIntent>('none')
-  const [preferences, setPreferences] = useState<PortfolioPreferences>(
-    loadPortfolioPreferences,
-  )
   const [query, setQuery] = useState('')
+  const { changePreference, preferences } = usePortfolioPreferences(
+    (cause) => captureError(cause, requestId.current),
+  )
   const [busy, setBusy] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
@@ -478,24 +474,11 @@ function App() {
     void refreshDetail(selectedId, nextIntent)
   }
 
-  function changePreference(
-    repositoryId: string,
-    patch: Partial<PortfolioPreference>,
-  ): void {
-    setPreferences((current) => (
-      updatePortfolioPreference(current, repositoryId, patch)
-    ))
-  }
-
   useEffect(() => {
     if (started.current) return
     started.current = true
     void refreshPortfolio()
   }, [])
-
-  useEffect(() => {
-    savePortfolioPreferences(preferences)
-  }, [preferences])
 
   const retry = () => {
     if (referenceOpen) void refreshCatalogue()
@@ -523,7 +506,10 @@ function App() {
         {settingsOpen ? (
           <SettingsPanel
             onBack={showPortfolio}
+            onPreferenceChange={changePreference}
             onSaved={() => void refreshPortfolio(true)}
+            preferences={preferences}
+            repositories={portfolio?.repositories ?? []}
           />
         ) : referenceOpen && catalogue ? (
           <ReferenceExplorer catalogue={catalogue} onBack={showPortfolio} />

@@ -47,9 +47,11 @@ export function PortfolioCard({
   const isDark = resolved === 'dark'
   const surface = cardSurfaceVars(statusTone, isDark)
   const canOpen = repository.available && repository.source === 'local'
-  const faviconUrl = repository.github.status === 'available'
-    ? repository.github.repository.ownerAvatarUrl
-    : null
+  const faviconUrl = repository.faviconPath
+    ? `/api/repositories/${repository.id}/favicon`
+    : repository.github.status === 'available'
+      ? repository.github.repository.ownerAvatarUrl
+      : null
   const [flipping, setFlipping] = useState(startFlipped)
   const [flipDirection, setFlipDirection] = useState<'forward' | 'return' | null>(
     startFlipped ? 'return' : null,
@@ -130,24 +132,26 @@ export function PortfolioCard({
             />
           )}
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
-              {repository.source === 'github-only'
-                ? 'GitHub-only repository'
-                : repository.available ? 'Local repository' : 'Unavailable'}
-            </p>
+            {(repository.source === 'github-only' || !repository.available) && (
+              <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                {repository.source === 'github-only'
+                  ? 'GitHub-only repository'
+                  : 'Unavailable'}
+              </p>
+            )}
             <h2 className="mt-1 text-xl font-semibold text-text-primary truncate">
               {displayName}
             </h2>
-            {displayName !== repository.name && (
-              <small className="block text-text-faint truncate">{repository.name}</small>
+            {repository.directoryName && repository.directoryName !== displayName && (
+              <small className="block text-text-faint truncate">{repository.directoryName}</small>
             )}
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
+              <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
+              {tone}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 mt-1">
-          <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
-            <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
-            {tone}
-          </span>
+        <div className="shrink-0 mt-1">
           <PortfolioCardMenu
             canOpen={canOpen}
             githubUrl={githubUrl(repository)}

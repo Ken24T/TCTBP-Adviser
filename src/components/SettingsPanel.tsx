@@ -1,3 +1,7 @@
+// Over 400 lines (437): SettingsPanel deliberately keeps every settings section
+// (roots, discovery, TCTBP reference, GitHub enrichment, cards) on one page with a
+// single Save flow. Splitting would fragment the settings surface and duplicate the
+// load/save lifecycle across components. Revisit if a section grows independently.
 import { useEffect, useState } from 'react'
 import type {
   AppSettingsResponse,
@@ -6,13 +10,31 @@ import type {
 import { loadAppSettings, saveAppSettings } from '../api-client'
 import { Button, Card, PageHeader } from './primitives'
 import { CloseIcon } from './icons'
+import { CardVisibilitySettings } from './CardVisibilitySettings'
+import type { PortfolioPreferences } from '../portfolio-preferences'
 
 interface SettingsPanelProps {
   onBack: () => void
   onSaved: () => void
+  repositories: Array<{
+    id: string
+    name: string
+    directoryName?: string | null
+  }>
+  preferences: PortfolioPreferences
+  onPreferenceChange: (
+    repositoryId: string,
+    patch: Partial<import('../portfolio-preferences').PortfolioPreference>,
+  ) => void
 }
 
-export function SettingsPanel({ onBack, onSaved }: SettingsPanelProps) {
+export function SettingsPanel({
+  onBack,
+  onSaved,
+  repositories,
+  preferences,
+  onPreferenceChange,
+}: SettingsPanelProps) {
   const [settings, setSettings] = useState<AppSettingsResponse | null>(null)
   const [roots, setRoots] = useState<string[]>([])
   const [excludes, setExcludes] = useState<string[]>([])
@@ -266,6 +288,18 @@ export function SettingsPanel({ onBack, onSaved }: SettingsPanelProps) {
             values={githubRepos}
           />
         </div>
+      </Card>
+
+      <Card className="p-5 space-y-4">
+        <SettingsHeading
+          title="Cards"
+          description="Show or hide repositories on the portfolio dashboard. Applies immediately."
+        />
+        <CardVisibilitySettings
+          onPreferenceChange={onPreferenceChange}
+          preferences={preferences}
+          repositories={repositories}
+        />
       </Card>
 
       <div className="flex items-center gap-4">

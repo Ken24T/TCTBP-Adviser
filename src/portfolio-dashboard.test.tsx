@@ -42,6 +42,8 @@ describe('portfolio dashboard', () => {
     expect(markup).toContain('Actions for TCTBP-Adviser')
     expect(markup).toContain('Pin to top')
     expect(markup).toContain('Recommended next action')
+    expect(markup).toContain('/api/repositories/AAAAAAAAAAAAAAAAAAAAAAAA/favicon')
+    expect(markup).toContain('>tctbp-adviser<')
   })
 
   it('mounts the returned card flipped and flips it back on return', () => {
@@ -219,6 +221,8 @@ function portfolioFixture(): PortfolioSnapshot {
           severity: 'healthy',
         },
         error: null,
+        directoryName: 'tctbp-adviser',
+        faviconPath: 'public/favicon.svg',
         github: disabledGitHub(),
         upgrade: {
           disposition: 'review-required',

@@ -12,6 +12,7 @@ import type {
   TctbpBootstrapRequest,
 } from '../shared/tctbp-bootstrap'
 import type { PortfolioSnapshot } from '../shared/portfolio'
+import type { PortfolioPreferences } from '../shared/portfolio-preferences'
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { ReferenceCatalogue } from '../shared/reference'
@@ -386,6 +387,20 @@ export async function saveAppSettings(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
+  })
+}
+
+export async function loadServerPortfolioPreferences(): Promise<PortfolioPreferences> {
+  return requestJson<PortfolioPreferences>('/api/preferences')
+}
+
+export async function saveServerPortfolioPreferences(
+  preferences: PortfolioPreferences,
+): Promise<void> {
+  await requestJson<PortfolioPreferences>('/api/preferences', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(preferences),
   })
 }
 

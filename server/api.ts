@@ -8,6 +8,11 @@ import type {
 } from '../shared/app-settings'
 import { createAiReviewer, type AiReviewer } from './ai-reviewer'
 import { loadPersistedAppSettings, savePersistedAppSettings } from './app-settings'
+import {
+  loadPersistedPortfolioPreferences,
+  savePersistedPortfolioPreferences,
+} from './portfolio-preferences'
+import { normalisePreferences } from '../shared/portfolio-preferences'
 import { buildUpgradeReviewEvidence } from './ai-review-evidence'
 import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
@@ -34,6 +39,7 @@ import { readBootstrapApplyRequest } from './tctbp-bootstrap-apply-input'
 import { safeConfigurationExport } from './configuration-export'
 import { resolveAllowedRepository, resolveAllowedRoot } from './security'
 import { RepositoryDiscovery } from './discovery'
+import { readRepositoryFavicon, resolveRepositoryFavicon } from './favicon'
 import { AdviserError, errorCode } from './errors'
 import { RepositoryInspectionService } from './inspection'
 import { InspectionAuditLog } from './audit'
@@ -410,6 +416,20 @@ export function createApiHandler(runtime: ApiRuntime) {
         sendJson(response, 200, await readSettingsResponse(runtime))
         return
       }
+      if (request.method === 'GET' && url.pathname === '/api/preferences') {
+        sendJson(
+          response,
+          200,
+          await loadPersistedPortfolioPreferences(runtime.environment),
+        )
+        return
+      }
+      if (request.method === 'PUT' && url.pathname === '/api/preferences') {
+        const preferences = normalisePreferences(await readJsonBody(request))
+        await savePersistedPortfolioPreferences(preferences, runtime.environment)
+        sendJson(response, 200, preferences)
+        return
+      }
       if (
         request.method === 'GET'
         && url.pathname === '/api/repositories'
@@ -479,6 +499,33 @@ export function createApiHandler(runtime: ApiRuntime) {
       ) {
         await requireEmptyBody(request)
         sendJson(response, 200, await runtime.portfolio.get(true))
+        return
+      }
+
+      const faviconMatch = /^\/api\/repositories\/([^/]+)\/favicon$/.exec(
+        url.pathname,
+      )
+      if (request.method === 'GET' && faviconMatch) {
+        const repository = await runtime.registry.require(
+          decodeURIComponent(faviconMatch[1]),
+        )
+        const relativePath = await resolveRepositoryFavicon(repository.path)
+        const favicon = relativePath
+          ? await readRepositoryFavicon(repository.path, relativePath)
+          : null
+        if (!favicon) {
+          sendJson(response, 404, {
+            error: {
+              code: 'repository-favicon-not-found',
+              message: 'No favicon was found for this repository.',
+            },
+          })
+          return
+        }
+        response.setHeader('Content-Type', favicon.contentType)
+        response.setHeader('Cache-Control', 'no-store')
+        response.setHeader('X-Content-Type-Options', 'nosniff')
+        response.end(favicon.body)
         return
       }
 
