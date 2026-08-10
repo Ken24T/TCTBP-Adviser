@@ -147,6 +147,43 @@ describe('untrusted TCTBP data inspection', () => {
     })
   })
 
+  it('resolves branch roles from the strategies map when not at the top level', async () => {
+    // The canonical TCTBP-Web repo documents every strategy's roles under
+    // branchModel.strategies[<strategy>] without repeating them at the top
+    // level. The inspection must resolve the active strategy's roles so a
+    // simple canonical repo is understood (production = main) and can ship.
+    const repository = await temporaryRoot()
+    await writeJson(repository, '.github/TCTBP.json', {
+      ...compatibleProfile(),
+      branchModel: {
+        strategy: 'simple',
+        strategies: {
+          simple: {
+            description: 'Single production branch only.',
+            productionBranch: 'main',
+            promoteEnabled: false,
+          },
+          staged: {
+            workingBranch: 'development',
+            stagingBranch: 'staging',
+            productionBranch: 'main',
+            promoteEnabled: true,
+          },
+        },
+      },
+    })
+
+    const observation = await inspectTctbp(repository)
+
+    expect(observation.branchModel).toEqual({
+      strategy: 'simple',
+      workingBranch: null,
+      preProductionBranch: null,
+      productionBranch: 'main',
+      promotionTargets: [],
+    })
+  })
+
   it('rejects malformed JSON without throwing target content into code', async () => {
     const repository = await temporaryRoot()
     await writeText(

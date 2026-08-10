@@ -90,13 +90,30 @@ export async function inspectTctbp(
 function branchModelObservation(profile: JsonObject): BranchModelObservation {
   const model = objectValue(profile.branchModel)
   if (!model) return unknownBranchModel()
-  const workingBranch = stringValue(model.workingBranch)
-  const preProductionBranch = stringValue(
-    model.stagingBranch ?? model.reviewBranch,
+  const strategy = stringValue(model.strategy)
+  // The canonical TCTBP-Web repo documents every strategy's branch roles in
+  // branchModel.strategies[<strategy>] without repeating them at the top
+  // level. Resolve the active strategy's roles as a fallback so those configs
+  // are understood exactly like the scaffold's top-level role layout.
+  const strategies = objectValue(model.strategies)
+  const active = strategy && strategies
+    ? objectValue(strategies[strategy])
+    : undefined
+  const workingBranch = stringValue(
+    model.workingBranch ?? active?.workingBranch,
   )
-  const productionBranch = stringValue(model.productionBranch)
+  const preProductionBranch = stringValue(
+    model.stagingBranch ?? model.reviewBranch
+      ?? active?.stagingBranch ?? active?.reviewBranch,
+  )
+  const productionBranch = stringValue(
+    model.productionBranch ?? active?.productionBranch,
+  )
+  const promoteEnabled = (
+    model.promoteEnabled === true || active?.promoteEnabled === true
+  )
   const promotionTargets = (
-    model.promoteEnabled === true
+    promoteEnabled
       ? [
         preProductionBranch,
         productionBranch ? 'production' : null,
