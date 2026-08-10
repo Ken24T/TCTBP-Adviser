@@ -171,13 +171,15 @@ export function TctbpUpgradePanel({
       )}
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <Button
-          disabled={busy}
-          onClick={onLoad}
-          size="sm"
-        >
-          {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
-        </Button>
+        {!plan && (
+          <Button
+            disabled={busy}
+            onClick={onLoad}
+            size="sm"
+          >
+            {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
+          </Button>
+        )}
         {plan && (
           <Button
             className={aiBusy ? 'disabled:!cursor-wait' : undefined}

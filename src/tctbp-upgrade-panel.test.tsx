@@ -161,6 +161,42 @@ describe('TCTBP upgrade preview panel', () => {
   })
 
   it('connects the incompatible-contract recommendation to the preview button', () => {
+    const markup = renderToStaticMarkup(
+      <TctbpUpgradePanel
+        repositoryName="example-repository"
+        plan={null}
+        busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        contractIncompatible
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
+        onLoad={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
+        onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Review TCTBP:')
+    expect(markup).toContain('TCTBP contract is incompatible with the canonical source')
+    expect(markup).toContain('Preview the upgrade plan below to see what needs reconciling')
+    expect(markup).toContain('Preview upgrade plan')
+  })
+
+  it('hides the preview button once the plan is loaded', () => {
     const plan = {
       disposition: 'review-required' as const,
       sourceAlignment: 'outdated' as const,
@@ -200,7 +236,6 @@ describe('TCTBP upgrade preview panel', () => {
         bootstrapApplyBusy={false}
         bootstrapApplyFeedback={null}
         bootstrapJob={null}
-        contractIncompatible
         onPrepareBootstrap={() => undefined}
         onApplyBootstrap={() => undefined}
         onLoad={() => undefined}
@@ -215,10 +250,8 @@ describe('TCTBP upgrade preview panel', () => {
       />,
     )
 
-    expect(markup).toContain('Review TCTBP:')
-    expect(markup).toContain('TCTBP contract is incompatible with the canonical source')
-    expect(markup).toContain('Preview the upgrade plan below to see what needs reconciling')
-    expect(markup).toContain('Preview upgrade plan')
+    expect(markup).not.toContain('Preview upgrade plan')
+    expect(markup).toContain('Ask Jasper to review this plan')
   })
 
   it('offers to record source alignment when only provenance is missing', () => {
