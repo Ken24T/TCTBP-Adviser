@@ -5,7 +5,11 @@ import type {
   TctbpApplyMode,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
-import { applyTctbpUpgradePlan, cleanupTctbpUpgradeBranch } from './api'
+import {
+  applyTctbpUpgradePlan,
+  cleanupTctbpUpgradeBranch,
+  mergeTctbpUpgradeBranch,
+} from './api'
 
 export interface ApplyStepDefinition {
   mode: TctbpApplyMode
@@ -41,6 +45,7 @@ export interface UpgradeApply {
   applyDeleteObsolete: () => Promise<void>
   applyInOrder: () => Promise<void>
   cleanupUpgradeBranch: () => Promise<void>
+  mergeUpgradeBranch: () => Promise<void>
 }
 
 /**
@@ -273,6 +278,33 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     )
   }
 
+  async function mergeUpgradeBranch(): Promise<void> {
+    if (!selectedId) return
+    const branch = upgradePlan?.cleanup?.branch
+    if (!branch) return
+    if (!window.confirm(
+      `Merge ${branch} back into the environment branch and push? The Adviser fast-forwards and refuses if the branches have diverged.`,
+    )) return
+    setApplyBusy(true)
+    setUpgradeFeedback(null)
+    setError(null)
+    try {
+      const result = await mergeTctbpUpgradeBranch(selectedId)
+      markMutated()
+      await refreshDetail(selectedId, intent)
+      await refreshUpgradePlan(selectedId)
+      setUpgradeFeedback(
+        result.status === 'merged'
+          ? `Merged ${result.branch} into ${result.destinationBranch} and pushed.`
+          : 'The upgrade branch is already merged.',
+      )
+    } catch (cause) {
+      reportError(cause)
+    } finally {
+      setApplyBusy(false)
+    }
+  }
+
   return {
     applyAdditions,
     applyPolicy,
@@ -281,5 +313,6 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     applyDeleteObsolete,
     applyInOrder,
     cleanupUpgradeBranch,
+    mergeUpgradeBranch,
   }
 }

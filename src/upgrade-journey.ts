@@ -154,22 +154,16 @@ export function resolveUpgradeJourney(
           action: 'publish',
         })
       } else if (!plan.cleanup.available) {
-        const onBranch = /currently on/.test(plan.cleanup.reason ?? '')
-        // When we are still on the upgrade branch, plan.target.branch is the
-        // upgrade branch itself — name the environment branch it was created
-        // from instead, so the guidance is actionable.
-        const environmentBranch = onBranch
-          ? (branchModel?.productionBranch
-            ?? branchModel?.workingBranch
-            ?? 'the environment branch')
-          : plan.target.branch ?? 'the environment branch'
+        // The merge lands on the deepest environment branch the upgrade
+        // branch descends from — for long-lived repos that is the working
+        // branch (development), for simple models the production branch.
+        const environmentBranch = branchModel?.workingBranch
+          ?? branchModel?.productionBranch
+          ?? 'the environment branch'
         stages.push({
           id: 'merge',
           label: 'Merge the upgrade branch back',
-          reason: onBranch
-            ? `Switch back to ${environmentBranch} and merge ${plan.cleanup.branch} back into it, then push.`
-            : plan.cleanup.reason
-              ?? `Merge ${plan.cleanup.branch} back into ${environmentBranch}, then refresh.`,
+          reason: `Merge ${plan.cleanup.branch} back into ${environmentBranch} and push it to origin.`,
           action: 'merge',
         })
       } else {

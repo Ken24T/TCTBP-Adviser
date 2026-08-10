@@ -23,6 +23,7 @@ import type {
   TctbpApplyResult,
   TctbpApplyStep,
   TctbpCleanupResult,
+  TctbpMergeResult,
   TctbpPolicyComparison,
   TctbpUpgradeCleanup,
   TctbpUpgradePlan,
@@ -500,6 +501,74 @@ export class CanonicalTctbpSourceService {
     }
   }
 
+  /**
+   * Merges a published upgrade branch back into the configured environment
+   * branch and pushes it, completing the upgrade journey's merge step. The
+   * destination is the deepest environment branch the upgrade branch descends
+   * from (the working branch for long-lived repos), falling back to the
+   * production branch for simple models. Safe by construction: the merge is
+   * fast-forward only, so it refuses when the branches have diverged and can
+   * never create a conflict. Requires a clean working tree; switching branches
+   * is performed by the actioner, not left to the user.
+   */
+  async mergeUpgradeBranch(
+    targetRoot: string,
+    targetObservation: UpgradeTargetObservation,
+  ): Promise<TctbpMergeResult> {
+    const recordedRevision = targetObservation.tctbp.scaffold.sourceRevision
+    const recordedVersion = targetObservation.tctbp.scaffold.sourceVersion
+    if (!recordedRevision && !recordedVersion) {
+      throw new AdviserError(
+        'upgrade-merge-unavailable',
+        'There is no upgrade branch to merge.',
+      )
+    }
+    const branch = upgradeBranchName(recordedRevision, recordedVersion)
+    if (!(await localBranchExists(targetRoot, branch))) {
+      throw new AdviserError(
+        'upgrade-merge-unavailable',
+        'There is no upgrade branch to merge.',
+      )
+    }
+    if (!targetObservation.workingTree.clean) {
+      throw new AdviserError(
+        'upgrade-merge-blocked',
+        'The working tree must be clean before merging the upgrade branch.',
+      )
+    }
+    const destination = await determineMergeDestination(
+      targetRoot,
+      targetObservation,
+      branch,
+    )
+    if (!destination) {
+      throw new AdviserError(
+        'upgrade-merge-blocked',
+        'No configured environment branch could be determined to merge into.',
+      )
+    }
+    await execFileAsync('git', ['switch', destination], { cwd: targetRoot })
+    try {
+      await execFileAsync('git', ['merge', '--ff-only', branch], { cwd: targetRoot })
+    } catch (cause) {
+      throw new AdviserError(
+        'upgrade-merge-blocked',
+        `Could not fast-forward ${branch} into ${destination}: ${
+          cause instanceof Error ? cause.message : String(cause)
+        }`,
+      )
+    }
+    await execFileAsync('git', ['push', 'origin', destination], { cwd: targetRoot })
+    return {
+      status: 'merged',
+      branch,
+      destinationBranch: destination,
+      merged: true,
+      pushed: true,
+      committed: false,
+    }
+  }
+
   private async loadSource(): Promise<LoadedCanonicalSource> {
     const sourceRoot = this.sourceRoot
     if (!sourceRoot) {
@@ -630,6 +699,49 @@ async function branchIsAncestorOfHead(targetRoot: string, branch: string): Promi
     await execFileAsync(
       'git',
       ['merge-base', '--is-ancestor', branch, 'HEAD'],
+      { cwd: targetRoot },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Determines the branch a leftover upgrade branch should be merged back into:
+ * the deepest configured environment branch (working → review → production)
+ * that the upgrade branch descends from — i.e. the branch it was created from.
+ * Falls back to the working branch (long-lived) or the production branch
+ * (simple model) when no environment branch is an ancestor.
+ */
+async function determineMergeDestination(
+  targetRoot: string,
+  observation: UpgradeTargetObservation,
+  upgradeBranch: string,
+): Promise<string | null> {
+  const model = observation.tctbp.branchModel
+  const candidates = [
+    model.workingBranch,
+    model.preProductionBranch,
+    model.productionBranch,
+  ].filter((branch): branch is string => typeof branch === 'string' && branch.length > 0)
+  for (const candidate of candidates) {
+    if (await branchIsAncestorOf(targetRoot, candidate, upgradeBranch)) {
+      return candidate
+    }
+  }
+  return model.workingBranch ?? model.productionBranch ?? null
+}
+
+async function branchIsAncestorOf(
+  targetRoot: string,
+  ancestor: string,
+  descendant: string,
+): Promise<boolean> {
+  try {
+    await execFileAsync(
+      'git',
+      ['merge-base', '--is-ancestor', ancestor, descendant],
       { cwd: targetRoot },
     )
     return true

@@ -48,6 +48,7 @@ interface NextActionBarProps {
   onApplyInOrder: () => void
   onRunRecommended: () => void
   onCleanupUpgradeBranch: () => void
+  onMergeUpgradeBranch: () => void
   onRefresh: () => void
 }
 
@@ -68,6 +69,7 @@ export function NextActionBar({
   onApplyInOrder,
   onRunRecommended,
   onCleanupUpgradeBranch,
+  onMergeUpgradeBranch,
   onRefresh,
 }: NextActionBarProps) {
   const action = resolveNextAction({
@@ -81,7 +83,6 @@ export function NextActionBar({
   const anyBusy = busy || aiBusy || applyBusy || actionBusy
   const journey = action.kind === 'journey' ? action.journey : undefined
   const current = journey?.current
-  const mergePending = current?.action === 'merge'
 
   function runJourneyStep(): void {
     switch (current?.action) {
@@ -100,6 +101,9 @@ export function NextActionBar({
       case 'checkpoint':
       case 'publish':
         onRunRecommended()
+        break
+      case 'merge':
+        onMergeUpgradeBranch()
         break
       case 'cleanup':
         onCleanupUpgradeBranch()
@@ -123,6 +127,8 @@ export function NextActionBar({
         return actionBusy ? 'Starting…' : 'Run Checkpoint'
       case 'publish':
         return actionBusy ? 'Starting…' : 'Run Publish'
+      case 'merge':
+        return applyBusy ? 'Merging…' : 'Merge upgrade branch'
       case 'cleanup':
         return applyBusy ? 'Cleaning up…' : 'Clean up upgrade branch'
       default:
@@ -142,6 +148,7 @@ export function NextActionBar({
     if (action.kind === 'workflow') {
       return (
         <Button
+          className={actionBusy ? 'disabled:!cursor-wait' : undefined}
           disabled={actionBusy}
           size="sm"
           onClick={onRunRecommended}
@@ -150,16 +157,9 @@ export function NextActionBar({
         </Button>
       )
     }
-    // journey
-    if (mergePending) {
-      return (
-        <Button disabled={busy} size="sm" variant="secondary" onClick={onRefresh}>
-          {busy ? 'Inspecting…' : 'Refresh after merging'}
-        </Button>
-      )
-    }
     return (
       <Button
+        className={anyBusy ? 'disabled:!cursor-wait' : undefined}
         disabled={anyBusy && current?.action !== 'acknowledge'}
         size="sm"
         onClick={runJourneyStep}
@@ -176,7 +176,7 @@ export function NextActionBar({
       aria-label="Next action"
       className={`sticky top-0 z-30 py-3 border-b border-border bg-[var(--ad-surface)] ${
         quiet ? '' : 'shadow-[0_6px_16px_-8px_rgba(0,0,0,0.25)]'
-      }`}
+      } ${anyBusy ? 'cursor-wait' : ''}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">

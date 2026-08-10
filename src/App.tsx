@@ -307,6 +307,7 @@ function App() {
     applyDeleteObsolete,
     applyInOrder,
     cleanupUpgradeBranch,
+    mergeUpgradeBranch,
   } = useUpgradeApply({
     selectedId,
     upgradePlan,
@@ -524,6 +525,7 @@ function App() {
             onDeleteObsolete={() => void applyDeleteObsolete()}
             onApplyInOrder={() => void applyInOrder()}
             onCleanupUpgradeBranch={() => void cleanupUpgradeBranch()}
+            onMergeUpgradeBranch={() => void mergeUpgradeBranch()}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

@@ -29,6 +29,8 @@ const CONFLICT_CODES = new Set([
   'upgrade-working-tree-dirty',
   'upgrade-cleanup-unavailable',
   'upgrade-cleanup-blocked',
+  'upgrade-merge-unavailable',
+  'upgrade-merge-blocked',
   'upgrade-source-changed',
   'upgrade-source-unavailable',
   'upgrade-source-file-unavailable',

@@ -436,6 +436,167 @@ describe('canonical TCTBP-Web source planning', () => {
     expect(git(target, ['branch', '--list', upgradeBranch])).toBe(upgradeBranch)
   })
 
+  it('merges a published upgrade branch back into the working branch and pushes', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+    await writeFile(path.join(target, 'upgrade.txt'), 'upgrade\n')
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: upgrade change'])
+    const remote = await createTemporaryDirectory()
+    temporaryDirectories.push(remote)
+    git(remote, ['init', '--bare'])
+    git(target, ['remote', 'add', 'origin', remote])
+    git(target, ['push', '-u', 'origin', 'development'])
+    git(target, ['push', '-u', 'origin', upgradeBranch])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, upgradeBranch, [], true)
+
+    const result = await service.mergeUpgradeBranch(target, observation)
+
+    expect(result).toEqual({
+      status: 'merged',
+      branch: upgradeBranch,
+      destinationBranch: 'development',
+      merged: true,
+      pushed: true,
+      committed: false,
+    })
+    expect(git(target, ['branch', '--show-current'])).toBe('development')
+    expect(git(remote, ['rev-parse', 'refs/heads/development']).trim())
+      .toBe(git(target, ['rev-parse', 'development']).trim())
+  })
+
+  it('merges into the production branch for a simple branch model', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'main'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+    await writeFile(path.join(target, 'upgrade.txt'), 'upgrade\n')
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: upgrade change'])
+    const remote = await createTemporaryDirectory()
+    temporaryDirectories.push(remote)
+    git(remote, ['init', '--bare'])
+    git(target, ['remote', 'add', 'origin', remote])
+    git(target, ['push', '-u', 'origin', 'main'])
+    git(target, ['push', '-u', 'origin', upgradeBranch])
+
+    const base = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, upgradeBranch, [], true)
+    const observation = {
+      ...base,
+      tctbp: {
+        ...base.tctbp,
+        branchModel: {
+          workingBranch: null,
+          preProductionBranch: null,
+          productionBranch: 'main',
+        },
+      },
+    }
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const result = await service.mergeUpgradeBranch(target, observation)
+
+    expect(result.destinationBranch).toBe('main')
+    expect(git(target, ['branch', '--show-current'])).toBe('main')
+  })
+
+  it('refuses to merge when the branches have diverged', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+    await writeFile(path.join(target, 'upgrade.txt'), 'upgrade\n')
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: upgrade change'])
+    // Divergence: the working branch moves on without the upgrade branch.
+    git(target, ['switch', 'development'])
+    await writeFile(path.join(target, 'mainline.txt'), 'mainline\n')
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: mainline change'])
+    git(target, ['switch', upgradeBranch])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, upgradeBranch, [], true)
+
+    await expect(service.mergeUpgradeBranch(target, observation))
+      .rejects.toMatchObject({ code: 'upgrade-merge-blocked' })
+  })
+
+  it('refuses to merge while the working tree is dirty', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+
+    const scaffold = {
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }
+    const observation = {
+      ...targetObservation(scaffold, upgradeBranch, [], true),
+      workingTree: {
+        ...targetObservation(scaffold, upgradeBranch, [], true).workingTree,
+        clean: false,
+      },
+    }
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    await expect(service.mergeUpgradeBranch(target, observation))
+      .rejects.toMatchObject({ code: 'upgrade-merge-blocked' })
+  })
+
+  it('refuses to merge when there is no upgrade branch', async () => {
+    const { source, target } = await fixtureRepositories()
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, 'development', [], true)
+
+    await expect(service.mergeUpgradeBranch(target, observation))
+      .rejects.toMatchObject({ code: 'upgrade-merge-unavailable' })
+  })
+
   it('rejects a stale apply plan without changing the target', async () => {
     const { source, target } = await fixtureRepositories()
     const service = new CanonicalTctbpSourceService(source, executor())

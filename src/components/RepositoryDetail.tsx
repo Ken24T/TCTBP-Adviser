@@ -62,6 +62,7 @@ interface RepositoryDetailProps {
   onDeleteObsolete: () => void
   onApplyInOrder: () => void
   onCleanupUpgradeBranch: () => void
+  onMergeUpgradeBranch: () => void
 }
 
 export function RepositoryDetail({
@@ -102,6 +103,7 @@ export function RepositoryDetail({
   onDeleteObsolete,
   onApplyInOrder,
   onCleanupUpgradeBranch,
+  onMergeUpgradeBranch,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
@@ -149,6 +151,7 @@ export function RepositoryDetail({
           onApplyInOrder={onApplyInOrder}
           onRunRecommended={onRunRecommended}
           onCleanupUpgradeBranch={onCleanupUpgradeBranch}
+          onMergeUpgradeBranch={onMergeUpgradeBranch}
           onRefresh={onRefresh}
         />
 
@@ -225,6 +228,7 @@ export function RepositoryDetail({
               onDeleteObsolete={onDeleteObsolete}
               onApplyInOrder={onApplyInOrder}
               onCleanupUpgradeBranch={onCleanupUpgradeBranch}
+              onMergeUpgradeBranch={onMergeUpgradeBranch}
             />
           </div>
         </div>

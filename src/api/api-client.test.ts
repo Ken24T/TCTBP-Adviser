@@ -9,6 +9,7 @@ import {
   loadReferenceCatalogue,
   loadRepositoryDetail,
   loadTctbpUpgradePlan,
+  mergeTctbpUpgradeBranch,
 } from './index'
 
 afterEach(() => {
@@ -66,6 +67,25 @@ describe('repository detail client', () => {
     await expect(cleanupTctbpUpgradeBranch('opaque-id')).resolves.toStrictEqual(result)
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/repositories/opaque-id/tctbp-cleanup',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('requests a guarded fast-forward merge of the upgrade branch', async () => {
+    const result = {
+      status: 'merged',
+      branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+      destinationBranch: 'development',
+      merged: true,
+      pushed: true,
+      committed: false,
+    } as const
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(result))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(mergeTctbpUpgradeBranch('opaque-id')).resolves.toStrictEqual(result)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/repositories/opaque-id/tctbp-merge',
       expect.objectContaining({ method: 'POST' }),
     )
   })

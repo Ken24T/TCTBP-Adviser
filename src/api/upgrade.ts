@@ -4,6 +4,7 @@ import type {
   TctbpApplyResult,
   TctbpApplyStep,
   TctbpCleanupResult,
+  TctbpMergeResult,
   TctbpUpgradePlan,
 } from '../../shared/tctbp-upgrade'
 import { requestJson } from './client'
@@ -13,6 +14,15 @@ export async function cleanupTctbpUpgradeBranch(
 ): Promise<TctbpCleanupResult> {
   return requestJson<TctbpCleanupResult>(
     `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-cleanup`,
+    { method: 'POST' },
+  )
+}
+
+export async function mergeTctbpUpgradeBranch(
+  repositoryId: string,
+): Promise<TctbpMergeResult> {
+  return requestJson<TctbpMergeResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-merge`,
     { method: 'POST' },
   )
 }

@@ -197,5 +197,22 @@ export async function handleUpgradeRoutes(
     return true
   }
 
+  const mergeMatch =
+    /^\/api\/repositories\/([^/]+)\/tctbp-merge$/.exec(url.pathname)
+  if (request.method === 'POST' && mergeMatch) {
+    await requireEmptyBody(request)
+    const repository = await runtime.registry.require(
+      decodeURIComponent(mergeMatch[1]),
+    )
+    const observation = await runtime.inspections.inspect(repository)
+    const result = await runtime.tctbpSource.mergeUpgradeBranch(
+      repository.path,
+      observation,
+    )
+    runtime.portfolio.invalidate()
+    sendJson(response, 200, result)
+    return true
+  }
+
   return false
 }

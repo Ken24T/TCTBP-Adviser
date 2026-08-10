@@ -159,6 +159,23 @@ export interface TctbpCleanupResult {
   pushed: false
 }
 
+/**
+ * Result of merging a published upgrade branch back into the environment
+ * branch (the working branch for long-lived repos, the production branch
+ * otherwise) and pushing it. The merge is fast-forward only, so it refuses
+ * when the branches have diverged — a conflict can never be created silently.
+ */
+export interface TctbpMergeResult {
+  status: 'merged'
+  /** The upgrade branch that was merged. */
+  branch: string | null
+  /** The environment branch the upgrade branch was merged into. */
+  destinationBranch: string | null
+  merged: boolean
+  pushed: boolean
+  committed: false
+}
+
 export interface TctbpUpgradePlan {
   disposition: TctbpUpgradeDisposition
   fingerprint?: string

@@ -61,6 +61,7 @@ describe('repository detail view', () => {
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
         onCleanupUpgradeBranch={() => undefined}
+        onMergeUpgradeBranch={() => undefined}
       />,
     )
 
@@ -135,6 +136,7 @@ describe('repository detail view', () => {
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
         onCleanupUpgradeBranch={() => undefined}
+        onMergeUpgradeBranch={() => undefined}
       />,
     )
 
@@ -231,6 +233,7 @@ function renderDetail(
       onDeleteObsolete={() => undefined}
       onApplyInOrder={() => undefined}
       onCleanupUpgradeBranch={() => undefined}
+      onMergeUpgradeBranch={() => undefined}
     />,
   )
 }

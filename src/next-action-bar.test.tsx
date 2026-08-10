@@ -82,6 +82,7 @@ function render(props: {
       onApplyInOrder={() => undefined}
       onRunRecommended={() => undefined}
       onCleanupUpgradeBranch={() => undefined}
+      onMergeUpgradeBranch={() => undefined}
       onRefresh={() => undefined}
     />,
   )
@@ -114,6 +115,28 @@ describe('next action bar', () => {
     expect(markup).toContain('Upgrade journey')
     expect(markup).toContain('Review the plan with Jasper')
     expect(markup).toContain('Ask Jasper to review')
+  })
+
+  it('runs the merge from the journey step instead of refresh guidance', () => {
+    const mergePlan = plan({
+      disposition: 'current',
+      sourceAlignment: 'current',
+      actionCounts: { preserve: 2, add: 0, review: 0, unavailable: 0 },
+      policy: { state: 'aligned', differences: [] },
+      drift: {
+        files: [],
+        counts: { current: 2, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
+      },
+      cleanup: {
+        branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+        available: false,
+        reason: null,
+      },
+    })
+    const markup = render({ plan: mergePlan, primaryAction: null })
+    expect(markup).toContain('Merge the upgrade branch back')
+    expect(markup).toContain('Merge upgrade branch')
+    expect(markup).not.toContain('Refresh after merging')
   })
 
   it('offers cleanup once the merged upgrade branch is verified', () => {

@@ -233,7 +233,7 @@ describe('TCTBP upgrade journey', () => {
     })?.current.id).toBe('checkpoint')
   })
 
-  it('names the environment branch in the merge guidance when on the upgrade branch', () => {
+  it('names the working branch in the merge guidance', () => {
     const afterApply = plan({
       disposition: 'current',
       sourceAlignment: 'current',
@@ -259,7 +259,8 @@ describe('TCTBP upgrade journey', () => {
       },
     })
     expect(journey?.current.id).toBe('merge')
-    expect(journey?.current.reason).toContain('Switch back to main')
+    expect(journey?.current.reason).toContain('back into development')
+    expect(journey?.current.reason).toContain('upgrade/tctbp-0.3.0-aaaaaaa')
   })
 
   it('counts applicable apply steps like the upgrade panel', () => {

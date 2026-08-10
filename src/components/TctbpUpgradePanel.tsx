@@ -50,6 +50,7 @@ interface TctbpUpgradePanelProps {
   onDeleteObsolete: () => void
   onApplyInOrder: () => void
   onCleanupUpgradeBranch: () => void
+  onMergeUpgradeBranch: () => void
 }
 
 export function TctbpUpgradePanel({
@@ -79,6 +80,7 @@ export function TctbpUpgradePanel({
   onDeleteObsolete,
   onApplyInOrder,
   onCleanupUpgradeBranch,
+  onMergeUpgradeBranch,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [localAiAcknowledged, setLocalAiAcknowledged] = useState(false)
@@ -365,6 +367,32 @@ export function TctbpUpgradePanel({
               Review the changes, then checkpoint them from the card.
             </p>
           </div>
+
+          {plan.cleanup?.branch && !plan.cleanup.available && (
+            <div
+              aria-label="Upgrade branch merge"
+              className="mb-4 p-3 rounded-lg border text-sm bg-surface-soft border-border text-text-secondary"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="block font-semibold text-text-primary">
+                    Merge the upgrade branch back
+                  </strong>
+                  <p className="mt-1 text-xs">
+                    Merge {plan.cleanup.branch} back into the environment branch and push it to origin.
+                  </p>
+                </div>
+                <Button
+                  className="shrink-0"
+                  disabled={applyBusy}
+                  size="sm"
+                  onClick={onMergeUpgradeBranch}
+                >
+                  {applyBusy ? 'Merging…' : 'Merge upgrade branch'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {plan.cleanup?.branch && (
             <div

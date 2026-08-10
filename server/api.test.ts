@@ -216,6 +216,27 @@ describe('same-origin inspection API', () => {
     })
   })
 
+  it('maps a merge with no upgrade branch to a 409 conflict', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/tctbp-merge`,
+      running,
+      { method: 'POST' },
+    )
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({
+      error: { code: 'upgrade-merge-unavailable' },
+    })
+  })
+
   it('maps a stale or unavailable Jasper review to a 409 conflict', async () => {
     const running = await startApi()
     const listResponse = await authorisedFetch(

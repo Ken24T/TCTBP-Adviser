@@ -24,6 +24,7 @@ export {
   cleanupTctbpUpgradeBranch,
   loadTctbpUpgradePlan,
   loadTctbpUpgradeReview,
+  mergeTctbpUpgradeBranch,
 } from './upgrade'
 export {
   loadPortfolio,
