@@ -4,6 +4,7 @@ import type {
   ActionerWorkflowId,
 } from '../shared/actioner'
 import type { RecommendationAction } from '../shared/recommendation'
+import type { BranchModelObservation } from '../shared/inspection'
 import {
   startBranchDevelopmentAction,
   startCheckpointAction,
@@ -29,6 +30,29 @@ export const ACTION_CONFIRMATIONS: Record<ActionerWorkflowId, string> = {
   'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
   ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
   'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
+}
+
+/**
+ * Resolves a branch-aware confirmation prompt for promote actions, falling
+ * back to the static prompt when no branch model is available. The staged
+ * strategy names its pre-production branch 'staging' while the long-lived
+ * strategy names it 'review', so hardcoded prompts would be misleading.
+ */
+export function actionConfirmation(
+  workflowId: ActionerWorkflowId,
+  branchModel: BranchModelObservation | null,
+): string {
+  if (workflowId === 'promote-review' && branchModel) {
+    const source = branchModel.workingBranch ?? 'development'
+    const target = branchModel.preProductionBranch ?? 'review'
+    return `Promote the current ${source} branch into ${target}? This will merge, verify, and publish ${target}. No deployment will occur.`
+  }
+  if (workflowId === 'promote-production' && branchModel) {
+    const source = branchModel.preProductionBranch ?? 'review'
+    const target = branchModel.productionBranch ?? 'main'
+    return `Promote the current ${source} branch into ${target}? This will merge, verify, and prepare ${target} for ship. No deploy or push will occur.`
+  }
+  return ACTION_CONFIRMATIONS[workflowId]
 }
 
 /** Maps a state-driven recommendation to the workflow that implements it. */

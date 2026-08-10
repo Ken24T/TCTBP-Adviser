@@ -6,7 +6,7 @@ import type {
 import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import {
-  ACTION_CONFIRMATIONS,
+  actionConfirmation,
   startWorkflowAction,
   workflowForRecommendation,
 } from './action-workflows'
@@ -61,7 +61,7 @@ export function useWorkflowActions(
     planFingerprint: string,
     planIntent: ActionerIntent,
   ): Promise<void> {
-    if (!window.confirm(ACTION_CONFIRMATIONS[workflowId])) return
+    if (!window.confirm(actionConfirmation(workflowId, detail?.observation.tctbp.branchModel ?? null))) return
     setActionBusy(true)
     setActionFeedback(null)
     setError(null)
