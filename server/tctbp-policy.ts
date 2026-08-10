@@ -73,7 +73,7 @@ function mergeGovernance(
   targetGovernance: JsonObject | null | undefined,
 ): JsonObject | null | undefined {
   if (!sourceGovernance) {
-    return targetGovernance ? clone(targetGovernance) : undefined
+    return targetGovernance ? clone(targetGovernance) as JsonObject : undefined
   }
   const identity: JsonObject = targetGovernance
     ? Object.fromEntries(
@@ -82,7 +82,7 @@ function mergeGovernance(
           .map((key) => [key, targetGovernance[key]]),
       )
     : { templateMode: false }
-  return { ...clone(sourceGovernance), ...identity }
+  return { ...(clone(sourceGovernance) as JsonObject), ...identity }
 }
 
 export function mergeCanonicalTctbpPolicy(
