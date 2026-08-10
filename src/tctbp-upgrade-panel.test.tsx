@@ -72,6 +72,7 @@ describe('TCTBP upgrade preview panel', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
@@ -148,6 +149,7 @@ describe('TCTBP upgrade preview panel', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
@@ -209,6 +211,7 @@ describe('TCTBP upgrade preview panel', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
@@ -268,6 +271,7 @@ describe('TCTBP upgrade preview panel', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
@@ -325,10 +329,139 @@ describe('TCTBP upgrade preview panel', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
     expect(markup).toContain('Prepare bootstrap plan first')
     expect(markup).not.toContain('Ask Jasper to review this plan')
+  })
+
+  it('offers upgrade-branch cleanup only when verified safe', () => {
+    const plan = {
+      disposition: 'current' as const,
+      sourceAlignment: 'current' as const,
+      actionCounts: { preserve: 1, add: 0, review: 0, unavailable: 0 },
+      blockers: [],
+      policy: { state: 'aligned' as const, differences: [] },
+      source: {
+        state: 'available' as const,
+        repository: 'TCTBP-Web',
+        revision: 'a'.repeat(40),
+        version: '0.3.0',
+        managedFileCount: 1,
+        message: null,
+      },
+      target: {
+        sourceRepository: 'Ken24T/TCTBP-Web',
+        sourceRevision: 'a'.repeat(40),
+        sourceVersion: '0.3.0',
+      },
+      cleanup: {
+        branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+        available: true,
+        reason: null,
+      },
+      drift: {
+        files: [],
+        counts: { current: 1, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
+      },
+    } satisfies TctbpUpgradePlan
+
+    const markup = renderToStaticMarkup(
+      <TctbpUpgradePanel
+        repositoryName="example-repository"
+        plan={plan}
+        busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
+        onLoad={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
+        onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Upgrade branch cleanup')
+    expect(markup).toContain('Clean up upgrade branch')
+    expect(markup).toContain('upgrade/tctbp-0.3.0-aaaaaaa is fully merged and safe to remove')
+  })
+
+  it('explains why upgrade-branch cleanup is not yet available', () => {
+    const plan = {
+      disposition: 'current' as const,
+      sourceAlignment: 'current' as const,
+      actionCounts: { preserve: 1, add: 0, review: 0, unavailable: 0 },
+      blockers: [],
+      policy: { state: 'aligned' as const, differences: [] },
+      source: {
+        state: 'available' as const,
+        repository: 'TCTBP-Web',
+        revision: 'a'.repeat(40),
+        version: '0.3.0',
+        managedFileCount: 1,
+        message: null,
+      },
+      target: {
+        sourceRepository: 'Ken24T/TCTBP-Web',
+        sourceRevision: 'a'.repeat(40),
+        sourceVersion: '0.3.0',
+      },
+      cleanup: {
+        branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+        available: false,
+        reason: 'upgrade/tctbp-0.3.0-aaaaaaa has not been merged back into main yet — merge and push it first, then it can be removed safely.',
+      },
+      drift: {
+        files: [],
+        counts: { current: 1, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
+      },
+    } satisfies TctbpUpgradePlan
+
+    const markup = renderToStaticMarkup(
+      <TctbpUpgradePanel
+        repositoryName="example-repository"
+        plan={plan}
+        busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
+        onLoad={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
+        onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Upgrade branch cleanup')
+    expect(markup).toContain('has not been merged back')
+    expect(markup).not.toContain('Clean up upgrade branch')
   })
 })

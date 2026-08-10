@@ -60,6 +60,7 @@ interface RepositoryDetailProps {
   onApplyAlignment: () => void
   onDeleteObsolete: () => void
   onApplyInOrder: () => void
+  onCleanupUpgradeBranch: () => void
 }
 
 export function RepositoryDetail({
@@ -97,6 +98,7 @@ export function RepositoryDetail({
   onApplyAlignment,
   onDeleteObsolete,
   onApplyInOrder,
+  onCleanupUpgradeBranch,
 }: RepositoryDetailProps) {
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
@@ -205,6 +207,7 @@ export function RepositoryDetail({
               onApplyAlignment={onApplyAlignment}
               onDeleteObsolete={onDeleteObsolete}
               onApplyInOrder={onApplyInOrder}
+              onCleanupUpgradeBranch={onCleanupUpgradeBranch}
             />
           </div>
         </div>

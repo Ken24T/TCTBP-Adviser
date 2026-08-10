@@ -40,6 +40,20 @@ export function PlanDetails({ plan }: { plan: TctbpUpgradePlan }) {
         </section>
       )}
 
+      {plan.target.upgradeBranch && (
+        <section className="mb-4 p-3 bg-surface-soft border border-border rounded-lg text-sm text-text-secondary" aria-label="Dedicated upgrade branch">
+          <strong className="block text-sm font-semibold text-text-primary mb-1">
+            Dedicated upgrade branch
+          </strong>
+          Apply will create{' '}
+          <code className="text-xs bg-surface-inset px-1.5 py-0.5 rounded">{plan.target.upgradeBranch}</code>{' '}
+          from the current branch and switch to it before writing managed files.
+          Your working tree must be clean. Nothing is committed or pushed — after
+          applying, checkpoint, publish, then merge the branch back to{' '}
+          <code className="text-xs bg-surface-inset px-1.5 py-0.5 rounded">{plan.target.branch}</code>.
+        </section>
+      )}
+
       {plan.blockers.length > 0 && (
         <ul className="mb-4 space-y-2">
           {plan.blockers.map((blocker) => (

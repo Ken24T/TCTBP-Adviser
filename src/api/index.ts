@@ -21,6 +21,7 @@ export {
 } from './bootstrap'
 export {
   applyTctbpUpgradePlan,
+  cleanupTctbpUpgradeBranch,
   loadTctbpUpgradePlan,
   loadTctbpUpgradeReview,
 } from './upgrade'

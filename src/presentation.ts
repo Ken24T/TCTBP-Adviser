@@ -211,7 +211,6 @@ export function blockerHint(code: string): string | null {
     'policy-unavailable': 'Ensure both policies can be compared (fetch or pull), then retry.',
     'managed-source-unavailable': 'A canonical managed file could not be read — check the TCTBP-Web checkout.',
     'different-source': 'Regenerate from the canonical Ken24T/TCTBP-Web source.',
-    'environment-branch': 'Switch to a branch the target environment is configured for.',
     'stale-plan': 'Refresh the plan so its fingerprint matches the current repository state.',
   }
   return hints[code as TctbpUpgradeBlockerCode] ?? null

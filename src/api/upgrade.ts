@@ -3,9 +3,19 @@ import type {
   TctbpApplyMode,
   TctbpApplyResult,
   TctbpApplyStep,
+  TctbpCleanupResult,
   TctbpUpgradePlan,
 } from '../../shared/tctbp-upgrade'
 import { requestJson } from './client'
+
+export async function cleanupTctbpUpgradeBranch(
+  repositoryId: string,
+): Promise<TctbpCleanupResult> {
+  return requestJson<TctbpCleanupResult>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/tctbp-cleanup`,
+    { method: 'POST' },
+  )
+}
 
 export async function loadTctbpUpgradeReview(
   repositoryId: string,

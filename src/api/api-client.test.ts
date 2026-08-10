@@ -4,6 +4,7 @@ import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import {
   applyTctbpUpgradePlan,
+  cleanupTctbpUpgradeBranch,
   loadPortfolio,
   loadReferenceCatalogue,
   loadRepositoryDetail,
@@ -47,6 +48,25 @@ describe('repository detail client', () => {
           confirmDeletions: false,
         }),
       }),
+    )
+  })
+
+  it('requests removal of a merged upgrade branch', async () => {
+    const result = {
+      status: 'cleaned',
+      branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+      localDeleted: true,
+      remoteDeleted: true,
+      committed: false,
+      pushed: false,
+    } as const
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(result))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(cleanupTctbpUpgradeBranch('opaque-id')).resolves.toStrictEqual(result)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/repositories/opaque-id/tctbp-cleanup',
+      expect.objectContaining({ method: 'POST' }),
     )
   })
 

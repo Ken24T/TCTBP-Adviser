@@ -58,6 +58,7 @@ describe('repository detail view', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
@@ -129,6 +130,7 @@ describe('repository detail view', () => {
         onApplyAlignment={() => undefined}
         onDeleteObsolete={() => undefined}
         onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
       />,
     )
 
@@ -222,6 +224,7 @@ function renderDetail(
       onApplyAlignment={() => undefined}
       onDeleteObsolete={() => undefined}
       onApplyInOrder={() => undefined}
+      onCleanupUpgradeBranch={() => undefined}
     />,
   )
 }

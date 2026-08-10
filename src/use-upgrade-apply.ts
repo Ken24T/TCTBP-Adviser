@@ -5,7 +5,7 @@ import type {
   TctbpApplyMode,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
-import { applyTctbpUpgradePlan } from './api'
+import { applyTctbpUpgradePlan, cleanupTctbpUpgradeBranch } from './api'
 
 export interface ApplyStepDefinition {
   mode: TctbpApplyMode
@@ -40,6 +40,7 @@ export interface UpgradeApply {
   applyAlignment: () => Promise<void>
   applyDeleteObsolete: () => Promise<void>
   applyInOrder: () => Promise<void>
+  cleanupUpgradeBranch: () => Promise<void>
 }
 
 /**
@@ -233,6 +234,36 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     return runSteps([step], step.confirmation)
   }
 
+  async function cleanupUpgradeBranch(): Promise<void> {
+    if (!selectedId) return
+    const cleanup = upgradePlan?.cleanup
+    if (!cleanup?.branch || !cleanup.available) return
+    if (!window.confirm(
+      `Remove the merged upgrade branch ${cleanup.branch} locally and on origin? Its commits are already part of the current branch, so nothing is lost.`,
+    )) return
+    setApplyBusy(true)
+    setUpgradeFeedback(null)
+    setError(null)
+    try {
+      const result = await cleanupTctbpUpgradeBranch(selectedId)
+      markMutated()
+      await refreshDetail(selectedId, intent)
+      await refreshUpgradePlan(selectedId)
+      setUpgradeFeedback(
+        result.status === 'cleaned'
+          ? `Removed ${result.branch} (${[
+            result.localDeleted ? 'local' : null,
+            result.remoteDeleted ? 'remote' : null,
+          ].filter(Boolean).join(' + ') || 'nothing to remove'}).`
+          : 'There was no upgrade branch to clean up.',
+      )
+    } catch (cause) {
+      reportError(cause)
+    } finally {
+      setApplyBusy(false)
+    }
+  }
+
   async function applyInOrder(): Promise<void> {
     const steps = applicableSteps()
     if (steps.length === 0) return
@@ -249,5 +280,6 @@ export function useUpgradeApply(deps: UpgradeApplyDependencies): UpgradeApply {
     applyAlignment,
     applyDeleteObsolete,
     applyInOrder,
+    cleanupUpgradeBranch,
   }
 }

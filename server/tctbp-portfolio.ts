@@ -52,9 +52,8 @@ export function summarizePortfolioUpgrades(
     blocked: localPlans.filter(
       (repository) => (
         (repository.upgrade?.blockerCount ?? 0) > 0
-        // A current repo on an environment branch carries an
-        // environment-branch blocker (apply needs an upgrade branch), but
-        // there is nothing to apply — counting it as "blocked" is misleading.
+        // A 'current' repo has no review work to apply; a residual safety
+        // blocker (e.g. a dirty working tree) is not a blocked upgrade.
         && repository.upgrade?.disposition !== 'current'
       ),
     ).length,

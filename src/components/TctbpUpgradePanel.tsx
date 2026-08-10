@@ -46,6 +46,7 @@ interface TctbpUpgradePanelProps {
   onApplyAlignment: () => void
   onDeleteObsolete: () => void
   onApplyInOrder: () => void
+  onCleanupUpgradeBranch: () => void
 }
 
 export function TctbpUpgradePanel({
@@ -72,6 +73,7 @@ export function TctbpUpgradePanel({
   onApplyAlignment,
   onDeleteObsolete,
   onApplyInOrder,
+  onCleanupUpgradeBranch,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [aiAcknowledged, setAiAcknowledged] = useState(false)
@@ -333,9 +335,46 @@ export function TctbpUpgradePanel({
             </ol>
             <p className="mt-2 text-xs text-text-faint">
               Every apply only touches the working tree — nothing is committed or
-              pushed. Review the changes, then checkpoint them from the card.
+              pushed.{plan.target.upgradeBranch ? (
+                <> Apply first switches to a dedicated upgrade branch (<code className="bg-surface-inset px-1 py-0.5 rounded">{plan.target.upgradeBranch}</code>); checkpoint, publish, then merge it back to {plan.target.branch}.</>
+              ) : null}{' '}
+              Review the changes, then checkpoint them from the card.
             </p>
           </div>
+
+          {plan.cleanup?.branch && (
+            <div
+              aria-label="Upgrade branch cleanup"
+              className={`mb-4 p-3 rounded-lg border text-sm ${
+                plan.cleanup.available
+                  ? 'bg-teal-50 border-teal-200 text-teal-900'
+                  : 'bg-surface-soft border-border text-text-secondary'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="block font-semibold text-text-primary">
+                    Upgrade branch cleanup
+                  </strong>
+                  <p className="mt-1 text-xs">
+                    {plan.cleanup.available
+                      ? `${plan.cleanup.branch} is fully merged and safe to remove — this deletes it locally and on origin.`
+                      : plan.cleanup.reason}
+                  </p>
+                </div>
+                {plan.cleanup.available && (
+                  <Button
+                    className="shrink-0"
+                    disabled={applyBusy}
+                    size="sm"
+                    onClick={onCleanupUpgradeBranch}
+                  >
+                    {applyBusy ? 'Cleaning up…' : 'Clean up upgrade branch'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           {feedback && (
             <p className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg text-sm text-teal-900">

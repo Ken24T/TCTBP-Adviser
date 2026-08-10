@@ -303,6 +303,7 @@ function App() {
     applyAlignment,
     applyDeleteObsolete,
     applyInOrder,
+    cleanupUpgradeBranch,
   } = useUpgradeApply({
     selectedId,
     upgradePlan,
@@ -515,6 +516,7 @@ function App() {
             onApplyAlignment={() => void applyAlignment()}
             onDeleteObsolete={() => void applyDeleteObsolete()}
             onApplyInOrder={() => void applyInOrder()}
+            onCleanupUpgradeBranch={() => void cleanupUpgradeBranch()}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

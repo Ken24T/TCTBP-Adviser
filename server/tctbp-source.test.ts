@@ -166,6 +166,8 @@ describe('canonical TCTBP-Web source planning', () => {
       sourceRepository: 'Ken24T/TCTBP-Web',
       sourceRevision: 'old'.repeat(10),
       sourceVersion: '0.2.0',
+      // Not on an environment branch, so no dedicated upgrade branch is needed.
+      upgradeBranch: null,
     })
     expect(plan.drift.counts).toEqual({
       current: 1,
@@ -206,6 +208,232 @@ describe('canonical TCTBP-Web source planning', () => {
       .resolves.toBe('{}\n')
     await expect(readFile(path.join(target, 'scripts', 'tctbp-core.js'), 'utf8'))
       .resolves.toBe('same\n')
+  })
+
+  it('auto-creates a dedicated upgrade branch when applying on an environment branch', async () => {
+    const { source, target } = await fixtureRepositories()
+    // The fixture target is a plain directory; the upgrade-branch apply runs
+    // real git switch commands, so make it a repository first.
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: 'old'.repeat(10),
+      sourceVersion: '0.2.0',
+    }, 'development', [], true)
+    const plan = await service.plan(target, observation)
+    expect(plan.target.upgradeBranch).toBe('upgrade/tctbp-0.3.0-aaaaaaa')
+    expect(plan.disposition).toBe('review-required')
+    // No hard blocker: the apply step resolves the environment branch itself.
+    expect(plan.blockers).toEqual([])
+
+    const result = await service.apply(target, observation, {
+      confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
+      planFingerprint: plan.fingerprint ?? '',
+      mode: 'additions-only',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+    })
+
+    expect(result).toMatchObject({
+      status: 'applied',
+      branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+      branchCreated: true,
+      committed: false,
+      pushed: false,
+    })
+    expect(git(target, ['branch', '--show-current']))
+      .toBe('upgrade/tctbp-0.3.0-aaaaaaa')
+    await expect(readFile(path.join(target, 'schemas', 'contract.json'), 'utf8'))
+      .resolves.toBe('{}\n')
+  })
+
+  it('reuses an existing upgrade branch instead of creating a second one', async () => {
+    const { source, target } = await fixtureRepositories()
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['switch', '-c', upgradeBranch])
+    git(target, ['switch', 'development'])
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: 'old'.repeat(10),
+      sourceVersion: '0.2.0',
+    }, 'development', [], true)
+    const plan = await service.plan(target, observation)
+
+    const result = await service.apply(target, observation, {
+      confirm: true,
+      aiReviewId: 'test-review',
+      aiReviewAcknowledged: true,
+      planFingerprint: plan.fingerprint ?? '',
+      mode: 'additions-only',
+      approvedPaths: [],
+      approvedDeletionPaths: [],
+      confirmDeletions: false,
+    })
+
+    expect(result).toMatchObject({
+      status: 'applied',
+      branch: upgradeBranch,
+      branchCreated: false,
+      committed: false,
+      pushed: false,
+    })
+    expect(git(target, ['branch', '--show-current'])).toBe(upgradeBranch)
+  })
+
+  it('offers cleanup once the upgrade branch is merged back and verified', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+    git(target, ['switch', 'development'])
+    git(target, ['merge', '--no-ff', upgradeBranch, '-m', `chore: merge ${upgradeBranch}`])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, 'development', [], true)
+    const plan = await service.plan(target, observation)
+
+    expect(plan.cleanup).toEqual({
+      branch: upgradeBranch,
+      available: true,
+      reason: null,
+    })
+  })
+
+  it('withholds cleanup while on the upgrade branch, until merged, or when dirty', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const scaffold = {
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }
+
+    // On the upgrade branch: refuse.
+    git(target, ['switch', '-c', upgradeBranch])
+    let observation = targetObservation(scaffold, upgradeBranch, [], true)
+    let plan = await service.plan(target, observation)
+    expect(plan.cleanup).toMatchObject({
+      branch: upgradeBranch,
+      available: false,
+    })
+    expect(plan.cleanup?.reason).toMatch(/currently on/)
+
+    // Created with a unique commit but not merged back: refuse.
+    await writeFile(path.join(target, 'upgrade.txt'), 'upgrade\n')
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: upgrade change'])
+    git(target, ['switch', 'development'])
+    observation = targetObservation(scaffold, 'development', [], true)
+    plan = await service.plan(target, observation)
+    expect(plan.cleanup).toMatchObject({ available: false })
+    expect(plan.cleanup?.reason).toMatch(/not been merged/)
+
+    // Merged back but the working tree is dirty: refuse.
+    git(target, ['merge', '--no-ff', upgradeBranch, '-m', `chore: merge ${upgradeBranch}`])
+    await writeFile(path.join(target, 'untracked.txt'), 'dirty\n')
+    observation = targetObservation(scaffold, 'development', [], true)
+    observation = {
+      ...observation,
+      workingTree: { ...observation.workingTree, clean: false },
+    }
+    plan = await service.plan(target, observation)
+    expect(plan.cleanup).toMatchObject({ available: false })
+    expect(plan.cleanup?.reason).toMatch(/not clean/)
+  })
+
+  it('removes a merged upgrade branch locally and on origin', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+    git(target, ['switch', 'development'])
+    git(target, ['merge', '--no-ff', upgradeBranch, '-m', `chore: merge ${upgradeBranch}`])
+    const remote = await createTemporaryDirectory()
+    temporaryDirectories.push(remote)
+    git(remote, ['init', '--bare'])
+    git(target, ['remote', 'add', 'origin', remote])
+    git(target, ['push', '-u', 'origin', 'development'])
+    git(target, ['push', '-u', 'origin', upgradeBranch])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, 'development', [], true)
+
+    const result = await service.cleanupUpgradeBranch(target, observation)
+
+    expect(result).toEqual({
+      status: 'cleaned',
+      branch: upgradeBranch,
+      localDeleted: true,
+      remoteDeleted: true,
+      committed: false,
+      pushed: false,
+    })
+    expect(git(target, ['branch', '--list', upgradeBranch])).toBe('')
+    expect(git(remote, ['show-ref'])).not.toContain(upgradeBranch)
+  })
+
+  it('refuses cleanup while the upgrade branch is not merged', async () => {
+    const { source, target } = await fixtureRepositories()
+    const upgradeBranch = 'upgrade/tctbp-0.3.0-aaaaaaa'
+    git(target, ['init', '-b', 'development'])
+    git(target, ['config', 'user.name', 'TCTBP Test'])
+    git(target, ['config', 'user.email', 'test@example.invalid'])
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: base'])
+    git(target, ['switch', '-c', upgradeBranch])
+    await writeFile(path.join(target, 'upgrade.txt'), 'upgrade\n')
+    git(target, ['add', '.'])
+    git(target, ['commit', '-m', 'test: upgrade change'])
+    git(target, ['switch', 'development'])
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.0',
+    }, 'development', [], true)
+
+    await expect(service.cleanupUpgradeBranch(target, observation))
+      .rejects.toMatchObject({ code: 'upgrade-cleanup-blocked' })
+    // The branch must still exist.
+    expect(git(target, ['branch', '--list', upgradeBranch])).toBe(upgradeBranch)
   })
 
   it('rejects a stale apply plan without changing the target', async () => {
@@ -391,10 +619,10 @@ describe('canonical TCTBP-Web source planning', () => {
       managedFileCount: 3,
       requiredInputs: expect.arrayContaining(['Project name and description']),
     })
-    expect(plan.blockers).toContainEqual({
-      code: 'environment-branch',
-      message: 'The target is on a configured environment branch; use a dedicated upgrade branch.',
-    })
+    // Being on an environment branch is no longer a blocker; the plan instead
+    // carries the dedicated upgrade branch the apply step would use.
+    expect(plan.blockers).toEqual([])
+    expect(plan.target.upgradeBranch).toBe('upgrade/tctbp-0.3.0-aaaaaaa')
   })
 
   it('returns a non-mutating unavailable plan without a source checkout', async () => {

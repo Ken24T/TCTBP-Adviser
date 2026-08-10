@@ -180,5 +180,22 @@ export async function handleUpgradeRoutes(
     return true
   }
 
+  const cleanupMatch =
+    /^\/api\/repositories\/([^/]+)\/tctbp-cleanup$/.exec(url.pathname)
+  if (request.method === 'POST' && cleanupMatch) {
+    await requireEmptyBody(request)
+    const repository = await runtime.registry.require(
+      decodeURIComponent(cleanupMatch[1]),
+    )
+    const observation = await runtime.inspections.inspect(repository)
+    const result = await runtime.tctbpSource.cleanupUpgradeBranch(
+      repository.path,
+      observation,
+    )
+    runtime.portfolio.invalidate()
+    sendJson(response, 200, result)
+    return true
+  }
+
   return false
 }

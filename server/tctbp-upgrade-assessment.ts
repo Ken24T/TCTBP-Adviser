@@ -46,20 +46,12 @@ export function assessTctbpUpgrade(
     || actionCounts.unavailable > 0
     || (input.drift.obsoleteTargets?.length ?? 0) > 0
   )
-  // The environment-branch blocker only constrains *where* changes may be
-  // applied (a dedicated upgrade branch); it is not evidence that the managed
-  // surface needs work. When the surface is otherwise fully aligned, being on
-  // an environment branch alone must not force 'review-required' — that would
-  // surface a spurious "Update TCTBP" on every clean, current repo checked out
-  // on development/review/main.
-  const applyOnlyBlocker = (
-    blockers.length === 1
-    && blockers[0]?.code === 'environment-branch'
-  )
-  const reviewWorkRequired = (
-    hasReviewWork
-    || (blockers.length > 0 && !applyOnlyBlocker)
-  )
+  // Being on an environment branch is not a blocker: the apply step creates a
+  // dedicated upgrade branch before writing managed files, so the current
+  // branch only constrains *where* the changes land — never whether the
+  // surface needs work. Safety blockers (dirty tree, active git operation,
+  // detached HEAD) still gate the apply.
+  const reviewWorkRequired = hasReviewWork || blockers.length > 0
 
   return {
     disposition: input.source.state !== 'available'
@@ -153,12 +145,6 @@ function resolveBlockers(
     blockers.push({
       code: 'detached-head',
       message: 'The target repository is on a detached HEAD.',
-    })
-  }
-  if (input.targetState.environmentBranch) {
-    blockers.push({
-      code: 'environment-branch',
-      message: 'The target is on a configured environment branch; use a dedicated upgrade branch.',
     })
   }
   return blockers

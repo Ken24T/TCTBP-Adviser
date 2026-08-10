@@ -22,7 +22,9 @@ import type {
   TctbpApplyRequest,
   TctbpApplyResult,
   TctbpApplyStep,
+  TctbpCleanupResult,
   TctbpPolicyComparison,
+  TctbpUpgradeCleanup,
   TctbpUpgradePlan,
 } from '../shared/tctbp-upgrade'
 import {
@@ -234,7 +236,17 @@ export class CanonicalTctbpSourceService {
       sourceRepository: targetObservation.tctbp.scaffold.sourceRepository,
       sourceRevision: targetObservation.tctbp.scaffold.sourceRevision,
       sourceVersion: targetObservation.tctbp.scaffold.sourceVersion,
+      // When the target is checked out on a configured environment branch,
+      // the apply step creates (or reuses) this dedicated upgrade branch so
+      // managed-file writes never land directly on development/review/main.
+      upgradeBranch: (
+        source.state === 'available'
+        && isEnvironmentBranch(targetObservation)
+      )
+        ? upgradeBranchName(source.revision, source.version)
+        : null,
     }
+    const cleanup = await computeUpgradeCleanup(targetRoot, targetObservation)
 
     if (source.state !== 'available' || !sourceRoot) {
       return createPlan(
@@ -243,6 +255,7 @@ export class CanonicalTctbpSourceService {
         emptyManagedFileDriftPlan(),
         { state: 'unavailable', differences: [] },
         targetObservation,
+        cleanup,
       )
     }
 
@@ -281,6 +294,7 @@ export class CanonicalTctbpSourceService {
       drift,
       policy,
       targetObservation,
+      cleanup,
     )
   }
 
@@ -302,11 +316,28 @@ export class CanonicalTctbpSourceService {
         'The upgrade plan is blocked — resolve any blockers (e.g. uncommitted local changes) before applying.',
       )
     }
-    if (!targetObservation.head.branch || isEnvironmentBranch(targetObservation)) {
+    if (!targetObservation.head.branch) {
       throw new AdviserError(
-        'upgrade-environment-branch',
-        'Create a dedicated upgrade branch before applying TCTBP infrastructure changes.',
+        'upgrade-no-branch',
+        'The target repository has no active branch to apply from.',
       )
+    }
+    // On a configured environment branch, first move the working tree onto a
+    // dedicated upgrade branch (created from the current branch, or reused if
+    // a previous attempt left one behind). The apply itself stays strictly
+    // working-tree-only: nothing is committed or pushed, and the environment
+    // branch history is never touched.
+    let branch = targetObservation.head.branch
+    let branchCreated = false
+    if (isEnvironmentBranch(targetObservation)) {
+      const prepared = await prepareUpgradeBranch(
+        targetRoot,
+        targetObservation,
+        plan.source.revision,
+        plan.source.version,
+      )
+      branch = prepared.branch
+      branchCreated = prepared.created
     }
 
     const steps = request.steps && request.steps.length > 0
@@ -407,6 +438,65 @@ export class CanonicalTctbpSourceService {
       planFingerprint: plan.fingerprint,
       committed: false,
       pushed: false,
+      branch,
+      branchCreated,
+    }
+  }
+
+  /**
+   * Removes a leftover upgrade branch once it has been merged back and
+   * verified. Re-checks the same safety gates as the plan (fully merged into
+   * the current branch, clean working tree, not the checked-out branch) and
+   * refuses otherwise. Deletes the local branch and, when present on origin,
+   * the remote one. Nothing else is touched.
+   */
+  async cleanupUpgradeBranch(
+    targetRoot: string,
+    targetObservation: UpgradeTargetObservation,
+  ): Promise<TctbpCleanupResult> {
+    const cleanup = await computeUpgradeCleanup(targetRoot, targetObservation)
+    if (!cleanup?.branch) {
+      throw new AdviserError(
+        'upgrade-cleanup-unavailable',
+        'There is no upgrade branch to clean up.',
+      )
+    }
+    if (!cleanup.available) {
+      throw new AdviserError(
+        'upgrade-cleanup-blocked',
+        cleanup.reason ?? 'The upgrade branch cannot be removed yet.',
+      )
+    }
+    const { branch } = cleanup
+    let localDeleted = false
+    if (await localBranchExists(targetRoot, branch)) {
+      try {
+        // `git branch -d` itself refuses to delete an unmerged branch.
+        await execFileAsync('git', ['branch', '-d', branch], { cwd: targetRoot })
+      } catch (cause) {
+        throw new AdviserError(
+          'upgrade-cleanup-blocked',
+          `Could not remove ${branch}: ${cause instanceof Error ? cause.message : String(cause)}`,
+        )
+      }
+      localDeleted = true
+    }
+    let remoteDeleted = false
+    if (await remoteBranchExists(targetRoot, branch)) {
+      await execFileAsync(
+        'git',
+        ['push', 'origin', '--delete', branch],
+        { cwd: targetRoot },
+      )
+      remoteDeleted = true
+    }
+    return {
+      status: 'cleaned',
+      branch,
+      localDeleted,
+      remoteDeleted,
+      committed: false,
+      pushed: false,
     }
   }
 
@@ -471,6 +561,142 @@ function isEnvironmentBranch(observation: UpgradeTargetObservation): boolean {
     observation.tctbp.branchModel.preProductionBranch,
     observation.tctbp.branchModel.productionBranch,
   ].includes(branch)
+}
+
+const UPGRADE_BRANCH_PREFIX = 'upgrade/tctbp-'
+
+/**
+ * Deterministic, self-describing upgrade-branch name derived from the
+ * canonical version and revision (e.g. `upgrade/tctbp-0.3.6-78b75fc`), so a
+ * leftover branch is immediately recognizable as a TCTBP upgrade to that
+ * version. Idempotent across retries and reusable across machines.
+ */
+function upgradeBranchName(
+  sourceRevision: string | null,
+  sourceVersion: string | null,
+): string {
+  const revision = sourceRevision?.slice(0, 7) ?? null
+  const version = sourceVersion?.trim() || null
+  if (version && revision) return `${UPGRADE_BRANCH_PREFIX}${version}-${revision}`
+  if (version) return `${UPGRADE_BRANCH_PREFIX}${version}`
+  if (revision) return `${UPGRADE_BRANCH_PREFIX}${revision}`
+  return `${UPGRADE_BRANCH_PREFIX}source`
+}
+
+/**
+ * Determines whether a leftover upgrade branch exists and can be removed
+ * safely. Only the branch that corresponds to the target's *recorded* source
+ * version+revision (i.e. the branch a previous apply actually created) is
+ * considered. Removal is offered only after everything is verified: the
+ * branch is fully merged into the current branch (nothing is lost), the
+ * working tree is clean, and it is not the checked-out branch.
+ */
+async function computeUpgradeCleanup(
+  targetRoot: string,
+  observation: UpgradeTargetObservation,
+): Promise<TctbpUpgradeCleanup | null> {
+  const recordedRevision = observation.tctbp.scaffold.sourceRevision
+  const recordedVersion = observation.tctbp.scaffold.sourceVersion
+  if (!recordedRevision && !recordedVersion) return null
+  const branch = upgradeBranchName(recordedRevision, recordedVersion)
+  if (!(await localBranchExists(targetRoot, branch))) return null
+  const currentBranch = observation.head.branch
+  if (currentBranch === branch) {
+    return {
+      branch,
+      available: false,
+      reason: `You are currently on ${branch}; switch back to the environment branch before removing it.`,
+    }
+  }
+  if (!observation.workingTree.clean) {
+    return {
+      branch,
+      available: false,
+      reason: 'The working tree is not clean; checkpoint or commit before cleaning up.',
+    }
+  }
+  if (!(await branchIsAncestorOfHead(targetRoot, branch))) {
+    return {
+      branch,
+      available: false,
+      reason: `${branch} has not been merged back into ${currentBranch ?? 'the current branch'} yet — merge and push it first, then it can be removed safely.`,
+    }
+  }
+  return { branch, available: true, reason: null }
+}
+
+async function branchIsAncestorOfHead(targetRoot: string, branch: string): Promise<boolean> {
+  try {
+    await execFileAsync(
+      'git',
+      ['merge-base', '--is-ancestor', branch, 'HEAD'],
+      { cwd: targetRoot },
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function remoteBranchExists(targetRoot: string, branch: string): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['ls-remote', '--heads', 'origin', `refs/heads/${branch}`],
+      { cwd: targetRoot },
+    )
+    return stdout.trim().length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Moves the working tree onto the dedicated upgrade branch before the apply
+ * writes managed files. Creates the branch from the current HEAD, or reuses an
+ * existing one left behind by a previous attempt (the apply is idempotent over
+ * managed files, so re-applying the same plan on it is safe). Requires an
+ * attached branch and a clean working tree — the same guards the plan exposes
+ * as safety blockers — so uncommitted work is never carried onto the branch.
+ */
+async function prepareUpgradeBranch(
+  targetRoot: string,
+  observation: UpgradeTargetObservation,
+  sourceRevision: string | null,
+  sourceVersion: string | null,
+): Promise<{ branch: string; created: boolean }> {
+  if (observation.head.detached || !observation.head.branch) {
+    throw new AdviserError(
+      'upgrade-no-branch',
+      'The target repository has no active branch to apply from.',
+    )
+  }
+  if (!observation.workingTree.clean) {
+    throw new AdviserError(
+      'upgrade-working-tree-dirty',
+      'The working tree must be clean before creating a dedicated upgrade branch.',
+    )
+  }
+  const branch = upgradeBranchName(sourceRevision, sourceVersion)
+  if (await localBranchExists(targetRoot, branch)) {
+    await execFileAsync('git', ['switch', branch], { cwd: targetRoot })
+    return { branch, created: false }
+  }
+  await execFileAsync('git', ['switch', '-c', branch], { cwd: targetRoot })
+  return { branch, created: true }
+}
+
+async function localBranchExists(targetRoot: string, branch: string): Promise<boolean> {
+  try {
+    await execFileAsync(
+      'git',
+      ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`],
+      { cwd: targetRoot },
+    )
+    return true
+  } catch {
+    return false
+  }
 }
 
 interface ApplyStepSelection {
@@ -556,6 +782,7 @@ function createPlan(
   drift: TctbpUpgradePlan['drift'],
   policy: TctbpPolicyComparison,
   targetObservation: UpgradeTargetObservation,
+  cleanup: TctbpUpgradeCleanup | null,
 ): TctbpUpgradePlan {
   const assessment = assessTctbpUpgrade({
     source: withoutManagedPaths(source),
@@ -603,6 +830,7 @@ function createPlan(
         },
       }
       : {}),
+    ...(cleanup?.branch ? { cleanup } : {}),
   }
   return {
     ...plan,

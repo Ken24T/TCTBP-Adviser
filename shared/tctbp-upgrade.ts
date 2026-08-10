@@ -83,7 +83,6 @@ export type TctbpUpgradeBlockerCode =
   | 'policy-unavailable'
   | 'managed-source-unavailable'
   | 'different-source'
-  | 'environment-branch'
   | 'stale-plan'
 
 export interface TctbpUpgradeBlocker {
@@ -130,6 +129,34 @@ export interface TctbpApplyResult {
   planFingerprint: string
   committed: false
   pushed: false
+  /** Branch the apply landed on (the pre-existing branch or the upgrade branch). */
+  branch?: string | null
+  /** True when this apply created the dedicated upgrade branch. */
+  branchCreated?: boolean
+}
+
+/**
+ * Post-upgrade housekeeping signal: when an upgrade branch exists (created by
+ * a previous apply and never removed), describes whether it is safe to delete.
+ * Only offered once the branch has been merged back and verified.
+ */
+export interface TctbpUpgradeCleanup {
+  /** The leftover upgrade branch, or null when none exists. */
+  branch: string | null
+  /** True only when the branch is fully merged, the tree is clean, and it is
+   * not the checked-out branch — i.e. deleting it loses nothing. */
+  available: boolean
+  /** Human-readable reason when cleanup is not available, else null. */
+  reason: string | null
+}
+
+export interface TctbpCleanupResult {
+  status: 'cleaned' | 'nothing-to-clean'
+  branch: string | null
+  localDeleted: boolean
+  remoteDeleted: boolean
+  committed: false
+  pushed: false
 }
 
 export interface TctbpUpgradePlan {
@@ -143,10 +170,19 @@ export interface TctbpUpgradePlan {
     sourceRepository: string | null
     sourceRevision: string | null
     sourceVersion: string | null
+    /**
+     * When the target is checked out on a configured environment branch, this
+     * is the dedicated upgrade branch the apply step will create (or reuse)
+     * and switch to before writing any managed files. Null when the target is
+     * already on a branch the apply can write to directly.
+     */
+    upgradeBranch?: string | null
   }
   drift: ManagedFileDriftPlan
   actionCounts: ManagedFileActionCounts
   blockers: TctbpUpgradeBlocker[]
   policy: TctbpPolicyComparison
   bootstrap?: TctbpBootstrapPlan
+  /** Present when a leftover upgrade branch exists and can be assessed for safe removal. */
+  cleanup?: TctbpUpgradeCleanup
 }

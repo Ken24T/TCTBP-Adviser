@@ -74,7 +74,7 @@ describe('TCTBP upgrade assessment', () => {
     expect(assessment.disposition).toBe('bootstrap-required')
   })
 
-  it('does not force review-required when only the environment branch blocks', () => {
+  it('does not block when only the environment branch constrains the apply', () => {
     const assessment = assessTctbpUpgrade({
       source,
       target,
@@ -92,9 +92,9 @@ describe('TCTBP upgrade assessment', () => {
 
     expect(assessment.disposition).toBe('current')
     expect(assessment.sourceAlignment).toBe('current')
-    expect(assessment.blockers.map((blocker) => blocker.code)).toEqual([
-      'environment-branch',
-    ])
+    // Being on an environment branch is no longer a blocker: the apply step
+    // creates a dedicated upgrade branch automatically.
+    expect(assessment.blockers).toEqual([])
   })
 
   it('treats the canonical source repo itself as current when HEAD equals the source revision', () => {
@@ -198,7 +198,6 @@ describe('TCTBP upgrade assessment', () => {
       'working-tree-dirty',
       'active-git-operation',
       'detached-head',
-      'environment-branch',
     ])
   })
 })
