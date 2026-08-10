@@ -86,6 +86,56 @@ describe('semantic TCTBP policy comparison', () => {
     })
   })
 
+  it('preserves the target template identity when merging governance', () => {
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        governance: {
+          sourceOfTruth: 'TCTBP.json',
+          fallbackDocument: 'TCTBP Agent.md',
+          templateMode: true,
+          templateType: 'web',
+          templateInstructions: 'This repository is the canonical source.',
+        },
+        candidateGuard: { enabled: true },
+      }),
+      JSON.stringify({
+        governance: {
+          sourceOfTruth: 'TCTBP.json',
+          fallbackDocument: 'TCTBP Agent.md',
+          templateMode: false,
+          templateInstructions: 'Preserve repo-specific commands.',
+        },
+      }),
+    )
+
+    expect(JSON.parse(merged as string).governance).toMatchObject({
+      sourceOfTruth: 'TCTBP.json',
+      fallbackDocument: 'TCTBP Agent.md',
+      templateMode: false,
+      templateInstructions: 'Preserve repo-specific commands.',
+    })
+  })
+
+  it('defaults governance to a non-template profile when the target has none', () => {
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        governance: {
+          sourceOfTruth: 'TCTBP.json',
+          fallbackDocument: 'TCTBP Agent.md',
+          templateMode: true,
+          templateType: 'web',
+        },
+      }),
+      JSON.stringify({ schemaVersion: 10 }),
+    )
+
+    expect(JSON.parse(merged as string).governance).toMatchObject({
+      sourceOfTruth: 'TCTBP.json',
+      fallbackDocument: 'TCTBP Agent.md',
+      templateMode: false,
+    })
+  })
+
   it('reports aligned policies and unavailable policy input', () => {
     const profile = JSON.stringify({
       schemaVersion: 11,

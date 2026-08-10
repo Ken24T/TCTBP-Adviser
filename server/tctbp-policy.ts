@@ -15,9 +15,14 @@ const CANONICAL_POLICY_KEYS = [
   'schemaVersion',
   'adviserContract',
   'adviserVocabulary',
-  'governance',
   ...HARDENING_AREAS,
   'tagging',
+] as const
+
+const TEMPLATE_IDENTITY_KEYS = [
+  'templateMode',
+  'templateType',
+  'templateInstructions',
 ] as const
 
 type JsonObject = Record<string, unknown>
@@ -56,6 +61,30 @@ export function parseTctbpPolicy(content: string | null): TctbpPolicySnapshot | 
   }
 }
 
+/**
+ * Merges governance from the canonical policy with the target's own template
+ * identity. The canonical governance describes the TCTBP-Web template repo
+ * itself (templateMode: true); downstream projects must keep their own
+ * templateMode / templateType / templateInstructions (or default to a
+ * non-template profile, exactly like bootstrap sets templateMode: false).
+ */
+function mergeGovernance(
+  sourceGovernance: JsonObject | null | undefined,
+  targetGovernance: JsonObject | null | undefined,
+): JsonObject | null | undefined {
+  if (!sourceGovernance) {
+    return targetGovernance ? clone(targetGovernance) : undefined
+  }
+  const identity: JsonObject = targetGovernance
+    ? Object.fromEntries(
+        TEMPLATE_IDENTITY_KEYS
+          .filter((key) => key in targetGovernance)
+          .map((key) => [key, targetGovernance[key]]),
+      )
+    : { templateMode: false }
+  return { ...clone(sourceGovernance), ...identity }
+}
+
 export function mergeCanonicalTctbpPolicy(
   sourceContent: string | null,
   targetContent: string | null,
@@ -74,6 +103,15 @@ export function mergeCanonicalTctbpPolicy(
   const merged: JsonObject = { ...target }
   for (const key of CANONICAL_POLICY_KEYS) {
     if (key in source) merged[key] = clone(source[key])
+  }
+  // Governance carries the canonical source-of-truth declarations, but the
+  // template identity belongs to the target project. Preserve the target's
+  // templateMode / templateType / templateInstructions (default: non-template).
+  if ('governance' in source) {
+    merged.governance = mergeGovernance(
+      objectValue(source.governance),
+      objectValue(target.governance),
+    )
   }
   const sourceProfile = objectValue(source.profile)
   const targetProfile = objectValue(target.profile)
