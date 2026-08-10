@@ -464,4 +464,65 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('has not been merged back')
     expect(markup).not.toContain('Clean up upgrade branch')
   })
+
+  it('shows an hourglass cursor while Jasper is thinking', () => {
+    const plan = {
+      disposition: 'review-required' as const,
+      sourceAlignment: 'outdated' as const,
+      actionCounts: { preserve: 0, add: 1, review: 0, unavailable: 0 },
+      blockers: [],
+      policy: { state: 'drifted' as const, differences: [] },
+      source: {
+        state: 'available' as const,
+        repository: 'TCTBP-Web',
+        revision: 'a'.repeat(40),
+        version: '0.3.0',
+        managedFileCount: 1,
+        message: null,
+      },
+      target: {
+        sourceRepository: 'Ken24T/TCTBP-Web',
+        sourceRevision: 'b'.repeat(40),
+        sourceVersion: '0.2.0',
+      },
+      drift: {
+        files: [],
+        counts: { current: 0, 'missing-target': 1, drifted: 0, 'source-unavailable': 0 },
+      },
+    } satisfies TctbpUpgradePlan
+
+    const markup = renderToStaticMarkup(
+      <TctbpUpgradePanel
+        repositoryName="example-repository"
+        plan={plan}
+        busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={null}
+        aiBusy
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
+        onLoad={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
+        onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('Asking Jasper…')
+    // Hourglass on the whole panel while the AI review is in flight…
+    expect(markup).toContain('cursor-wait')
+    // …and overriding the disabled button's default not-allowed cursor.
+    expect(markup).toContain('disabled:!cursor-wait')
+  })
 })

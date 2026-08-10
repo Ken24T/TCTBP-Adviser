@@ -139,6 +139,7 @@ export function TctbpUpgradePanel({
           onMarkdown={() => exportPlan('markdown')}
         />
       ) : undefined}
+      className={aiBusy ? 'cursor-wait' : undefined}
       eyebrow="Canonical TCTBP-Web"
       title={plan ? dispositionTitle(plan.disposition) : 'Upgrade planner'}
       id="upgrade-plan-title"
@@ -167,6 +168,7 @@ export function TctbpUpgradePanel({
         </Button>
         {plan && (
           <Button
+            className={aiBusy ? 'disabled:!cursor-wait' : undefined}
             disabled={
               aiBusy
               || (plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request)
