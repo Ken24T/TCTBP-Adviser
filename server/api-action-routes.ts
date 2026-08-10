@@ -360,7 +360,9 @@ export async function handleActionRoutes(
         runtime.actionerJobs.start(job.jobId)
         const currentObservation = await runtime.inspections.inspect(repository)
         assertShipPlan(currentObservation, actionRequest.planFingerprint)
-        const result = await new ShipActioner().run(
+        const result = await new ShipActioner(
+          currentObservation.tctbp.branchModel.productionBranch ?? 'main',
+        ).run(
           repository.path,
           currentObservation.head.branch,
           (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),

@@ -47,4 +47,31 @@ describe('ship Actioner', () => {
       () => undefined,
     )).rejects.toThrow('Ship requires the main branch.')
   })
+
+  it('uses a custom production branch when provided', async () => {
+    const root = await createTemporaryDirectory()
+    temporaryDirectories.push(root)
+    const repository = await createGitRepository(root)
+    await mkdir(`${repository}/scripts`)
+    await writeFile(`${repository}/scripts/tctbp-run-ship.js`, 'process.exit(0)\n')
+    git(repository, ['add', '-A'])
+    git(repository, ['commit', '-m', 'test: add ship workflow'])
+    git(repository, ['checkout', '-b', 'master'])
+
+    const result = await new ShipActioner('master').run(
+      repository,
+      'master',
+      () => undefined,
+    )
+
+    expect(result).toMatchObject({
+      workflowId: 'ship',
+      branch: 'master',
+    })
+    await expect(new ShipActioner('master').run(
+      repository,
+      'main',
+      () => undefined,
+    )).rejects.toThrow('Ship requires the master branch.')
+  })
 })
