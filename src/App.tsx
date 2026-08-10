@@ -60,6 +60,7 @@ function App() {
   const [upgradeFeedback, setUpgradeFeedback] = useState<string | null>(null)
   const [aiReview, setAiReview] = useState<AiReviewResult | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
+  const [aiAcknowledged, setAiAcknowledged] = useState(false)
   const [bootstrapPlan, setBootstrapPlan] = useState<TctbpBootstrapPlan | null>(null)
   const [bootstrapBusy, setBootstrapBusy] = useState(false)
   const [bootstrapApplyBusy, setBootstrapApplyBusy] = useState(false)
@@ -224,6 +225,7 @@ function App() {
       if (currentRequest === requestId.current) {
         setUpgradePlan(nextPlan)
         setAiReview(null)
+        setAiAcknowledged(false)
       }
     } catch (cause) {
       captureError(cause, currentRequest)
@@ -241,6 +243,7 @@ function App() {
         ? await loadTctbpBootstrapReview(selectedId, bootstrapPlan.request)
         : await loadTctbpUpgradeReview(selectedId)
       setAiReview(nextReview)
+      setAiAcknowledged(false)
     } catch (cause) {
       captureError(cause, requestId.current)
     } finally {
@@ -354,6 +357,7 @@ function App() {
     setUpgradeFeedback(null)
     setAiReview(null)
     setAiBusy(false)
+    setAiAcknowledged(false)
     setBootstrapPlan(null)
     setBootstrapBusy(false)
     setBootstrapApplyBusy(false)
@@ -384,6 +388,7 @@ function App() {
     setUpgradeFeedback(null)
     setAiReview(null)
     setAiBusy(false)
+    setAiAcknowledged(false)
     setBootstrapPlan(null)
     setBootstrapBusy(false)
     setBootstrapApplyBusy(false)
@@ -498,6 +503,8 @@ function App() {
             upgradeFeedback={upgradeFeedback}
             aiReview={aiReview}
             aiBusy={aiBusy}
+            aiAcknowledged={aiAcknowledged}
+            onAiAcknowledgedChange={setAiAcknowledged}
             bootstrapPlan={bootstrapPlan}
             bootstrapBusy={bootstrapBusy}
             bootstrapApplyBusy={bootstrapApplyBusy}

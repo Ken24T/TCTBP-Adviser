@@ -24,6 +24,7 @@ import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
+import { UpgradeJourneyStrip } from './UpgradeJourneyStrip'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
@@ -41,6 +42,8 @@ interface RepositoryDetailProps {
   upgradeFeedback: string | null
   aiReview: AiReviewResult | null
   aiBusy: boolean
+  aiAcknowledged: boolean
+  onAiAcknowledgedChange: (value: boolean) => void
   bootstrapPlan: TctbpBootstrapPlan | null
   bootstrapBusy: boolean
   bootstrapApplyBusy: boolean
@@ -79,6 +82,8 @@ export function RepositoryDetail({
   upgradeFeedback,
   aiReview,
   aiBusy,
+  aiAcknowledged,
+  onAiAcknowledgedChange,
   bootstrapPlan,
   bootstrapBusy,
   bootstrapApplyBusy,
@@ -136,6 +141,24 @@ export function RepositoryDetail({
         severity={recommendation.severity}
       />
 
+      <UpgradeJourneyStrip
+        plan={upgradePlan}
+        aiReview={aiReview}
+        aiAcknowledged={aiAcknowledged}
+        primaryAction={recommendation.primaryAction}
+        onAiAcknowledgedChange={onAiAcknowledgedChange}
+        busy={upgradeBusy || busy}
+        aiBusy={aiBusy}
+        applyBusy={applyBusy}
+        actionBusy={actionBusy}
+        onLoad={onLoadUpgradePlan}
+        onReviewAi={onReviewAi}
+        onApplyInOrder={onApplyInOrder}
+        onRunRecommended={onRunRecommended}
+        onCleanupUpgradeBranch={onCleanupUpgradeBranch}
+        onRefresh={onRefresh}
+      />
+
       <Section eyebrow="Take action">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <label className="flex items-center gap-3 text-sm text-text-secondary">
@@ -189,6 +212,8 @@ export function RepositoryDetail({
               upgradeFeedback={upgradeFeedback}
               aiReview={aiReview}
               aiBusy={aiBusy}
+              aiAcknowledged={aiAcknowledged}
+              onAiAcknowledgedChange={onAiAcknowledgedChange}
               bootstrapPlan={bootstrapPlan}
               bootstrapBusy={bootstrapBusy}
               bootstrapApplyBusy={bootstrapApplyBusy}

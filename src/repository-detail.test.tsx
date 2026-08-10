@@ -40,6 +40,8 @@ describe('repository detail view', () => {
         upgradeFeedback={null}
         aiReview={null}
         aiBusy={false}
+        aiAcknowledged={false}
+        onAiAcknowledgedChange={() => undefined}
         bootstrapPlan={null}
         bootstrapBusy={false}
         bootstrapApplyBusy={false}
@@ -114,6 +116,8 @@ describe('repository detail view', () => {
         upgradeFeedback={null}
         aiReview={null}
         aiBusy={false}
+        aiAcknowledged={false}
+        onAiAcknowledgedChange={() => undefined}
         bootstrapPlan={null}
         bootstrapBusy={false}
         bootstrapApplyBusy={false}
@@ -206,6 +210,8 @@ function renderDetail(
       upgradeFeedback={null}
       aiReview={null}
       aiBusy={false}
+      aiAcknowledged={false}
+      onAiAcknowledgedChange={() => undefined}
       bootstrapPlan={null}
       bootstrapBusy={false}
       bootstrapApplyBusy={false}

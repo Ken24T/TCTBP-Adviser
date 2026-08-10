@@ -30,6 +30,9 @@ interface TctbpUpgradePanelProps {
   upgradeFeedback: string | null
   aiReview: AiReviewResult | null
   aiBusy: boolean
+  /** Controlled Jasper-review acknowledgment (shared with the journey strip). */
+  aiAcknowledged?: boolean
+  onAiAcknowledgedChange?: (value: boolean) => void
   bootstrapPlan: TctbpBootstrapPlan | null
   bootstrapBusy: boolean
   bootstrapApplyBusy: boolean
@@ -57,6 +60,8 @@ export function TctbpUpgradePanel({
   upgradeFeedback,
   aiReview,
   aiBusy,
+  aiAcknowledged,
+  onAiAcknowledgedChange,
   bootstrapPlan,
   bootstrapBusy,
   bootstrapApplyBusy,
@@ -76,13 +81,20 @@ export function TctbpUpgradePanel({
   onCleanupUpgradeBranch,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
-  const [aiAcknowledged, setAiAcknowledged] = useState(false)
+  const [localAiAcknowledged, setLocalAiAcknowledged] = useState(false)
+  // Acknowledgment is controllable from the journey strip while remaining
+  // self-contained when rendered standalone.
+  const acked = aiAcknowledged ?? localAiAcknowledged
+  function changeAcknowledged(value: boolean): void {
+    setLocalAiAcknowledged(value)
+    onAiAcknowledgedChange?.(value)
+  }
   const reviewFingerprint = bootstrapPlan?.fingerprint ?? plan?.fingerprint
   const aiApplyReady = Boolean(
     reviewFingerprint
     && aiReview?.status === 'available'
     && aiReview.planFingerprint === reviewFingerprint
-    && aiAcknowledged,
+    && acked,
   )
   const alignmentPending = Boolean(
     plan
@@ -103,7 +115,7 @@ export function TctbpUpgradePanel({
     : 0
 
   useEffect(() => {
-    setAiAcknowledged(false)
+    setLocalAiAcknowledged(false)
   }, [aiReview?.reviewId])
 
   function exportPlan(format: 'markdown' | 'json'): void {
@@ -191,10 +203,10 @@ export function TctbpUpgradePanel({
       {plan && aiReview?.status === 'available' && aiReview.planFingerprint === reviewFingerprint && (
         <label className="flex items-center gap-2 p-3 bg-surface-soft border border-border rounded-lg text-sm text-text-primary cursor-pointer mb-4">
           <input
-            checked={aiAcknowledged}
+            checked={acked}
             className="w-4 h-4 text-teal-600 border-border rounded focus:ring-teal-500"
             type="checkbox"
-            onChange={(event) => setAiAcknowledged(event.currentTarget.checked)}
+            onChange={(event) => changeAcknowledged(event.currentTarget.checked)}
           />
           I have reviewed Jasper’s advisory and the deterministic plan.
         </label>
