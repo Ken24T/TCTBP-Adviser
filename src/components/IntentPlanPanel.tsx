@@ -178,7 +178,7 @@ function isActionableStep(step: IntentPlan['steps'][number]): boolean {
     || step.workflowId === 'handover'
     || step.workflowId === 'resume'
     || (step.workflowId === 'deploy' && step.targetBranch === 'dev')
-    || (step.workflowId === 'promote' && (step.targetBranch === 'review' || step.targetBranch === 'production'))
+    || step.workflowId === 'promote'
     || step.workflowId === 'ship'
 }
 
@@ -187,13 +187,17 @@ function actionWorkflowForStep(step: IntentPlan['steps'][number]): ActionerWorkf
   if (step.workflowId === 'handover') return 'handover'
   if (step.workflowId === 'resume') return 'resume'
   if (step.workflowId === 'deploy') return 'deploy-development'
-  if (step.workflowId === 'promote' && step.targetBranch === 'review') return 'promote-review'
   if (step.workflowId === 'promote' && step.targetBranch === 'production') return 'promote-production'
+  if (step.workflowId === 'promote') return 'promote-review'
   if (step.workflowId === 'ship') return 'ship'
   return step.workflowId as 'checkpoint' | 'publish'
 }
 
 function actionLabelForStep(step: IntentPlan['steps'][number]): string {
+  // Promote steps carry the resolved branch name in their label (e.g.
+  // "Promote staging" or "Promote review"), so prefer it over the workflow's
+  // generic label.
+  if (step.workflowId === 'promote') return step.label
   const labels: Record<ActionerWorkflowId, string> = {
     checkpoint: 'Run checkpoint',
     publish: 'Publish branch',

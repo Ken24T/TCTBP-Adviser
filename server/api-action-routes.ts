@@ -283,18 +283,21 @@ export async function handleActionRoutes(
       decodeURIComponent(promoteReviewMatch[1]),
     )
     const observation = await runtime.inspections.inspect(repository)
-    assertPromotePlan(observation, actionRequest.planFingerprint, 'review', 'prepare-pre-production')
+    const model = observation.tctbp.branchModel
+    const sourceBranch = model.workingBranch ?? 'development'
+    const targetBranch = model.preProductionBranch ?? 'review'
+    assertPromotePlan(observation, actionRequest.planFingerprint, targetBranch, 'prepare-pre-production')
     const job = runtime.actionerJobs.create(repository.id, 'promote-review')
     void (async () => {
       try {
         runtime.actionerJobs.start(job.jobId)
         const currentObservation = await runtime.inspections.inspect(repository)
-        assertPromotePlan(currentObservation, actionRequest.planFingerprint, 'review', 'prepare-pre-production')
+        assertPromotePlan(currentObservation, actionRequest.planFingerprint, targetBranch, 'prepare-pre-production')
         const result = await new PromoteActioner({
           workflowId: 'promote-review',
-          key: 'review',
-          sourceBranch: 'development',
-          targetBranch: 'review',
+          key: targetBranch,
+          sourceBranch,
+          targetBranch,
           publishTarget: true,
         }).run(
           repository.path,
@@ -318,6 +321,9 @@ export async function handleActionRoutes(
       decodeURIComponent(promoteProductionMatch[1]),
     )
     const observation = await runtime.inspections.inspect(repository)
+    const model = observation.tctbp.branchModel
+    const sourceBranch = model.preProductionBranch ?? 'review'
+    const targetBranch = model.productionBranch ?? 'main'
     assertPromotePlan(observation, actionRequest.planFingerprint, 'production', 'prepare-production-release')
     const job = runtime.actionerJobs.create(repository.id, 'promote-production')
     void (async () => {
@@ -328,8 +334,8 @@ export async function handleActionRoutes(
         const result = await new PromoteActioner({
           workflowId: 'promote-production',
           key: 'production',
-          sourceBranch: 'review',
-          targetBranch: 'main',
+          sourceBranch,
+          targetBranch,
           publishTarget: false,
         }).run(
           repository.path,

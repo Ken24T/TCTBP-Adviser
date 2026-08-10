@@ -51,6 +51,46 @@ describe('intent and reference views', () => {
     expect(markup).not.toContain('<form')
   })
 
+  it('renders a staged-model promote action button with the pre-production branch name', () => {
+    const observation = observationFixture({
+      workflows: [
+        'status',
+        'checkpoint',
+        'publish',
+        'handover',
+        'resume',
+        'promote',
+        'deploy',
+        'ship',
+        'abort',
+      ],
+    })
+    const state = recommend(
+      observation,
+      'none',
+      new Date(observation.observedAt),
+    )
+    const plan = planIntent(
+      observation,
+      state,
+      'prepare-pre-production',
+    )
+
+    const markup = renderToStaticMarkup(<IntentPlanPanel
+      plan={plan}
+      actionJob={null}
+      actionBusy={false}
+      inspectionBusy={false}
+      actionFeedback={null}
+      onRunAction={() => undefined}
+    />)
+
+    // The staged model's pre-production branch is "staging" (not "review") —
+    // the promote action button must render with that branch's label.
+    expect(markup).toContain('Promote staging')
+    expect(markup).toContain('promote staging please')
+  })
+
   it('offers a how-to-resolve hint for each blocker on a blocked plan', () => {
     const plan = {
       source: 'user-intent',
