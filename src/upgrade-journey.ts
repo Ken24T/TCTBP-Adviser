@@ -46,6 +46,12 @@ export interface UpgradeJourneyInput {
   aiReview: AiReviewResult | null
   aiAcknowledged: boolean
   primaryAction: RecommendationAction | null
+  /** Branch model used to name the environment branch in merge guidance. */
+  branchModel?: {
+    workingBranch?: string | null
+    preProductionBranch?: string | null
+    productionBranch?: string | null
+  } | null
 }
 
 /** Mirrors the upgrade panel's "applicable step count" for the apply stage. */
@@ -73,7 +79,7 @@ export function applicableUpgradeStepCount(plan: TctbpUpgradePlan): number {
 export function resolveUpgradeJourney(
   input: UpgradeJourneyInput,
 ): UpgradeJourney | null {
-  const { plan, aiReview, aiAcknowledged, primaryAction } = input
+  const { plan, aiReview, aiAcknowledged, primaryAction, branchModel } = input
 
   // The upgrade journey is relevant when the source is outdated, an upgrade
   // branch is in play (post-apply housekeeping), or the card recommends one.
@@ -149,13 +155,21 @@ export function resolveUpgradeJourney(
         })
       } else if (!plan.cleanup.available) {
         const onBranch = /currently on/.test(plan.cleanup.reason ?? '')
+        // When we are still on the upgrade branch, plan.target.branch is the
+        // upgrade branch itself — name the environment branch it was created
+        // from instead, so the guidance is actionable.
+        const environmentBranch = onBranch
+          ? (branchModel?.productionBranch
+            ?? branchModel?.workingBranch
+            ?? 'the environment branch')
+          : plan.target.branch ?? 'the environment branch'
         stages.push({
           id: 'merge',
           label: 'Merge the upgrade branch back',
           reason: onBranch
-            ? `Switch to ${plan.target.branch ?? 'the environment branch'} and merge ${plan.cleanup.branch} back into it, then push.`
+            ? `Switch back to ${environmentBranch} and merge ${plan.cleanup.branch} back into it, then push.`
             : plan.cleanup.reason
-              ?? `Merge ${plan.cleanup.branch} back into ${plan.target.branch ?? 'the environment branch'}, then refresh.`,
+              ?? `Merge ${plan.cleanup.branch} back into ${environmentBranch}, then refresh.`,
           action: 'merge',
         })
       } else {

@@ -65,12 +65,18 @@ function journeyFor(overrides: {
   aiReview?: AiReviewResult | null
   aiAcknowledged?: boolean
   primaryAction?: import('../shared/recommendation').RecommendationAction | null
+  branchModel?: {
+    workingBranch?: string | null
+    preProductionBranch?: string | null
+    productionBranch?: string | null
+  } | null
 }) {
   return resolveUpgradeJourney({
     plan: overrides.plan === undefined ? plan() : overrides.plan,
     aiReview: overrides.aiReview === undefined ? null : overrides.aiReview,
     aiAcknowledged: overrides.aiAcknowledged ?? false,
     primaryAction: overrides.primaryAction ?? 'update-tctbp',
+    branchModel: overrides.branchModel,
   })
 }
 
@@ -225,6 +231,35 @@ describe('TCTBP upgrade journey', () => {
       plan: afterApply,
       primaryAction: 'checkpoint',
     })?.current.id).toBe('checkpoint')
+  })
+
+  it('names the environment branch in the merge guidance when on the upgrade branch', () => {
+    const afterApply = plan({
+      disposition: 'current',
+      sourceAlignment: 'current',
+      actionCounts: { preserve: 2, add: 0, review: 0, unavailable: 0 },
+      policy: { state: 'aligned', differences: [] },
+      drift: {
+        files: [],
+        counts: { current: 2, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
+      },
+      cleanup: {
+        branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
+        available: false,
+        reason: 'You are currently on upgrade/tctbp-0.3.0-aaaaaaa; switch back to the environment branch before removing it.',
+      },
+    })
+    const journey = journeyFor({
+      plan: afterApply,
+      primaryAction: null,
+      branchModel: {
+        workingBranch: 'development',
+        preProductionBranch: 'review',
+        productionBranch: 'main',
+      },
+    })
+    expect(journey?.current.id).toBe('merge')
+    expect(journey?.current.reason).toContain('Switch back to main')
   })
 
   it('counts applicable apply steps like the upgrade panel', () => {

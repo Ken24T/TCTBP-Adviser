@@ -28,6 +28,11 @@ interface UpgradeJourneyStripProps {
   aiReview: AiReviewResult | null
   aiAcknowledged: boolean
   primaryAction: RecommendationAction | null
+  branchModel?: {
+    workingBranch?: string | null
+    preProductionBranch?: string | null
+    productionBranch?: string | null
+  } | null
   onAiAcknowledgedChange: (value: boolean) => void
   busy: boolean
   aiBusy: boolean
@@ -46,6 +51,7 @@ export function UpgradeJourneyStrip({
   aiReview,
   aiAcknowledged,
   primaryAction,
+  branchModel,
   onAiAcknowledgedChange,
   busy,
   aiBusy,
@@ -63,6 +69,7 @@ export function UpgradeJourneyStrip({
     aiReview,
     aiAcknowledged,
     primaryAction,
+    branchModel,
   })
   if (!journey) return null
 

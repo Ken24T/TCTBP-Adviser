@@ -146,6 +146,7 @@ export function RepositoryDetail({
         aiReview={aiReview}
         aiAcknowledged={aiAcknowledged}
         primaryAction={recommendation.primaryAction}
+        branchModel={observation.tctbp.branchModel}
         onAiAcknowledgedChange={onAiAcknowledgedChange}
         busy={upgradeBusy || busy}
         aiBusy={aiBusy}
