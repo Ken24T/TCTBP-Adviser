@@ -1,7 +1,7 @@
 {
   "name": "tctbp-adviser",
   "private": true,
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "A web application built with the TCTBP-Web workflow.",
   "scripts": {
     "dev": "vite --mode development --host 127.0.0.1 --port 3037 --strictPort",
