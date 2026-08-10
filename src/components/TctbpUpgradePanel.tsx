@@ -203,14 +203,22 @@ export function TctbpUpgradePanel({
       {aiReview && <AiReviewDetails review={aiReview} />}
 
       {plan && aiReview?.status === 'available' && aiReview.planFingerprint === reviewFingerprint && (
-        <label className="flex items-center gap-2 p-3 bg-surface-soft border border-border rounded-lg text-sm text-text-primary cursor-pointer mb-4">
+        <label className={`flex items-center gap-2 p-3 bg-surface-soft border border-border rounded-lg text-sm text-text-primary mb-4 ${
+          applicableCount === 0 ? 'cursor-default opacity-60' : 'cursor-pointer'
+        }`}>
           <input
             checked={acked}
             className="w-4 h-4 text-teal-600 border-border rounded focus:ring-teal-500"
+            disabled={applicableCount === 0}
             type="checkbox"
             onChange={(event) => changeAcknowledged(event.currentTarget.checked)}
           />
           I have reviewed Jasper’s advisory and the deterministic plan.
+          {applicableCount === 0 && (
+            <span className="text-xs text-text-muted">
+              — nothing to apply, so no confirmation is needed.
+            </span>
+          )}
         </label>
       )}
 

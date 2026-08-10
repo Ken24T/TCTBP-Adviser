@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import type { AiReviewResult } from '../shared/ai-review'
 import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
 import { TctbpUpgradePanel } from './components/TctbpUpgradePanel'
 
@@ -194,6 +195,81 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('TCTBP contract is incompatible with the canonical source')
     expect(markup).toContain('Preview the upgrade plan below to see what needs reconciling')
     expect(markup).toContain('Preview upgrade plan')
+  })
+
+  it('disables the review confirmation when Jasper finds nothing to apply', () => {
+    const plan = {
+      fingerprint: 'fp',
+      disposition: 'current' as const,
+      sourceAlignment: 'current' as const,
+      actionCounts: { preserve: 2, add: 0, review: 0, unavailable: 0 },
+      blockers: [],
+      policy: { state: 'aligned' as const, differences: [] },
+      source: {
+        state: 'available' as const,
+        repository: 'TCTBP-Web',
+        revision: 'a'.repeat(40),
+        version: '0.3.0',
+        managedFileCount: 2,
+        message: null,
+      },
+      target: {
+        sourceRepository: 'Ken24T/TCTBP-Web',
+        sourceRevision: 'a'.repeat(40),
+        sourceVersion: '0.3.0',
+      },
+      drift: {
+        files: [],
+        counts: { current: 2, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
+      },
+    } satisfies TctbpUpgradePlan
+    const review: AiReviewResult = {
+      status: 'available',
+      reviewId: 'review-1',
+      reviewedAt: new Date().toISOString(),
+      provider: 'openai-compatible',
+      model: 'test-model',
+      planFingerprint: 'fp',
+      summary: 'Nothing to apply.',
+      risks: [],
+      recommendedNextStep: 'No action needed.',
+      confidence: 'high',
+      unknowns: [],
+      error: null,
+    }
+
+    const markup = renderToStaticMarkup(
+      <TctbpUpgradePanel
+        repositoryName="example-repository"
+        plan={plan}
+        busy={false}
+        applyBusy={false}
+        upgradeFeedback={null}
+        aiReview={review}
+        aiBusy={false}
+        bootstrapPlan={null}
+        bootstrapBusy={false}
+        bootstrapApplyBusy={false}
+        bootstrapApplyFeedback={null}
+        bootstrapJob={null}
+        onPrepareBootstrap={() => undefined}
+        onApplyBootstrap={() => undefined}
+        onLoad={() => undefined}
+        onReviewAi={() => undefined}
+        onApplyAdditions={() => undefined}
+        onApplyPolicy={() => undefined}
+        onApplyDrifted={() => undefined}
+        onApplyAlignment={() => undefined}
+        onDeleteObsolete={() => undefined}
+        onApplyInOrder={() => undefined}
+        onCleanupUpgradeBranch={() => undefined}
+      />,
+    )
+
+    expect(markup).toContain('I have reviewed Jasper’s advisory and the deterministic plan.')
+    expect(markup).toContain('nothing to apply, so no confirmation is needed.')
+    // Disabled styling: the checkbox cannot be ticked for a plan with no work.
+    expect(markup).toContain('cursor-default opacity-60')
   })
 
   it('hides the preview button once the plan is loaded', () => {
