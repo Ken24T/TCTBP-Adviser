@@ -11,8 +11,6 @@ import type { PortfolioPreferences } from '../../shared/portfolio-preferences'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
 import { Panel, Section, Select } from './primitives'
 import { cardSurfaceVars, severityTone } from '../card-surface'
-import { recommendationTitleFor } from '../presentation'
-import { workflowForRecommendation } from '../action-workflows'
 import { useTheme } from '../theme'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
 import { ActionerProgress } from './ActionerProgress'
@@ -24,7 +22,7 @@ import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
-import { UpgradeJourneyStrip } from './UpgradeJourneyStrip'
+import { NextActionBar } from './NextActionBar'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
@@ -108,11 +106,6 @@ export function RepositoryDetail({
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
     ?? 'No project description is available in the TCTBP profile.'
-  const recommendedAction = recommendationTitleFor(recommendation)
-  const canRunRecommended = Boolean(
-    recommendation.primaryAction
-    && workflowForRecommendation(recommendation.primaryAction),
-  )
   // The header mirrors the portfolio card's display name: custom rename when
   // set, otherwise the repository's display name (TCTBP project name), with
   // the on-disk directory name only as a last resort — never the raw path
@@ -135,17 +128,15 @@ export function RepositoryDetail({
         name={headerName}
         onBack={onBack}
         onRefresh={onRefresh}
-        onRunRecommended={canRunRecommended ? onRunRecommended : undefined}
-        recommendedAction={recommendedAction}
-        runBusy={actionBusy}
         severity={recommendation.severity}
       />
 
-      <UpgradeJourneyStrip
+      <NextActionBar
         plan={upgradePlan}
         aiReview={aiReview}
         aiAcknowledged={aiAcknowledged}
         primaryAction={recommendation.primaryAction}
+        recommendation={recommendation}
         branchModel={observation.tctbp.branchModel}
         onAiAcknowledgedChange={onAiAcknowledgedChange}
         busy={upgradeBusy || busy}

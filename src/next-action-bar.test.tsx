@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { AiReviewResult } from '../shared/ai-review'
 import type { RecommendationAction } from '../shared/recommendation'
 import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
-import { UpgradeJourneyStrip } from './components/UpgradeJourneyStrip'
+import { NextActionBar } from './components/NextActionBar'
 
 function review(): AiReviewResult {
   return {
@@ -66,11 +66,12 @@ function render(props: {
   primaryAction?: RecommendationAction | null
 }) {
   return renderToStaticMarkup(
-    <UpgradeJourneyStrip
+    <NextActionBar
       plan={props.plan === undefined ? plan() : props.plan}
       aiReview={props.aiReview === undefined ? null : props.aiReview}
       aiAcknowledged={props.aiAcknowledged ?? false}
-      primaryAction={props.primaryAction ?? 'update-tctbp'}
+      primaryAction={props.primaryAction === undefined ? 'update-tctbp' : props.primaryAction}
+      recommendation={null}
       onAiAcknowledgedChange={() => undefined}
       busy={false}
       aiBusy={false}
@@ -86,36 +87,36 @@ function render(props: {
   )
 }
 
-describe('upgrade journey strip', () => {
-  it('hides when no upgrade work is in play', () => {
-    expect(render({ plan: null, primaryAction: 'checkpoint' })).toBe('')
+describe('next action bar', () => {
+  it('is always rendered, even when healthy', () => {
+    const markup = render({ plan: null, primaryAction: null })
+    expect(markup).toContain('Next action')
+    expect(markup).toContain('No action needed')
+    expect(markup).not.toContain('button')
   })
 
-  it('offers to prepare the plan when the card recommends an update', () => {
-    const markup = render({ plan: null, primaryAction: 'update-tctbp' })
-    expect(markup).toContain('Upgrade journey')
-    expect(markup).toContain('Prepare the upgrade plan')
-    expect(markup).toContain('Preview upgrade plan')
+  it('shows a runnable recommended workflow with a single button', () => {
+    const markup = render({ plan: null, primaryAction: 'checkpoint' })
+    expect(markup).toContain('Recommended: Checkpoint')
+    expect(markup).toContain('Run Checkpoint')
+    expect(markup).not.toContain('Upgrade journey')
   })
 
-  it('shows the Jasper review step with a single action button', () => {
+  it('shows guidance without a run button for non-runnable recommendations', () => {
+    const markup = render({ plan: null, primaryAction: 'install-tctbp' })
+    expect(markup).toContain('Recommended: Install TCTBP')
+    expect(markup).toContain('TCTBP is not installed')
+    expect(markup).not.toContain('Run Install TCTBP')
+  })
+
+  it('shows the upgrade journey step when the journey is in play', () => {
     const markup = render({})
+    expect(markup).toContain('Upgrade journey')
     expect(markup).toContain('Review the plan with Jasper')
     expect(markup).toContain('Ask Jasper to review')
-    // The breadcrumb shows the single pending stage.
-    expect(markup).toContain('>Review</span>')
   })
 
-  it('offers to apply once reviewed and acknowledged', () => {
-    const markup = render({
-      aiReview: review(),
-      aiAcknowledged: true,
-    })
-    expect(markup).toContain('Apply the upgrade (2 steps)')
-    expect(markup).toContain('Apply the upgrade')
-  })
-
-  it('offers cleanup when the merged upgrade branch is verified', () => {
+  it('offers cleanup once the merged upgrade branch is verified', () => {
     const cleanupPlan = plan({
       disposition: 'current',
       sourceAlignment: 'current',
@@ -137,30 +138,5 @@ describe('upgrade journey strip', () => {
     })
     expect(markup).toContain('Remove the merged upgrade branch')
     expect(markup).toContain('Clean up upgrade branch')
-  })
-
-  it('guides the merge-back step with a refresh affordance', () => {
-    const mergePlan = plan({
-      disposition: 'current',
-      sourceAlignment: 'current',
-      actionCounts: { preserve: 2, add: 0, review: 0, unavailable: 0 },
-      policy: { state: 'aligned', differences: [] },
-      drift: {
-        files: [],
-        counts: { current: 2, 'missing-target': 0, drifted: 0, 'source-unavailable': 0 },
-      },
-      cleanup: {
-        branch: 'upgrade/tctbp-0.3.0-aaaaaaa',
-        available: false,
-        reason: 'upgrade/tctbp-0.3.0-aaaaaaa has not been merged back into main yet — merge and push it first, then it can be removed safely.',
-      },
-    })
-    const markup = render({
-      plan: mergePlan,
-      primaryAction: null,
-    })
-    expect(markup).toContain('Merge the upgrade branch back')
-    expect(markup).toContain('Refresh after merging')
-    expect(markup).not.toContain('Clean up upgrade branch')
   })
 })

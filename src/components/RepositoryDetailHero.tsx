@@ -5,12 +5,9 @@ interface RepositoryDetailHeroProps {
   name: string
   description: string
   severity: 'action-recommended' | 'attention' | 'stop' | 'healthy'
-  recommendedAction?: string | null
   onBack?: () => void
   onRefresh?: () => void
-  onRunRecommended?: () => void
   busy?: boolean
-  runBusy?: boolean
 }
 
 /**
@@ -23,12 +20,9 @@ export function RepositoryDetailHero({
   name,
   description,
   severity,
-  recommendedAction,
   onBack,
   onRefresh,
-  onRunRecommended,
   busy = false,
-  runBusy = false,
 }: RepositoryDetailHeroProps) {
   const prevSeverity = useRef(severity)
   const [pulse, setPulse] = useState(false)
@@ -63,12 +57,6 @@ export function RepositoryDetailHero({
             <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
               Configured local repository · {severity}
             </p>
-            {recommendedAction && (
-              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold bg-[var(--card-icon-bg)] text-[var(--card-icon-color)]">
-                <span aria-hidden="true" className="w-2 h-2 rounded-full bg-[var(--card-accent)]" />
-                Recommended: {recommendedAction}
-              </span>
-            )}
           </div>
           <h1 className="mt-2 text-4xl font-semibold text-text-primary tracking-tight">
             {name}
@@ -78,16 +66,6 @@ export function RepositoryDetailHero({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {onRunRecommended && recommendedAction && (
-            <Button
-              disabled={busy || runBusy}
-              size="sm"
-              variant="card-primary"
-              onClick={onRunRecommended}
-            >
-              {runBusy ? 'Starting…' : `Run ${recommendedAction}`}
-            </Button>
-          )}
           <Button
             disabled={busy}
             size="sm"
