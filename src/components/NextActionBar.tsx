@@ -174,7 +174,7 @@ export function NextActionBar({
   return (
     <div
       aria-label="Next action"
-      className={`sticky top-0 z-30 -mx-6 px-6 py-3 border-b border-border bg-[var(--ad-surface)] ${
+      className={`sticky top-0 z-30 py-3 border-b border-border bg-[var(--ad-surface)] ${
         quiet ? '' : 'shadow-[0_6px_16px_-8px_rgba(0,0,0,0.25)]'
       }`}
     >

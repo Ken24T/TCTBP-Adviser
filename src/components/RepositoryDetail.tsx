@@ -131,27 +131,27 @@ export function RepositoryDetail({
         severity={recommendation.severity}
       />
 
-      <NextActionBar
-        plan={upgradePlan}
-        aiReview={aiReview}
-        aiAcknowledged={aiAcknowledged}
-        primaryAction={recommendation.primaryAction}
-        recommendation={recommendation}
-        branchModel={observation.tctbp.branchModel}
-        onAiAcknowledgedChange={onAiAcknowledgedChange}
-        busy={upgradeBusy || busy}
-        aiBusy={aiBusy}
-        applyBusy={applyBusy}
-        actionBusy={actionBusy}
-        onLoad={onLoadUpgradePlan}
-        onReviewAi={onReviewAi}
-        onApplyInOrder={onApplyInOrder}
-        onRunRecommended={onRunRecommended}
-        onCleanupUpgradeBranch={onCleanupUpgradeBranch}
-        onRefresh={onRefresh}
-      />
-
       <Section eyebrow="Take action">
+        <NextActionBar
+          plan={upgradePlan}
+          aiReview={aiReview}
+          aiAcknowledged={aiAcknowledged}
+          primaryAction={recommendation.primaryAction}
+          recommendation={recommendation}
+          branchModel={observation.tctbp.branchModel}
+          onAiAcknowledgedChange={onAiAcknowledgedChange}
+          busy={upgradeBusy || busy}
+          aiBusy={aiBusy}
+          applyBusy={applyBusy}
+          actionBusy={actionBusy}
+          onLoad={onLoadUpgradePlan}
+          onReviewAi={onReviewAi}
+          onApplyInOrder={onApplyInOrder}
+          onRunRecommended={onRunRecommended}
+          onCleanupUpgradeBranch={onCleanupUpgradeBranch}
+          onRefresh={onRefresh}
+        />
+
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <label className="flex items-center gap-3 text-sm text-text-secondary">
             <span className="shrink-0 font-medium">Selected outcome</span>
