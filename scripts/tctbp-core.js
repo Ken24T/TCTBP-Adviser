@@ -65,6 +65,8 @@ module.exports = {
   sumRemovedLines: promotionSafety.sumRemovedLines,
 
   // Profile I/O and semver
+  buildDefaultPromoteTargets: profileIO.buildDefaultPromoteTargets,
+  buildEffectivePromoteTargets: profileIO.buildEffectivePromoteTargets,
   detectVersionFileFormat: profileIO.detectVersionFileFormat,
   getReleaseTagGlob: profileIO.getReleaseTagGlob,
   getReleaseTagPattern: profileIO.getReleaseTagPattern,
@@ -73,10 +75,13 @@ module.exports = {
   parseSemVer: profileIO.parseSemVer,
   parseTomlPackageName: profileIO.parseTomlPackageName,
   parseTomlPackageVersion: profileIO.parseTomlPackageVersion,
+  parseTomlTableVersion: profileIO.parseTomlTableVersion,
+  parseTomlWorkspaceMembers: profileIO.parseTomlWorkspaceMembers,
   readJsonFile: profileIO.readJsonFile,
   readVersionFile: profileIO.readVersionFile,
   readVersionSource: profileIO.readVersionSource,
   renderCargoLockPackageVersion: profileIO.renderCargoLockPackageVersion,
+  renderCargoLockVersions: profileIO.renderCargoLockVersions,
   renderTomlPackageVersion: profileIO.renderTomlPackageVersion,
   resolveRepoPath: profileIO.resolveRepoPath,
   resolveTarget: profileIO.resolveTarget,
