@@ -33,10 +33,10 @@ export const ACTION_CONFIRMATIONS: Record<ActionerWorkflowId, string> = {
 }
 
 /**
- * Resolves a branch-aware confirmation prompt for promote actions, falling
- * back to the static prompt when no branch model is available. The staged
- * strategy names its pre-production branch 'staging' while the long-lived
- * strategy names it 'review', so hardcoded prompts would be misleading.
+ * Resolves a branch-aware confirmation prompt for promote/ship actions,
+ * falling back to the static prompt when no branch model is available. The
+ * production branch is not always named 'main' (e.g. audio-extractor uses
+ * 'master'), so hardcoded prompts would be misleading.
  */
 export function actionConfirmation(
   workflowId: ActionerWorkflowId,
@@ -51,6 +51,10 @@ export function actionConfirmation(
     const source = branchModel.preProductionBranch ?? 'review'
     const target = branchModel.productionBranch ?? 'main'
     return `Promote the current ${source} branch into ${target}? This will merge, verify, and prepare ${target} for ship. No deploy or push will occur.`
+  }
+  if (workflowId === 'ship' && branchModel) {
+    const target = branchModel.productionBranch ?? 'main'
+    return `Ship a release from ${target}? This will bump the version, create a tag, and push to origin.`
   }
   return ACTION_CONFIRMATIONS[workflowId]
 }

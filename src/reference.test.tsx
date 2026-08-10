@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { observationFixture } from '../test/observation-fixture'
 import { repositoryReference, referenceCatalogue } from '../server/reference/catalogue'
 import type { IntentPlan } from '../shared/intent'
+import { actionConfirmation } from './action-workflows'
 import { IntentPlanPanel } from './components/IntentPlanPanel'
 import { ReferenceExplorer } from './components/ReferenceExplorer'
 import { RepositoryReferencePanel } from './components/RepositoryReferencePanel'
@@ -10,6 +11,29 @@ import { planIntent } from '../server/intents/planner'
 import { recommend } from '../server/recommendations/engine'
 
 describe('intent and reference views', () => {
+  it('builds branch-aware ship and promote confirmation prompts', () => {
+    const model = {
+      strategy: 'simple',
+      workingBranch: 'master',
+      preProductionBranch: null,
+      productionBranch: 'master',
+      promotionTargets: [],
+    }
+
+    expect(actionConfirmation('ship', model)).toContain('Ship a release from master?')
+    expect(actionConfirmation('ship', null)).toContain('Ship a release from main?')
+
+    const staged = {
+      strategy: 'staged',
+      workingBranch: 'development',
+      preProductionBranch: 'staging',
+      productionBranch: 'main',
+      promotionTargets: ['staging', 'production'],
+    }
+    expect(actionConfirmation('promote-review', staged)).toContain('into staging?')
+    expect(actionConfirmation('promote-production', staged)).toContain('into main?')
+  })
+
   it('renders required and conditional intent steps without action controls', () => {
     const observation = observationFixture({
       workflows: [
