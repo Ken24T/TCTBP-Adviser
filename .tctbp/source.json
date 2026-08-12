@@ -1,6 +1,6 @@
 {
   "sourceRepository": "Ken24T/TCTBP-Web",
-  "sourceRevision": "78b75fc8294659a4afc8c51eb4ccb608a26caf1a",
+  "sourceRevision": "08d2979d5d70480e85477cdeb10dfb3fb83a0332",
   "sourceVersion": "0.3.6",
   "installedSchemaVersion": 11,
   "adviserContract": {
@@ -9,10 +9,11 @@
     "capabilities": [
       "inspection.local-v1",
       "workflow-catalogue.core-v1",
-      "reason-codes.core-v1"
+      "reason-codes.core-v1",
+      "version-files.multi-format-v1"
     ]
   },
-  "installedAt": "2026-08-10",
+  "installedAt": "2026-08-13",
   "managedSurface": [
     ".github/TCTBP Agent.md",
     ".github/TCTBP Cheatsheet.md",

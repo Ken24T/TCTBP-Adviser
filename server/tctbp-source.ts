@@ -180,7 +180,7 @@ export class CanonicalTctbpSourceService {
       adviserContract: {
         major: 1,
         minor: 0,
-        capabilities: ['inspection.local-v1', 'workflow-catalogue.core-v1', 'reason-codes.core-v1'],
+        capabilities: ['inspection.local-v1', 'workflow-catalogue.core-v1', 'reason-codes.core-v1', 'version-files.multi-format-v1'],
       },
       installedAt: new Date().toISOString().slice(0, 10),
       managedSurface: [
@@ -425,6 +425,7 @@ export class CanonicalTctbpSourceService {
           'inspection.local-v1',
           'workflow-catalogue.core-v1',
           'reason-codes.core-v1',
+          'version-files.multi-format-v1',
         ],
       },
       installedAt: new Date().toISOString().slice(0, 10),

@@ -2,20 +2,29 @@ import type { RecommendationReasonCode } from './recommendation'
 
 export type CoreWorkflowId =
   | 'status'
-  | 'abort'
-  | 'resume'
+  | 'preflight'
   | 'checkpoint'
   | 'publish'
   | 'handover'
+  | 'resume'
+  | 'orient'
   | 'branch'
   | 'promote'
   | 'deploy'
   | 'ship'
+  | 'release'
+  | 'hotfix'
+  | 'gate'
+  | 'version'
+  | 'rollback'
+  | 'abort'
+  | 'ticket'
+  | 'scaffold'
 
 export interface WorkflowReference {
   id: CoreWorkflowId
   displayName: string
-  category: 'inspection' | 'preservation' | 'continuation' | 'environment'
+  category: 'inspection' | 'preservation' | 'continuation' | 'environment' | 'administration'
   purpose: string
   aliases: string[]
   runner: string

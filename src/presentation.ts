@@ -13,6 +13,7 @@ import type { PortfolioRepository } from '../shared/portfolio'
 const ACTION_LABELS: Record<RecommendationAction, string> = {
   'refresh-inspection': 'Refresh inspection',
   checkpoint: 'Checkpoint',
+  preflight: 'Run preflight',
   publish: 'Publish',
   resume: 'Resume',
   handover: 'Handover',

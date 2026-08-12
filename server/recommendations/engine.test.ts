@@ -228,6 +228,21 @@ describe('deterministic recommendation engine', () => {
     expect(result.reasonCodes).not.toContain('remote-origin-missing')
   })
 
+  it('suggests preflight as the next step for a dirty working tree', () => {
+    const result = recommend(
+      observationFixture({ clean: false }),
+      'none',
+      NOW,
+    )
+
+    expect(result.primaryAction).toBe('checkpoint')
+    expect(result.reasonCodes).toContain('working-tree-dirty')
+    expect(result.likelyNextActions).toContain('preflight')
+    expect(result.steps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'checkpoint' }),
+    ]))
+  })
+
   it('recommends a TCTBP update for an otherwise-healthy but out-of-date repo', () => {
     const result = recommend(
       observationFixture(),

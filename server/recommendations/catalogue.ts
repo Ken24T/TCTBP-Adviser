@@ -23,6 +23,12 @@ const ACTIONS: Record<RecommendationAction, ActionDescription> = {
     does: ['Preserves tracked and untracked work in a local commit.'],
     doesNot: ['Does not push, merge, tag, version, deploy or ship.'],
   },
+  preflight: {
+    trigger: 'preflight please',
+    kind: 'workflow',
+    does: ['Runs non-mutating verification of the current working state.'],
+    doesNot: ['Does not commit, push, tag, merge, switch, deploy or bump versions.'],
+  },
   publish: {
     trigger: 'publish please',
     kind: 'workflow',

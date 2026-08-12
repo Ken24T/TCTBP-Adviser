@@ -7,7 +7,7 @@ import type {
 import { GUARDRAIL_REFERENCES } from './guardrails'
 import { WORKFLOW_REFERENCES } from './workflows'
 
-const SOURCE_REVISION = '0e99ceaf7436214a40bfcabbc79f57c36c91b035'
+const SOURCE_REVISION = '08d2979d5d70480e85477cdeb10dfb3fb83a0332'
 
 export function referenceCatalogue(): ReferenceCatalogue {
   return {

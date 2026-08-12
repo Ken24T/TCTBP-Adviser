@@ -97,7 +97,7 @@ export function resolveDefinition(
       context,
       'checkpoint',
       'working-tree-dirty',
-      ['publish'],
+      ['publish', 'preflight'],
     )
   }
   if (observation.localTracking.state === 'unpublished') {

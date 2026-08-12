@@ -25,6 +25,7 @@ export type RecommendationDisposition =
 export type RecommendationAction =
   | 'refresh-inspection'
   | 'checkpoint'
+  | 'preflight'
   | 'publish'
   | 'resume'
   | 'handover'

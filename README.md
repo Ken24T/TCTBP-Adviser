@@ -7,7 +7,7 @@ The secure local portfolio service, deterministic recommendation and intent
 engines, pinned trigger/guardrail reference, optional GitHub enrichment,
 portfolio dashboard, and repository-detail UI are implemented. They consume
 TCTBP-Web Adviser contract v1 pinned to commit
-`0e99ceaf7436214a40bfcabbc79f57c36c91b035`.
+`08d2979d5d70480e85477cdeb10dfb3fb83a0332`.
 
 ## Quick Start
 

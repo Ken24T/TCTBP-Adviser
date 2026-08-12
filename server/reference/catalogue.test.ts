@@ -12,7 +12,7 @@ describe('TCTBP reference catalogue', () => {
     expect(catalogue.contract).toMatchObject({
       major: 1,
       capability: 'workflow-catalogue.core-v1',
-      sourceRevision: '0e99ceaf7436214a40bfcabbc79f57c36c91b035',
+      sourceRevision: '08d2979d5d70480e85477cdeb10dfb3fb83a0332',
     })
     expect(catalogue.workflows.map((workflow) => workflow.id)).toEqual([
       'status',
@@ -25,6 +25,15 @@ describe('TCTBP reference catalogue', () => {
       'ship',
       'abort',
       'branch',
+      'preflight',
+      'orient',
+      'release',
+      'hotfix',
+      'gate',
+      'version',
+      'rollback',
+      'ticket',
+      'scaffold',
     ])
     expect(catalogue.guardrails.length).toBeGreaterThanOrEqual(8)
   })
