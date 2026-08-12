@@ -49,8 +49,8 @@ describe('kindling reconcile plan (read-only)', () => {
     fs.writeFileSync(PLAN_OUT, mergedRaw)
     console.log('PLAN wrote:', PLAN_OUT)
 
-    const beforeTriggers = new Set(before.activation?.triggers ?? [])
-    const afterTriggers = merged.activation?.triggers ?? []
+    const beforeTriggers = new Set<string>(before.activation?.triggers ?? [])
+    const afterTriggers: string[] = merged.activation?.triggers ?? []
     const added = afterTriggers.filter((trigger) => !beforeTriggers.has(trigger))
     const removed = [...beforeTriggers].filter(
       (trigger) => !afterTriggers.includes(trigger),
