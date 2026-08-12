@@ -136,6 +136,105 @@ describe('semantic TCTBP policy comparison', () => {
     })
   })
 
+  it('unions canonical activation with target triggers and filters inapplicable families', () => {
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        activation: {
+          triggers: [
+            'ship', 'ship please',
+            'checkpoint', 'checkpoint please',
+            'promote staging', 'promote production',
+            'deploy dev', 'deploy production', 'deploy', 'deploy please',
+            'scaffold', 'new project',
+            'preflight', 'preflight please',
+          ],
+          caseInsensitive: true,
+        },
+      }),
+      JSON.stringify({
+        branchModel: { strategy: 'simple', productionBranch: 'master' },
+        deploy: {
+          preferredTriggers: ['deploy', 'deploy please'],
+          targets: { 'current-platform-artifacts': { aliases: [] } },
+        },
+        activation: {
+          triggers: ['deploy', 'deploy please', 'custom-trigger'],
+          caseInsensitive: true,
+        },
+      }),
+    )
+
+    const triggers = (JSON.parse(merged as string).activation.triggers) as string[]
+    expect(triggers).toContain('checkpoint')
+    expect(triggers).toContain('preflight')
+    expect(triggers).toContain('deploy') // bare deploy kept: deploy is configured
+    expect(triggers).toContain('custom-trigger') // target-specific trigger preserved
+    expect(triggers).not.toContain('promote staging') // simple strategy
+    expect(triggers).not.toContain('promote production')
+    expect(triggers).not.toContain('deploy dev') // no dev target mapped
+    expect(triggers).not.toContain('deploy production')
+    expect(triggers).not.toContain('scaffold') // factory-only
+    expect(triggers).not.toContain('new project')
+  })
+
+  it('keeps promote and mapped deploy variants for a staged target', () => {
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        activation: {
+          triggers: [
+            'promote staging', 'promote production', 'promote review',
+            'deploy dev', 'deploy staging', 'deploy production', 'deploy prod',
+          ],
+        },
+      }),
+      JSON.stringify({
+        branchModel: {
+          strategy: 'staged',
+          workingBranch: 'development',
+          promoteEnabled: true,
+        },
+        deploy: {
+          preferredTriggers: ['deploy'],
+          targets: {
+            dev: { aliases: ['development'] },
+            staging: { aliases: [] },
+            production: { aliases: ['prod'] },
+          },
+        },
+      }),
+    )
+
+    const triggers = (JSON.parse(merged as string).activation.triggers) as string[]
+    expect(triggers).toContain('promote staging')
+    expect(triggers).toContain('promote production')
+    expect(triggers).not.toContain('promote review') // no review environment
+    expect(triggers).toContain('deploy dev')
+    expect(triggers).toContain('deploy staging')
+    expect(triggers).toContain('deploy production')
+    expect(triggers).toContain('deploy prod') // prod alias maps to the production target
+  })
+
+  it('migrates prepare release ownership from ship to release', () => {
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        activation: {
+          triggers: ['release', 'prepare release', 'prepare release please', 'ship'],
+        },
+      }),
+      JSON.stringify({
+        ship: { preferredTriggers: ['ship', 'ship please', 'prepare release'] },
+        release: { preferredTriggers: ['release'] },
+        activation: { triggers: ['ship', 'prepare release'] },
+      }),
+    )
+
+    const mergedProfile = JSON.parse(merged as string)
+    expect(mergedProfile.ship.preferredTriggers).toEqual(['ship', 'ship please'])
+    expect(mergedProfile.release.preferredTriggers).toContain('prepare release')
+    expect(mergedProfile.release.preferredTriggers).toContain('prepare release please')
+    expect(mergedProfile.activation.triggers).toContain('prepare release')
+  })
+
   it('reports aligned policies and unavailable policy input', () => {
     const profile = JSON.stringify({
       schemaVersion: 11,
