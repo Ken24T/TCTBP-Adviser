@@ -126,7 +126,8 @@ function mergeActivation(
 
   const mergedTriggers: string[] = []
   const seen = new Set<string>()
-  for (const trigger of [...sourceTriggers, ...targetTriggers]) {
+  // Canonical additions first, filtered for applicability to the target.
+  for (const trigger of sourceTriggers) {
     const key = trigger.toLowerCase()
     if (seen.has(key)) continue
     if (!activationTriggerApplicable(key, {
@@ -137,6 +138,15 @@ function mergeActivation(
     })) {
       continue
     }
+    seen.add(key)
+    mergedTriggers.push(trigger)
+  }
+  // Pre-existing target triggers are project-owned: preserve them regardless
+  // of the canonical applicability filters (discovered via the kindling
+  // reconcile, where pre-existing deploy variants were being stripped).
+  for (const trigger of targetTriggers) {
+    const key = trigger.toLowerCase()
+    if (seen.has(key)) continue
     seen.add(key)
     mergedTriggers.push(trigger)
   }

@@ -235,6 +235,33 @@ describe('semantic TCTBP policy comparison', () => {
     expect(mergedProfile.activation.triggers).toContain('prepare release')
   })
 
+  it('preserves pre-existing target triggers even when canonical filters apply', () => {
+    // Discovered via the kindling reconcile: a target that already enabled
+    // deploy environment variants must not lose them just because it maps no
+    // deploy targets in its profile — pre-existing triggers are project-owned.
+    const merged = mergeCanonicalTctbpPolicy(
+      JSON.stringify({
+        activation: { triggers: ['deploy dev', 'deploy production', 'promote staging'] },
+      }),
+      JSON.stringify({
+        branchModel: { strategy: 'simple', productionBranch: 'main' },
+        deploy: { enabled: false, targets: {} },
+        activation: {
+          triggers: ['deploy dev', 'deploy production', 'deploy staging', 'custom-trigger'],
+        },
+      }),
+    )
+
+    const triggers = (JSON.parse(merged as string).activation.triggers) as string[]
+    // Canonical additions are filtered for the target's strategy.
+    expect(triggers).not.toContain('promote staging')
+    // Pre-existing target triggers are preserved regardless of the filters.
+    expect(triggers).toContain('deploy dev')
+    expect(triggers).toContain('deploy production')
+    expect(triggers).toContain('deploy staging')
+    expect(triggers).toContain('custom-trigger')
+  })
+
   it('reports aligned policies and unavailable policy input', () => {
     const profile = JSON.stringify({
       schemaVersion: 11,
