@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   compareTctbpPolicy,
@@ -15,10 +16,11 @@ const TCTBP_WEB_ROOT = process.env.TCTBP_WEB_ROOT
 const TARGET_ROOT = process.env.TARGET_ROOT
   ?? '/home/ken/Documents/development/repos/kindling'
 const PLAN_OUT = process.env.PLAN_OUT
-  ?? path.join(TCTBP_WEB_ROOT, '.tmp-kindling-merged.json')
+  ?? path.join(os.tmpdir(), 'tctbp-reconcile-merged.json')
 
-// Read-only reconcile plan for kindling: real merge machinery, no writes to
-// the target. Produces the merged profile artifact + a plan report.
+// Read-only reconcile plan for a target repo: real merge machinery, no writes
+// to the target. Produces the merged profile artifact + a plan report.
+// Usage: TARGET_ROOT=/path/to/repo npx vitest run server/kindling-plan.test.ts
 describe('kindling reconcile plan (read-only)', () => {
   it('computes drift and merged profile, writes the plan artifact', () => {
     const canonical = fs.readFileSync(
