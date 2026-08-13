@@ -5,7 +5,10 @@ import { repositoryReference, referenceCatalogue } from '../server/reference/cat
 import type { IntentPlan } from '../shared/intent'
 import { actionConfirmation } from './action-workflows'
 import { IntentPlanPanel } from './components/IntentPlanPanel'
-import { ReferenceExplorer } from './components/ReferenceExplorer'
+import {
+  filterWorkflows,
+  ReferenceExplorer,
+} from './components/ReferenceExplorer'
 import { RepositoryReferencePanel } from './components/RepositoryReferencePanel'
 import { planIntent } from '../server/intents/planner'
 import { recommend } from '../server/recommendations/engine'
@@ -235,10 +238,59 @@ describe('intent and reference views', () => {
       />,
     )
 
-    expect(markup).toContain('Triggers and guardrails')
+    expect(markup).toContain('TCTBP surface reference')
     expect(markup).toContain('Checkpoint')
     expect(markup).toContain('checkpoint please')
-    expect(markup).toContain('scripts/tctbp-run-checkpoint.js')
+    // Filter controls are present in workflows mode.
+    expect(markup).toContain('Surface')
+    expect(markup).toContain('Family')
+    // Chat-invokable workflows carry a "Chat trigger" badge; automated
+    // sub-steps (gate) are marked "Automated step".
+    expect(markup).toContain('Chat trigger')
+    expect(markup).toContain('Automated step')
+    // Technical detail (runner, preconditions, effects) is collapsed behind
+    // each card's toggle rather than sprawled across the page.
+    expect(markup).toContain('Show details')
+    expect(markup).not.toContain('scripts/tctbp-run-checkpoint.js')
+    // The runner is still carried by the catalogue data.
+    expect(
+      referenceCatalogue().workflows.find((workflow) => workflow.id === 'checkpoint')
+        ?.runner,
+    ).toBe('scripts/tctbp-run-checkpoint.js')
+    // The catalogue marks orient as chat-invokable and gate as automated.
+    expect(
+      referenceCatalogue().workflows.find((workflow) => workflow.id === 'orient')
+        ?.chatInvokable,
+    ).toBe(true)
+    expect(
+      referenceCatalogue().workflows.find((workflow) => workflow.id === 'gate')
+        ?.chatInvokable,
+    ).toBe(false)
+  })
+
+  it('filters workflows by surface, family, and search together', () => {
+    const workflows = referenceCatalogue().workflows
+
+    expect(filterWorkflows(workflows, '', 'all', 'all')).toHaveLength(19)
+
+    const chat = filterWorkflows(workflows, '', 'chat', 'all')
+    expect(chat.some((workflow) => workflow.id === 'orient')).toBe(true)
+    expect(chat.some((workflow) => workflow.id === 'gate')).toBe(false)
+
+    const automated = filterWorkflows(workflows, '', 'automated', 'all')
+    expect(automated.map((workflow) => workflow.id)).toEqual(['gate'])
+
+    const environment = filterWorkflows(workflows, '', 'all', 'environment')
+    expect(environment.length).toBeGreaterThan(0)
+    expect(environment.every(
+      (workflow) => workflow.category === 'environment',
+    )).toBe(true)
+
+    // Search and filters combine: "promote" within chat triggers.
+    expect(
+      filterWorkflows(workflows, 'promote', 'chat', 'all')
+        .map((workflow) => workflow.id),
+    ).toEqual(['promote'])
   })
 
   it('renders branch roles and applicable workflows for a repository', () => {

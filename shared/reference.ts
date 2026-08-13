@@ -27,6 +27,12 @@ export interface WorkflowReference {
   category: 'inspection' | 'preservation' | 'continuation' | 'environment' | 'administration'
   purpose: string
   aliases: string[]
+  /**
+   * Whether this workflow is normally invoked standalone in a chat session
+   * (e.g. "orient please"), as opposed to running automatically as a
+   * sub-step of another workflow (e.g. gate runs inside ship/preflight).
+   */
+  chatInvokable: boolean
   runner: string
   dryRun: boolean
   branchRestriction: string
