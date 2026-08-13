@@ -5,7 +5,8 @@ import {
   syncSummary,
   workingTreeSummary,
 } from '../presentation'
-import { Card, KeyValue, Panel } from './primitives'
+import { Card, KeyValue } from './primitives'
+import { CollapsiblePanel } from './CollapsiblePanel'
 
 interface RepositoryStateProps {
   observation: RepositoryObservation
@@ -52,14 +53,14 @@ export function RepositoryState({
         />
       </section>
 
-      <Panel eyebrow="Branch model" title={model.strategy ?? 'Unknown strategy'}>
+      <CollapsiblePanel eyebrow="Branch model" title={model.strategy ?? 'Unknown strategy'}>
         <KeyValue
           items={[
             ...branchRoles(model).map(({ role, branch }) => ({ key: role, value: <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{branch}</code> })),
             { key: 'Current HEAD', value: <code className="text-xs bg-surface-soft px-1.5 py-0.5 rounded">{observation.head.sha?.slice(0, 8) ?? 'Unavailable'}</code> },
           ]}
         />
-      </Panel>
+      </CollapsiblePanel>
     </>
   )
 }
