@@ -18,7 +18,6 @@ import { useTheme } from '../theme'
 import { verifyRepositoryStatus } from '../api'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
 import { ActionerProgress } from './ActionerProgress'
-import { RecommendationPanel } from './RecommendationPanel'
 import { RepositoryState } from './RepositoryState'
 import { TctbpPanel } from './TctbpPanel'
 import { GitHubPanel } from './GitHubPanel'
@@ -184,9 +183,7 @@ export function RepositoryDetail({
         name={headerName}
         onBack={onBack}
         onRefresh={onRefresh}
-        onVerify={runVerify}
         severity={recommendation.severity}
-        verifyBusy={verifyBusy}
       />
 
       {verifyResult && (
@@ -231,15 +228,31 @@ export function RepositoryDetail({
             <Select
               disabled={busy}
               value={intent}
-              onChange={(event) => onIntentChange(
-                event.currentTarget.value as RecommendationIntent,
-              )}
+              onChange={(event) => {
+                const next = event.currentTarget.value
+                // The "verify" entry is an action, not an intent: run it and
+                // leave the selected outcome untouched (the controlled value
+                // snaps back to the current intent).
+                if (next === 'verify-status') {
+                  void runVerify()
+                  return
+                }
+                onIntentChange(next as RecommendationIntent)
+              }}
             >
               {INTENT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
+              <optgroup label="Actions">
+                <option
+                  disabled={verifyBusy}
+                  value="verify-status"
+                >
+                  Verify with status
+                </option>
+              </optgroup>
             </Select>
           </label>
           <p className="text-xs text-text-muted">
@@ -392,62 +405,60 @@ export function RepositoryDetail({
           />
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          <div className="xl:col-span-7 space-y-8">
-            <IntentPlanPanel
-              plan={detail.intentPlan}
-              actionJob={actionJob}
-              actionBusy={actionBusy}
-              inspectionBusy={busy}
-              actionFeedback={actionFeedback}
-              primaryAction={recommendation.primaryAction}
-              reasonCodes={recommendation.reasonCodes}
-              onRunAction={onRunAction}
-            />
-            {/* When an intent plan is shown its step callouts carry the
-                explanation, so the separate "why this is recommended" strip is
-                only needed as a fallback for the no-intent state. */}
-            {!detail.intentPlan && (
-              <RecommendationPanel recommendation={recommendation} />
+        {(detail.intentPlan !== null || showUpgradePlanner) && (
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+            {detail.intentPlan !== null && (
+              <div className="xl:col-span-7 space-y-4">
+                <IntentPlanPanel
+                  plan={detail.intentPlan}
+                  actionJob={actionJob}
+                  actionBusy={actionBusy}
+                  inspectionBusy={busy}
+                  actionFeedback={actionFeedback}
+                  primaryAction={recommendation.primaryAction}
+                  reasonCodes={recommendation.reasonCodes}
+                  onRunAction={onRunAction}
+                />
+              </div>
             )}
-          </div>
-          <div className="xl:col-span-5 space-y-8">
             {showUpgradePlanner && (
-              <TctbpUpgradePanel
-                repositoryName={observation.repository.name}
-                plan={upgradePlan}
-                busy={upgradeBusy}
-                applyBusy={applyBusy}
-                upgradeFeedback={upgradeFeedback}
-                aiReview={aiReview}
-                aiBusy={aiBusy}
-                aiAcknowledged={aiAcknowledged}
-                onAiAcknowledgedChange={onAiAcknowledgedChange}
-                bootstrapPlan={bootstrapPlan}
-                bootstrapBusy={bootstrapBusy}
-                bootstrapApplyBusy={bootstrapApplyBusy}
-                bootstrapApplyFeedback={bootstrapApplyFeedback}
-                bootstrapJob={bootstrapJob}
-                contractIncompatible={recommendation.reasonCodes.includes(
-                  'tctbp-contract-incompatible',
-                )}
-                onPrepareBootstrap={onPrepareBootstrap}
-                onApplyBootstrap={onApplyBootstrap}
-                onLoad={onLoadUpgradePlan}
-                onReviewAi={onReviewAi}
-                onApplyAdditions={onApplyAdditions}
-                onApplyPolicy={onApplyPolicy}
-                onApplyDrifted={onApplyDrifted}
-                onApplyAlignment={onApplyAlignment}
-                onDeleteObsolete={onDeleteObsolete}
-                onApplyInOrder={onApplyInOrder}
-                onCleanupUpgradeBranch={onCleanupUpgradeBranch}
-                onMergeUpgradeBranch={onMergeUpgradeBranch}
-                journeyStage={journeyStage}
-              />
+              <div className={`space-y-4 ${detail.intentPlan !== null ? 'xl:col-span-5' : ''}`}>
+                <TctbpUpgradePanel
+                  repositoryName={observation.repository.name}
+                  plan={upgradePlan}
+                  busy={upgradeBusy}
+                  applyBusy={applyBusy}
+                  upgradeFeedback={upgradeFeedback}
+                  aiReview={aiReview}
+                  aiBusy={aiBusy}
+                  aiAcknowledged={aiAcknowledged}
+                  onAiAcknowledgedChange={onAiAcknowledgedChange}
+                  bootstrapPlan={bootstrapPlan}
+                  bootstrapBusy={bootstrapBusy}
+                  bootstrapApplyBusy={bootstrapApplyBusy}
+                  bootstrapApplyFeedback={bootstrapApplyFeedback}
+                  bootstrapJob={bootstrapJob}
+                  contractIncompatible={recommendation.reasonCodes.includes(
+                    'tctbp-contract-incompatible',
+                  )}
+                  onPrepareBootstrap={onPrepareBootstrap}
+                  onApplyBootstrap={onApplyBootstrap}
+                  onLoad={onLoadUpgradePlan}
+                  onReviewAi={onReviewAi}
+                  onApplyAdditions={onApplyAdditions}
+                  onApplyPolicy={onApplyPolicy}
+                  onApplyDrifted={onApplyDrifted}
+                  onApplyAlignment={onApplyAlignment}
+                  onDeleteObsolete={onDeleteObsolete}
+                  onApplyInOrder={onApplyInOrder}
+                  onCleanupUpgradeBranch={onCleanupUpgradeBranch}
+                  onMergeUpgradeBranch={onMergeUpgradeBranch}
+                  journeyStage={journeyStage}
+                />
+              </div>
             )}
           </div>
-        </div>
+        )}
       </Section>
 
       <Section eyebrow="Repository details">

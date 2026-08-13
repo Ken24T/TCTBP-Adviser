@@ -77,18 +77,48 @@ describe('repository detail view', () => {
     expect(markup).toContain('checkpoint please')
     expect(markup).toContain('1 staged')
     expect(markup).toContain('development')
-    expect(markup).toContain('What this action does')
-    expect(markup).toContain('What this action does not do')
     expect(markup).toContain('ad-detail-themed')
     expect(markup).toContain('Configured local repository')
 
-    // Minimalist layout: supporting panes are collapsed by default and
-    // irrelevant panes (upgrade planner, known limits) are hidden entirely.
+    // Minimalist layout: with no intent plan and no upgrade journey, the
+    // plan/recommendation grid is hidden entirely — the bar already explains
+    // the recommendation and the does/does-not detail lives in step callouts.
     expect(markup).toContain('TCTBP profile')
+    expect(markup).not.toContain('Why this is recommended')
+    expect(markup).not.toContain('What this action does')
+    expect(markup).not.toContain('What this action does not do')
     expect(markup).not.toContain('Quality gates')
     expect(markup).not.toContain('Required before ship')
     expect(markup).not.toContain('No fetch was performed')
     expect(markup).not.toContain('Preview upgrade plan')
+
+    // "Verify with status" lives in the outcome dropdown's Actions group.
+    expect(markup).toContain('<optgroup label="Actions">')
+    expect(markup).toContain('Verify with status')
+  })
+
+  it('omits the recommendation strip for a healthy repository without an intent', () => {
+    const observation = observationFixture()
+    const recommendation = recommend(
+      observation,
+      'none',
+      new Date(observation.observedAt),
+    )
+    const markup = renderDetail({
+      observation,
+      recommendation,
+      intentPlan: null,
+      reference: repositoryReference(observation),
+      github: disabledGitHub(),
+      directoryName: 'fixture',
+    })
+
+    // Healthy repos already read "no action needed" in the bar, and the
+    // does/does-not cards would be empty — the strip is redundant.
+    expect(recommendation.severity).toBe('healthy')
+    expect(markup).not.toContain('Why this is recommended')
+    expect(markup).not.toContain('What this action does')
+    expect(markup).not.toContain('What this action does not do')
   })
 
   it('renders the explicit machine-transfer intent path', () => {
