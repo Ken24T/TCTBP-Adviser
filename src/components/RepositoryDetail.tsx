@@ -23,7 +23,6 @@ import { TctbpPanel } from './TctbpPanel'
 import { GitHubPanel } from './GitHubPanel'
 import { IntentPlanPanel } from './IntentPlanPanel'
 import { INTENT_OPTIONS } from '../intent-options'
-import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 import { NextActionBar } from './NextActionBar'
 import { UpgradeBatchProgress } from './UpgradeBatchProgress'
@@ -465,17 +464,18 @@ export function RepositoryDetail({
         <RepositoryState observation={observation} />
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-          <div className="xl:col-span-7 space-y-4">
+          <div className={`space-y-4 ${detail.github.status === 'available' ? 'xl:col-span-7' : ''}`}>
             <TctbpPanel observation={observation} />
           </div>
-          <div className="xl:col-span-5 space-y-4">
-            <RepositoryReferencePanel reference={detail.reference} />
-            <GitHubPanel
-              evidence={detail.github}
-              localBranch={observation.head.branch}
-              localSha={observation.head.sha}
-            />
-          </div>
+          {detail.github.status === 'available' && (
+            <div className="xl:col-span-5 space-y-4">
+              <GitHubPanel
+                evidence={detail.github}
+                localBranch={observation.head.branch}
+                localSha={observation.head.sha}
+              />
+            </div>
+          )}
         </div>
 
         {hasUncertainties && (
