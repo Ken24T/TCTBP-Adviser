@@ -19,6 +19,8 @@ import { AiReviewDetails } from './AiReviewDetails'
 import { PlanDetails } from './PlanDetails'
 import { PlanExportMenu } from './PlanExportMenu'
 import { NextStepsStrip, ApplyStep } from './TctbpApplySteps'
+import type { UpgradeJourneyStageId } from '../upgrade-journey'
+import { SpinnerIcon } from './icons'
 import { TctbpBootstrapPanel } from './TctbpBootstrapPanel'
 import { Button, Panel } from './primitives'
 
@@ -51,6 +53,8 @@ interface TctbpUpgradePanelProps {
   onApplyInOrder: () => void
   onCleanupUpgradeBranch: () => void
   onMergeUpgradeBranch: () => void
+  /** Current upgrade-journey stage (null when no journey is in play). */
+  journeyStage?: UpgradeJourneyStageId | null
 }
 
 export function TctbpUpgradePanel({
@@ -81,6 +85,7 @@ export function TctbpUpgradePanel({
   onApplyInOrder,
   onCleanupUpgradeBranch,
   onMergeUpgradeBranch,
+  journeyStage = null,
 }: TctbpUpgradePanelProps) {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [localAiAcknowledged, setLocalAiAcknowledged] = useState(false)
@@ -115,6 +120,18 @@ export function TctbpUpgradePanel({
         alignmentPending,
       ].filter(Boolean).length
     : 0
+  // The sticky Take action bar is the single enabled surface for the upgrade
+  // journey. While it drives prepare/review/acknowledge/apply, this panel's
+  // matching controls stand down; after the apply stage, apply controls stay
+  // stood down too.
+  const topBarDrives = (stage: UpgradeJourneyStageId): boolean => (
+    journeyStage === stage
+  )
+  const applyStandDown = journeyStage === 'apply'
+    || journeyStage === 'checkpoint'
+    || journeyStage === 'publish'
+    || journeyStage === 'merge'
+    || journeyStage === 'cleanup'
 
   useEffect(() => {
     setLocalAiAcknowledged(false)
@@ -175,10 +192,11 @@ export function TctbpUpgradePanel({
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {!plan && (
           <Button
-            disabled={busy}
+            disabled={busy || topBarDrives('prepare')}
             onClick={onLoad}
             size="sm"
           >
+            {busy && <SpinnerIcon className="w-4 h-4 mr-2" />}
             {busy ? 'Preparing plan…' : 'Preview upgrade plan'}
           </Button>
         )}
@@ -187,12 +205,14 @@ export function TctbpUpgradePanel({
             className={aiBusy ? 'disabled:!cursor-wait' : undefined}
             disabled={
               aiBusy
+              || topBarDrives('review')
               || (plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request)
             }
             onClick={onReviewAi}
             size="sm"
             variant="secondary"
           >
+            {aiBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
             {aiBusy
               ? 'Asking Jasper…'
               : plan.disposition === 'bootstrap-required' && !bootstrapPlan?.request
@@ -211,7 +231,7 @@ export function TctbpUpgradePanel({
           <input
             checked={acked}
             className="w-4 h-4 text-teal-600 border-border rounded focus:ring-teal-500"
-            disabled={applicableCount === 0}
+            disabled={applicableCount === 0 || topBarDrives('acknowledge')}
             type="checkbox"
             onChange={(event) => changeAcknowledged(event.currentTarget.checked)}
           />
@@ -222,6 +242,12 @@ export function TctbpUpgradePanel({
             </span>
           )}
         </label>
+      )}
+
+      {(journeyStage === 'prepare' || journeyStage === 'review' || journeyStage === 'acknowledge') && (
+        <p className="mb-4 text-xs text-text-muted">
+          This step is driven from the Take action bar above.
+        </p>
       )}
 
       {plan && (
@@ -238,10 +264,12 @@ export function TctbpUpgradePanel({
                     || !aiApplyReady
                     || !plan.fingerprint
                     || plan.blockers.length > 0
+                    || applyStandDown
                   }
                   size="sm"
                   onClick={onApplyInOrder}
                 >
+                  {applyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
                   {applyBusy
                     ? 'Applying…'
                     : `Apply in order (${applicableCount} step${applicableCount === 1 ? '' : 's'})`}
@@ -255,6 +283,13 @@ export function TctbpUpgradePanel({
                 (blocker) => blocker.code === 'working-tree-dirty',
               )}
             />
+            {applyStandDown && (
+              <p className="mb-3 text-xs text-teal-700">
+                {journeyStage === 'apply'
+                  ? 'Apply from the Take action bar above.'
+                  : 'Applied — continue with the Take action bar above.'}
+              </p>
+            )}
             <ol className="space-y-2">
               <ApplyStep
                 active={plan.policy.state === 'drifted'}
@@ -269,10 +304,12 @@ export function TctbpUpgradePanel({
                     || !aiApplyReady
                     || !plan.fingerprint
                     || plan.blockers.length > 0
+                    || applyStandDown
                   }
                   size="sm"
                   onClick={onApplyPolicy}
                 >
+                  {applyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
                   {applyBusy ? 'Applying…' : 'Apply policy merge'}
                 </Button>
               </ApplyStep>
@@ -289,10 +326,12 @@ export function TctbpUpgradePanel({
                     || !aiApplyReady
                     || !plan.fingerprint
                     || plan.blockers.length > 0
+                    || applyStandDown
                   }
                   size="sm"
                   onClick={onApplyAdditions}
                 >
+                  {applyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
                   {applyBusy ? 'Applying…' : 'Apply additions (no commit/push)'}
                 </Button>
               </ApplyStep>
@@ -309,10 +348,12 @@ export function TctbpUpgradePanel({
                     || !aiApplyReady
                     || !plan.fingerprint
                     || plan.blockers.length > 0
+                    || applyStandDown
                   }
                   size="sm"
                   onClick={onApplyDrifted}
                 >
+                  {applyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
                   {applyBusy ? 'Applying…' : 'Apply drifted files'}
                 </Button>
               </ApplyStep>
@@ -329,10 +370,12 @@ export function TctbpUpgradePanel({
                     || !aiApplyReady
                     || !plan.fingerprint
                     || plan.blockers.length > 0
+                    || applyStandDown
                   }
                   size="sm"
                   onClick={onDeleteObsolete}
                 >
+                  {applyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
                   {applyBusy ? 'Applying…' : 'Delete obsolete files'}
                 </Button>
               </ApplyStep>
@@ -350,10 +393,12 @@ export function TctbpUpgradePanel({
                       || !aiApplyReady
                       || !plan.fingerprint
                       || plan.blockers.length > 0
+                      || applyStandDown
                     }
                     size="sm"
                     onClick={onApplyAlignment}
                   >
+                    {applyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
                     {applyBusy ? 'Applying…' : 'Record source alignment'}
                   </Button>
                 </ApplyStep>
@@ -373,24 +418,13 @@ export function TctbpUpgradePanel({
               aria-label="Upgrade branch merge"
               className="mb-4 p-3 rounded-lg border text-sm bg-surface-soft border-border text-text-secondary"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <strong className="block font-semibold text-text-primary">
-                    Merge the upgrade branch back
-                  </strong>
-                  <p className="mt-1 text-xs">
-                    Merge {plan.cleanup.branch} back into the environment branch and push it to origin.
-                  </p>
-                </div>
-                <Button
-                  className="shrink-0"
-                  disabled={applyBusy}
-                  size="sm"
-                  onClick={onMergeUpgradeBranch}
-                >
-                  {applyBusy ? 'Merging…' : 'Merge upgrade branch'}
-                </Button>
-              </div>
+              <strong className="block font-semibold text-text-primary">
+                Merge the upgrade branch back
+              </strong>
+              <p className="mt-1 text-xs">
+                Merge {plan.cleanup.branch} back into the environment branch and push it to origin —
+                do this from the Take action bar above once the upgrade branch is checkpointed.
+              </p>
             </div>
           )}
 
@@ -403,28 +437,14 @@ export function TctbpUpgradePanel({
                   : 'bg-surface-soft border-border text-text-secondary'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <strong className="block font-semibold text-text-primary">
-                    Upgrade branch cleanup
-                  </strong>
-                  <p className="mt-1 text-xs">
-                    {plan.cleanup.available
-                      ? `${plan.cleanup.branch} is fully merged and safe to remove — this deletes it locally and on origin.`
-                      : plan.cleanup.reason}
-                  </p>
-                </div>
-                {plan.cleanup.available && (
-                  <Button
-                    className="shrink-0"
-                    disabled={applyBusy}
-                    size="sm"
-                    onClick={onCleanupUpgradeBranch}
-                  >
-                    {applyBusy ? 'Cleaning up…' : 'Clean up upgrade branch'}
-                  </Button>
-                )}
-              </div>
+              <strong className="block font-semibold text-text-primary">
+                Upgrade branch cleanup
+              </strong>
+              <p className="mt-1 text-xs">
+                {plan.cleanup.available
+                  ? `${plan.cleanup.branch} is fully merged and safe to remove — this deletes it locally and on origin. Remove it from the Take action bar above.`
+                  : plan.cleanup.reason}
+              </p>
             </div>
           )}
 

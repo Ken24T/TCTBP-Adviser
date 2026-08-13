@@ -14,6 +14,7 @@ import {
   resolveNextAction,
 } from '../next-action'
 import type { UpgradeJourneyStageId } from '../upgrade-journey'
+import { SpinnerIcon } from './icons'
 import { Button } from './primitives'
 
 const SHORT_LABELS: Record<UpgradeJourneyStageId, string> = {
@@ -122,7 +123,8 @@ export function NextActionBar({
       case 'acknowledge':
         return 'I’ve reviewed — enable apply'
       case 'apply':
-        return applyBusy ? 'Applying…' : current?.label ?? 'Apply'
+        // The bar drives apply-in-order; the planner below shows the detail.
+        return applyBusy ? 'Applying…' : 'Apply in order'
       case 'checkpoint':
         return actionBusy ? 'Starting…' : 'Run Checkpoint'
       case 'publish':
@@ -141,6 +143,7 @@ export function NextActionBar({
     if (action.kind === 'guidance') {
       return (
         <Button disabled={busy} size="sm" variant="secondary" onClick={onRefresh}>
+          {busy && <SpinnerIcon className="w-4 h-4 mr-2" />}
           {busy ? 'Inspecting…' : 'Refresh'}
         </Button>
       )
@@ -153,17 +156,20 @@ export function NextActionBar({
           size="sm"
           onClick={onRunRecommended}
         >
+          {actionBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
           {actionBusy ? 'Starting…' : `Run ${action.label}`}
         </Button>
       )
     }
+    const journeyBusy = anyBusy && current?.action !== 'acknowledge'
     return (
       <Button
-        className={anyBusy ? 'disabled:!cursor-wait' : undefined}
-        disabled={anyBusy && current?.action !== 'acknowledge'}
+        className={journeyBusy ? 'disabled:!cursor-wait' : undefined}
+        disabled={journeyBusy}
         size="sm"
         onClick={runJourneyStep}
       >
+        {journeyBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
         {journeyButtonLabel()}
       </Button>
     )

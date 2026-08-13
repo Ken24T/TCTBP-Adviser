@@ -2,7 +2,89 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { AiReviewResult } from '../shared/ai-review'
 import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
+import type { UpgradeJourneyStageId } from './upgrade-journey'
 import { TctbpUpgradePanel } from './components/TctbpUpgradePanel'
+
+function availableReview(fingerprint: string): AiReviewResult {
+  return {
+    status: 'available',
+    reviewId: 'review-1',
+    reviewedAt: new Date().toISOString(),
+    provider: 'openai-compatible',
+    model: 'test-model',
+    planFingerprint: fingerprint,
+    summary: 'No blockers.',
+    risks: [],
+    recommendedNextStep: 'Apply.',
+    confidence: 'high',
+    unknowns: [],
+    error: null,
+  }
+}
+
+function applyPlan(): TctbpUpgradePlan {
+  return {
+    fingerprint: 'fp',
+    disposition: 'review-required',
+    sourceAlignment: 'outdated',
+    actionCounts: { preserve: 0, add: 1, review: 0, unavailable: 0 },
+    blockers: [],
+    policy: { state: 'aligned', differences: [] },
+    source: {
+      state: 'available',
+      repository: 'TCTBP-Web',
+      revision: 'a'.repeat(40),
+      version: '0.3.0',
+      managedFileCount: 1,
+      message: null,
+    },
+    target: {
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: 'a'.repeat(40),
+      sourceVersion: '0.3.0',
+    },
+    drift: {
+      files: [],
+      counts: { current: 0, 'missing-target': 1, drifted: 0, 'source-unavailable': 0 },
+    },
+  }
+}
+
+function renderWithStage(
+  plan: TctbpUpgradePlan,
+  journeyStage: UpgradeJourneyStageId,
+): string {
+  return renderToStaticMarkup(
+    <TctbpUpgradePanel
+      repositoryName="example-repository"
+      plan={plan}
+      busy={false}
+      applyBusy={false}
+      upgradeFeedback={null}
+      aiReview={availableReview('fp')}
+      aiAcknowledged
+      aiBusy={false}
+      bootstrapPlan={null}
+      bootstrapBusy={false}
+      bootstrapApplyBusy={false}
+      bootstrapApplyFeedback={null}
+      bootstrapJob={null}
+      journeyStage={journeyStage}
+      onPrepareBootstrap={() => undefined}
+      onApplyBootstrap={() => undefined}
+      onLoad={() => undefined}
+      onReviewAi={() => undefined}
+      onApplyAdditions={() => undefined}
+      onApplyPolicy={() => undefined}
+      onApplyDrifted={() => undefined}
+      onApplyAlignment={() => undefined}
+      onDeleteObsolete={() => undefined}
+      onApplyInOrder={() => undefined}
+      onCleanupUpgradeBranch={() => undefined}
+      onMergeUpgradeBranch={() => undefined}
+    />,
+  )
+}
 
 describe('TCTBP upgrade preview panel', () => {
   it('renders canonical source and drift summary without mutation controls', () => {
@@ -514,8 +596,9 @@ describe('TCTBP upgrade preview panel', () => {
     )
 
     expect(markup).toContain('Upgrade branch cleanup')
-    expect(markup).toContain('Clean up upgrade branch')
+    expect(markup).toContain('Remove it from the Take action bar above')
     expect(markup).toContain('upgrade/tctbp-0.3.0-aaaaaaa is fully merged and safe to remove')
+    expect(markup).not.toContain('Clean up upgrade branch')
   })
 
   it('offers to merge the upgrade branch back before cleanup', () => {
@@ -579,7 +662,9 @@ describe('TCTBP upgrade preview panel', () => {
     )
 
     expect(markup).toContain('Upgrade branch merge')
-    expect(markup).toContain('Merge upgrade branch')
+    expect(markup).toContain('Merge the upgrade branch back')
+    expect(markup).toContain('Take action bar above')
+    expect(markup).not.toContain('Merge upgrade branch')
     expect(markup).not.toContain('Clean up upgrade branch')
   })
 
@@ -646,6 +731,23 @@ describe('TCTBP upgrade preview panel', () => {
     expect(markup).toContain('Upgrade branch cleanup')
     expect(markup).toContain('has not been merged back')
     expect(markup).not.toContain('Clean up upgrade branch')
+  })
+
+  it('stands down the panel apply controls while the bar drives the apply stage', () => {
+    const markup = renderWithStage(applyPlan(), 'apply')
+    expect(markup).toContain('Apply from the Take action bar above.')
+    expect(markup).toMatch(/type="button" disabled="">Apply in order \(1 step\)/)
+  })
+
+  it('disables apply once the journey has moved past the apply stage', () => {
+    const markup = renderWithStage(applyPlan(), 'checkpoint')
+    expect(markup).toContain('Applied — continue with the Take action bar above.')
+    expect(markup).toMatch(/type="button" disabled="">Apply in order \(1 step\)/)
+  })
+
+  it('stands down the review/acknowledge controls while the bar drives them', () => {
+    const markup = renderWithStage(applyPlan(), 'review')
+    expect(markup).toContain('This step is driven from the Take action bar above.')
   })
 
   it('shows an hourglass cursor while Jasper is thinking', () => {

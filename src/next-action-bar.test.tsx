@@ -117,6 +117,19 @@ describe('next action bar', () => {
     expect(markup).toContain('Ask Jasper to review')
   })
 
+  it('offers apply in order from the bar at the apply stage', () => {
+    const applyPlan = plan({
+      actionCounts: { preserve: 0, add: 1, review: 0, unavailable: 0 },
+    })
+    const markup = render({
+      plan: applyPlan,
+      aiReview: review(),
+      aiAcknowledged: true,
+    })
+    expect(markup).toContain('Apply in order')
+    expect(markup).toMatch(/type="button">Apply in order/)
+  })
+
   it('runs the merge from the journey step instead of refresh guidance', () => {
     const mergePlan = plan({
       disposition: 'current',

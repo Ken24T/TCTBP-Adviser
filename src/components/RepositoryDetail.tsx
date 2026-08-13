@@ -24,6 +24,7 @@ import { INTENT_OPTIONS } from '../intent-options'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 import { NextActionBar } from './NextActionBar'
+import { resolveUpgradeJourney } from '../upgrade-journey'
 
 interface RepositoryDetailProps {
   detail: RepositoryDetailResult
@@ -118,6 +119,15 @@ export function RepositoryDetail({
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
     ?? 'No project description is available in the TCTBP profile.'
+  // The current upgrade-journey stage, shared with the sticky action bar so
+  // the upgrade planner below stands down while the bar drives the step.
+  const journeyStage = resolveUpgradeJourney({
+    plan: upgradePlan,
+    aiReview,
+    aiAcknowledged,
+    primaryAction: recommendation.primaryAction,
+    branchModel: observation.tctbp.branchModel,
+  })?.current.id ?? null
   // The header mirrors the portfolio card's display name: custom rename when
   // set, otherwise the repository's display name (TCTBP project name), with
   // the on-disk directory name only as a last resort — never the raw path
@@ -375,6 +385,7 @@ export function RepositoryDetail({
               onApplyInOrder={onApplyInOrder}
               onCleanupUpgradeBranch={onCleanupUpgradeBranch}
               onMergeUpgradeBranch={onMergeUpgradeBranch}
+              journeyStage={journeyStage}
             />
           </div>
         </div>
