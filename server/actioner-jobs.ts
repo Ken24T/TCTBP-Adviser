@@ -105,7 +105,7 @@ export class ActionerJobStore {
     this.touch(job)
   }
 
-  complete(jobId: string, result: ActionerResult): void {
+  complete(jobId: string, result: ActionerResult): ActionerJob {
     const job = this.require(jobId)
     job.status = 'completed'
     job.result = result
@@ -115,6 +115,7 @@ export class ActionerJobStore {
     }
     job.completedAt = this.now().toISOString()
     this.touch(job)
+    return job
   }
 
   fail(jobId: string, error: string): void {

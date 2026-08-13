@@ -94,7 +94,7 @@ export async function handleUpgradeRoutes(
           progress,
         )
         runtime.bootstrapJobs.complete(job.jobId, result)
-        runtime.portfolio.invalidate()
+        await runtime.portfolio.refreshAfterMutation(repository.id)
       } catch (error) {
         runtime.bootstrapJobs.fail(job.jobId, safeBootstrapJobError(error))
       }
@@ -175,7 +175,7 @@ export async function handleUpgradeRoutes(
       observation,
       applyRequest,
     )
-    runtime.portfolio.invalidate()
+    await runtime.portfolio.refreshAfterMutation(repository.id)
     sendJson(response, 200, result)
     return true
   }
@@ -192,7 +192,7 @@ export async function handleUpgradeRoutes(
       repository.path,
       observation,
     )
-    runtime.portfolio.invalidate()
+    await runtime.portfolio.refreshAfterMutation(repository.id)
     sendJson(response, 200, result)
     return true
   }
@@ -209,7 +209,7 @@ export async function handleUpgradeRoutes(
       repository.path,
       observation,
     )
-    runtime.portfolio.invalidate()
+    await runtime.portfolio.refreshAfterMutation(repository.id)
     sendJson(response, 200, result)
     return true
   }

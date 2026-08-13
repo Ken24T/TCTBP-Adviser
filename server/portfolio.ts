@@ -22,6 +22,7 @@ import type {
 export class PortfolioService {
   #cached: PortfolioSnapshot | null = null
   #refreshing: Promise<PortfolioSnapshot> | null = null
+  #pendingMutationRefresh: Promise<void> | null = null
 
   constructor(
     readonly config: ServiceConfig,
@@ -32,6 +33,9 @@ export class PortfolioService {
   ) {}
 
   async get(force = false): Promise<PortfolioSnapshot> {
+    // A mutation may still be settling into the cache; wait for it so the
+    // next read is never stale after an action completes.
+    if (this.#pendingMutationRefresh) await this.#pendingMutationRefresh
     if (!force && this.#cached && isFresh(
       this.#cached.generatedAt,
       this.config.portfolioCacheTtlMs,
@@ -53,6 +57,29 @@ export class PortfolioService {
   }
 
   /**
+   * Re-inspects a single mutated repository into the cached snapshot so the
+   * portfolio stays responsive after an action. Falls back to dropping the
+   * whole cache if the targeted refresh cannot run.
+   */
+  async refreshAfterMutation(repositoryId: string): Promise<void> {
+    const task = (async () => {
+      try {
+        await this.refreshRepository(repositoryId)
+      } catch {
+        this.invalidate()
+      }
+    })()
+    this.#pendingMutationRefresh = task
+    try {
+      await task
+    } finally {
+      if (this.#pendingMutationRefresh === task) {
+        this.#pendingMutationRefresh = null
+      }
+    }
+  }
+
+  /**
    * Re-inspects a single registered repository and swaps its summary into the
    * cached snapshot, recomputing the aggregate counts. Used for the per-card
    * "Refresh" action on the portfolio dashboard.
@@ -60,7 +87,9 @@ export class PortfolioService {
   async refreshRepository(repositoryId: string): Promise<PortfolioSnapshot> {
     const repository = await this.registry.require(repositoryId)
     const refreshed = await this.summarise(repository, true)
-    const base = this.#cached ?? await this.get(true)
+    // Use refresh() directly rather than get(true) so a mutation refresh never
+    // awaits its own pending promise when the cache is empty.
+    const base = this.#cached ?? await this.refresh(true)
     const repositories = base.repositories.map((candidate) => (
       candidate.id === repositoryId ? refreshed : candidate
     ))

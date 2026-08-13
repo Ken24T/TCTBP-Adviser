@@ -23,8 +23,10 @@ function sanitiseActionerDetail(value: string): string {
 }
 
 /**
- * Completes a workflow action job and drops the cached portfolio snapshot so
- * the next read reflects the repository mutation (tone responsiveness).
+ * Completes a workflow action job and refreshes only the mutated repository
+ * into the cached portfolio snapshot, so the dashboard reflects the change
+ * without a full re-inspection (tone responsiveness). Falls back to a full
+ * cache drop if the targeted refresh cannot run.
  */
 export function completeActionJob(
   jobs: ActionerJobStore,
@@ -32,8 +34,8 @@ export function completeActionJob(
   jobId: string,
   result: ActionerResult,
 ): void {
-  jobs.complete(jobId, result)
-  portfolio.invalidate()
+  const job = jobs.complete(jobId, result)
+  void portfolio.refreshAfterMutation(job.repositoryId)
 }
 
 export function safeBootstrapJobError(error: unknown): string {

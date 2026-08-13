@@ -149,6 +149,89 @@ describe('portfolio snapshot service', () => {
     await expect(service.refreshRepository('missing')).rejects.toThrow()
     expect(inspect).not.toHaveBeenCalled()
   })
+
+  it('refreshes a single mutated repository without re-inspecting the others', async () => {
+    const repositories = [
+      registered('one', 'One'),
+      registered('two', 'Two'),
+    ]
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService(repositories, inspect)
+
+    await service.get()
+    expect(inspect).toHaveBeenCalledTimes(2)
+
+    inspect.mockImplementation(async (repository: RegisteredRepository) => ({
+      ...observationFixture({ clean: false }),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    await service.refreshAfterMutation('one')
+
+    expect(inspect).toHaveBeenCalledTimes(3)
+    const snapshot = await service.get()
+    expect(snapshot.cache.status).toBe('fresh')
+    expect(snapshot.repositories[0].workingTree).toEqual({
+      clean: false,
+      pathCount: 1,
+    })
+    expect(snapshot.repositories[1].workingTree).toEqual({
+      clean: true,
+      pathCount: 0,
+    })
+    expect(inspect).toHaveBeenCalledTimes(3)
+  })
+
+  it('waits for a settling mutation refresh before serving the snapshot', async () => {
+    const repositories = [
+      registered('one', 'One'),
+      registered('two', 'Two'),
+    ]
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService(repositories, inspect)
+
+    await service.get()
+    inspect.mockImplementation(async (repository: RegisteredRepository) => ({
+      ...observationFixture({ clean: false }),
+      repository: { id: repository.id, name: repository.name },
+    }))
+
+    // Deliberately not awaited: a concurrent read must still see its result.
+    void service.refreshAfterMutation('one')
+    const snapshot = await service.get()
+
+    expect(snapshot.cache.status).toBe('fresh')
+    expect(snapshot.repositories[0].workingTree).toEqual({
+      clean: false,
+      pathCount: 1,
+    })
+    expect(snapshot.repositories[1].workingTree).toEqual({
+      clean: true,
+      pathCount: 0,
+    })
+  })
+
+  it('falls back to a full refresh when a post-mutation refresh cannot run', async () => {
+    const inspect = vi.fn(async (repository: RegisteredRepository) => ({
+      ...observationFixture(),
+      repository: { id: repository.id, name: repository.name },
+    }))
+    const service = createService([registered('one', 'One')], inspect)
+
+    const first = await service.get()
+    expect(first.cache.status).toBe('refreshed')
+
+    await service.refreshAfterMutation('missing')
+
+    const next = await service.get()
+    expect(next.cache.status).toBe('refreshed')
+    expect(inspect).toHaveBeenCalledTimes(2)
+  })
 })
 
 function createService(

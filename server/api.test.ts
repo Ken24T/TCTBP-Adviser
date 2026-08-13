@@ -208,6 +208,67 @@ describe('same-origin inspection API', () => {
     expect(job?.result?.remote).toBe('https://github.com/Ken24T/plain.git')
   })
 
+  it('serves the portfolio from cache after an action (targeted refresh)', async () => {
+    const running = await startApi(true)
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string; name: string }>
+    }
+    const plain = list.repositories.find(
+      (repository) => repository.name === 'plain-repository',
+    )
+    expect(plain).toBeDefined()
+
+    // Prime the portfolio cache.
+    const primed = await authorisedFetch(`${running.url}/api/portfolio`, running)
+    expect(await primed.json()).toMatchObject({
+      cache: { status: 'refreshed' },
+    })
+
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${plain!.id}/actions/add-origin`,
+      running,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId: 'add-origin',
+          confirm: true,
+          url: 'https://github.com/Ken24T/plain.git',
+        }),
+      },
+    )
+    expect(response.status).toBe(202)
+    const started = await response.json() as { jobId: string }
+
+    const deadline = Date.now() + 5_000
+    let job: { status: string } | null = null
+    while (Date.now() < deadline) {
+      const jobResponse = await authorisedFetch(
+        `${running.url}/api/repositories/${plain!.id}/action-jobs/${started.jobId}`,
+        running,
+      )
+      job = await jobResponse.json() as { status: string }
+      if (job.status === 'completed' || job.status === 'failed') break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    expect(job?.status).toBe('completed')
+
+    // The mutation refreshes only the affected repo into the cache, so the
+    // next read is served fresh instead of forcing a full re-inspection.
+    const portfolioResponse = await authorisedFetch(
+      `${running.url}/api/portfolio`,
+      running,
+    )
+    const portfolio = await portfolioResponse.json() as {
+      cache: { status: string }
+    }
+    expect(portfolio.cache.status).toBe('fresh')
+  })
+
   it('rejects an invalid add-origin URL without starting a job', async () => {
     const running = await startApi(true)
     const listResponse = await authorisedFetch(
