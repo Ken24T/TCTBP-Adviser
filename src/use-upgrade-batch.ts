@@ -39,6 +39,7 @@ const STAGE_ORDER: UpgradeBatchStageId[] = [
 export function useUpgradeBatch(
   selectedId: string | null,
   reportError: (cause: unknown) => void,
+  onSettled?: (status: 'completed' | 'failed') => void,
 ): UpgradeBatch {
   const [run, setRun] = useState<UpgradeBatchRun | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +100,7 @@ export function useUpgradeBatch(
             if (next.status === 'completed' || next.status === 'failed') {
               stopPolling()
               if (next.status === 'failed') setError(next.error)
+              onSettled?.(next.status)
             }
           })
           .catch((cause) => {

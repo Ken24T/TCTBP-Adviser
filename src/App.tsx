@@ -100,6 +100,17 @@ function App() {
   const upgradeBatch = useUpgradeBatch(
     selectedId,
     (cause) => captureError(cause, requestId.current),
+    // The batch is a server-journaled run; once it settles, refresh the detail
+    // and plan so the journey re-resolves to the real post-batch state instead
+    // of freezing on the pre-batch journey (which would otherwise keep showing
+    // a stale "Run all").
+    () => {
+      if (!selectedId) return
+      void (async () => {
+        await refreshDetail(selectedId, intent)
+        if (upgradePlan) await refreshUpgradePlan(selectedId)
+      })()
+    },
   )
   const batchable = batchableJourney({
     plan: upgradePlan,
