@@ -40,6 +40,9 @@ export {
   saveServerPortfolioPreferences,
 } from './portfolio'
 export {
+  verifyRepositoryStatus,
+} from './verify-status'
+export {
   loadAppSettings,
   saveAppSettings,
   testGithubAccess,

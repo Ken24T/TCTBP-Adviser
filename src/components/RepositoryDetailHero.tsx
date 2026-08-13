@@ -8,6 +8,8 @@ interface RepositoryDetailHeroProps {
   onBack?: () => void
   onRefresh?: () => void
   busy?: boolean
+  onVerify?: () => void
+  verifyBusy?: boolean
 }
 
 /**
@@ -23,6 +25,8 @@ export function RepositoryDetailHero({
   onBack,
   onRefresh,
   busy = false,
+  onVerify,
+  verifyBusy = false,
 }: RepositoryDetailHeroProps) {
   const prevSeverity = useRef(severity)
   const [pulse, setPulse] = useState(false)
@@ -66,6 +70,16 @@ export function RepositoryDetailHero({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {onVerify && (
+            <Button
+              disabled={verifyBusy}
+              size="sm"
+              variant="card-tertiary"
+              onClick={onVerify}
+            >
+              {verifyBusy ? 'Verifying…' : 'Verify with status'}
+            </Button>
+          )}
           <Button
             disabled={busy}
             size="sm"

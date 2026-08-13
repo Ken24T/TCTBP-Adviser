@@ -11,6 +11,7 @@ import {
   requireEmptyBody,
 } from './request-input'
 import { summarizeUpgradePlan } from './tctbp-portfolio'
+import { runStatusVerify } from './status-verify'
 
 /**
  * Handles the per-repository inspection routes (portfolio refresh, favicon,
@@ -44,6 +45,19 @@ export async function handleRepositoryRoutes(
         decodeURIComponent(refreshMatch[1]),
       ),
     )
+    return true
+  }
+
+  const verifyMatch =
+    /^\/api\/repositories\/([^/]+)\/verify-status$/.exec(url.pathname)
+  if (request.method === 'POST' && verifyMatch) {
+    await requireEmptyBody(request)
+    const repository = await runtime.registry.require(
+      decodeURIComponent(verifyMatch[1]),
+    )
+    // Runs the repository's own canonical status runner read-only
+    // (--no-fetch --json) to verify the installed TCTBP surface end-to-end.
+    sendJson(response, 200, await runStatusVerify(repository.path))
     return true
   }
 

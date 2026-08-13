@@ -1,4 +1,4 @@
-import { rm } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -84,6 +84,78 @@ describe('same-origin inspection API', () => {
       fetchPerformed: false,
       head: { branch: 'development' },
     })
+  })
+
+  it('verifies the installed TCTBP status runner via the API', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const id = list.repositories[0].id
+    // Install a stub canonical status runner into the fixture repository.
+    const document = {
+      contract: { name: 'TCTBP Adviser', major: 1, minor: 0, capabilities: [], schema: 's' },
+      observation: {
+        provider: 'tctbp-web',
+        observedAt: '2026-08-13T00:00:00.000Z',
+        fetchPerformed: false,
+        repository: {
+          name: 'repository',
+          tctbpSchemaVersion: 11,
+          tctbpVersion: '0.3.6',
+          versionSource: 'scripts/package.json',
+        },
+        head: { branch: 'development', detached: false, sha: 'a'.repeat(40) },
+        workingTree: { clean: true, pathCount: 0 },
+        operations: [],
+        release: { reachableTag: null, publishedTag: null },
+        continuationFileCount: 0,
+        statusAdvice: { tokens: [], reasonCodes: [] },
+        activeGuardrails: [],
+      },
+      errors: [],
+    }
+    await mkdir(path.join(running.repository, 'scripts'), { recursive: true })
+    await writeFile(
+      path.join(running.repository, 'scripts', 'tctbp-run-status.js'),
+      `process.stdout.write(${JSON.stringify(JSON.stringify(document))});`,
+    )
+
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${id}/verify-status`,
+      running,
+      { method: 'POST' },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.ok).toBe(true)
+    expect(body.document.observation.repository.tctbpVersion).toBe('0.3.6')
+  })
+
+  it('reports a missing TCTBP surface when verifying a plain repository', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/verify-status`,
+      running,
+      { method: 'POST' },
+    )
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.ok).toBe(false)
+    expect(body.errorCode).toBe('no-tctbp-surface')
   })
 
   it('refreshes a single registered repository into a portfolio snapshot', async () => {

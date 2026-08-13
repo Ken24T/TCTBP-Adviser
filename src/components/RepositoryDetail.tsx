@@ -10,10 +10,12 @@ import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { PortfolioPreferences } from '../../shared/portfolio-preferences'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
+import type { StatusVerifyResult } from '../../shared/status-verify'
 import { Button, Section, Select } from './primitives'
 import { CollapsiblePanel } from './CollapsiblePanel'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
+import { verifyRepositoryStatus } from '../api'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
 import { ActionerProgress } from './ActionerProgress'
 import { RecommendationPanel } from './RecommendationPanel'
@@ -26,6 +28,7 @@ import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 import { NextActionBar } from './NextActionBar'
 import { UpgradeBatchProgress } from './UpgradeBatchProgress'
+import { VerifyStatusPanel } from './VerifyStatusPanel'
 import { resolveUpgradeJourney } from '../upgrade-journey'
 
 interface RepositoryDetailProps {
@@ -126,6 +129,8 @@ export function RepositoryDetail({
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createVisibility, setCreateVisibility] = useState<'private' | 'public'>('private')
+  const [verifyBusy, setVerifyBusy] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<StatusVerifyResult | null>(null)
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
     ?? 'No project description is available in the TCTBP profile.'
@@ -162,6 +167,15 @@ export function RepositoryDetail({
     resolved === 'dark',
   )
 
+  async function runVerify(): Promise<void> {
+    setVerifyBusy(true)
+    try {
+      setVerifyResult(await verifyRepositoryStatus(observation.repository.id))
+    } finally {
+      setVerifyBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-8 animate-fade-in ad-detail-themed" style={surface}>
       <RepositoryDetailHero
@@ -170,8 +184,17 @@ export function RepositoryDetail({
         name={headerName}
         onBack={onBack}
         onRefresh={onRefresh}
+        onVerify={runVerify}
         severity={recommendation.severity}
+        verifyBusy={verifyBusy}
       />
+
+      {verifyResult && (
+        <VerifyStatusPanel
+          onClose={() => setVerifyResult(null)}
+          result={verifyResult}
+        />
+      )}
 
       <Section eyebrow="Take action">
         <NextActionBar
