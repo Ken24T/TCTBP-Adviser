@@ -104,10 +104,11 @@ function App() {
     // and plan so the journey re-resolves to the real post-batch state instead
     // of freezing on the pre-batch journey (which would otherwise keep showing
     // a stale "Run all"). Also mark the portfolio mutated so returning to the
-    // dashboard re-fetches the updated card instead of showing a stale one.
+    // dashboard re-fetches the updated card instead of showing a stale one —
+    // even when the user navigated away before the run settled.
     () => {
-      if (!selectedId) return
       mutatedRef.current = true
+      if (!selectedId) return
       void (async () => {
         await refreshDetail(selectedId, intent)
         if (upgradePlan) await refreshUpgradePlan(selectedId)
@@ -391,7 +392,18 @@ function App() {
     )
   }
 
+  /** Clears a finished batch run so its completion panel does not follow the
+   * user across repositories or views. Running runs keep polling in the
+   * background so their settle still marks the portfolio mutated. */
+  function clearSettledBatch(): void {
+    const current = upgradeBatch.run
+    if (current && current.status !== 'queued' && current.status !== 'running') {
+      upgradeBatch.clear()
+    }
+  }
+
   function openRepository(repositoryId: string): void {
+    clearSettledBatch()
     returningIdRef.current = repositoryId
     setReferenceOpen(false)
     setSelectedId(repositoryId)
@@ -425,6 +437,7 @@ function App() {
   }
 
   function resetSession(): void {
+    clearSettledBatch()
     setSelectedId(null)
     setDetail(null)
     setUpgradePlan(null)

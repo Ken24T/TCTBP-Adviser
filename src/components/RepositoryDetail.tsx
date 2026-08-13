@@ -189,7 +189,7 @@ export function RepositoryDetail({
           onRunBatch={onRunBatch}
         />
 
-        {batchRun && (
+        {batchRun && batchRun.repositoryId === observation.repository.id && (
           <UpgradeBatchProgress run={batchRun} />
         )}
 
