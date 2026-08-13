@@ -1,8 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { AiReviewResult } from '../shared/ai-review'
-import type { RecommendationAction } from '../shared/recommendation'
+import type {
+  RecommendationAction,
+  RecommendationResult,
+} from '../shared/recommendation'
 import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
+import { observationFixture } from '../test/observation-fixture'
+import { recommend } from '../server/recommendations/engine'
 import { NextActionBar } from './components/NextActionBar'
 
 function review(): AiReviewResult {
@@ -64,6 +69,7 @@ function render(props: {
   aiReview?: AiReviewResult | null
   aiAcknowledged?: boolean
   primaryAction?: RecommendationAction | null
+  recommendation?: RecommendationResult | null
 }) {
   return renderToStaticMarkup(
     <NextActionBar
@@ -71,7 +77,7 @@ function render(props: {
       aiReview={props.aiReview === undefined ? null : props.aiReview}
       aiAcknowledged={props.aiAcknowledged ?? false}
       primaryAction={props.primaryAction === undefined ? 'update-tctbp' : props.primaryAction}
-      recommendation={null}
+      recommendation={props.recommendation === undefined ? null : props.recommendation}
       onAiAcknowledgedChange={() => undefined}
       busy={false}
       aiBusy={false}
@@ -101,6 +107,25 @@ describe('next action bar', () => {
     expect(markup).toContain('Recommended: Checkpoint')
     expect(markup).toContain('Run Checkpoint')
     expect(markup).not.toContain('Upgrade journey')
+  })
+
+  it('shows evidence freshness in the reason line when a recommendation exists', () => {
+    const observation = observationFixture()
+    const recommendation = recommend(
+      observation,
+      'none',
+      new Date(observation.observedAt),
+    )
+    const markup = render({
+      plan: null,
+      primaryAction: 'checkpoint',
+      recommendation,
+    })
+    expect(markup).toContain('Observed just now')
+
+    // Without a recommendation the caption is absent.
+    expect(render({ plan: null, primaryAction: 'checkpoint' }))
+      .not.toContain('Observed')
   })
 
   it('shows guidance without a run button for non-runnable recommendations', () => {

@@ -1,24 +1,24 @@
 import type { RepositoryReference } from '../../shared/reference'
 import { Badge } from './primitives'
+import { CollapsiblePanel } from './CollapsiblePanel'
 
 export function RepositoryReferencePanel({
   reference,
+  defaultOpen = false,
 }: {
   reference: RepositoryReference
+  defaultOpen?: boolean
 }) {
   const applicable = reference.workflows.filter(
     (workflow) => workflow.advertised && workflow.applicableToCurrentBranch,
   )
   return (
-    <section className="ad-surface p-6" aria-labelledby="branch-map-title">
-      <div className="flex flex-col md:flex-row md:items-center gap-3 justify-between mb-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-teal-600">Branch-strategy reference</p>
-          <h2 id="branch-map-title" className="text-xl font-semibold text-text-primary">Configured workflow path</h2>
-        </div>
-        <Badge tone="neutral">{reference.branchWorkflow.strategy ?? 'Unknown strategy'}</Badge>
-      </div>
-
+    <CollapsiblePanel
+      eyebrow="Branch-strategy reference"
+      title="Configured workflow path"
+      badge={<Badge tone="neutral">{reference.branchWorkflow.strategy ?? 'Unknown strategy'}</Badge>}
+      defaultOpen={defaultOpen}
+    >
       {reference.branchWorkflow.nodes.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 mb-6 p-4 bg-surface-soft rounded-lg">
           {reference.branchWorkflow.nodes.map((node, index) => (
@@ -71,7 +71,7 @@ export function RepositoryReferencePanel({
           No workflows are applicable on this branch.
         </p>
       )}
-    </section>
+    </CollapsiblePanel>
   )
 }
 

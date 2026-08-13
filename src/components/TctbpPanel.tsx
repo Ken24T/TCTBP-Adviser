@@ -1,55 +1,52 @@
 import type { RepositoryObservation } from '../../shared/inspection'
-import { Panel, PanelHeading, Badge } from './primitives'
+import { CollapsiblePanel } from './CollapsiblePanel'
 
 interface TctbpPanelProps {
   observation: RepositoryObservation
 }
 
+/**
+ * Single collapsible "TCTBP profile" pane: the installation facts and the
+ * quality-gate configuration are merged into one section so the page no
+ * longer shows two separate panes for one topic. Collapsed by default.
+ */
 export function TctbpPanel({ observation }: TctbpPanelProps) {
   const { tctbp } = observation
-  const configuredGates = tctbp.qualityGates.filter((gate) => gate.configured)
+  const gatesLine = tctbp.qualityGates
+    .map((gate) => {
+      const state = gate.configured
+        ? gate.requiredBeforeShip
+          ? '✓ required before ship'
+          : '✓'
+        : '–'
+      return `${gateLabel(gate.id)} ${state}`
+    })
+    .join(' · ')
   return (
-    <div className="space-y-6">
-      <Panel eyebrow="TCTBP installation" title={tctbp.compatible ? 'Compatible' : 'Needs attention'}>
-        <KeyValue
-          items={[
-            { label: 'Schema', value: tctbp.schemaVersion?.toString() ?? 'Unknown' },
-            {
-              label: 'Adviser contract',
-              value: tctbp.contract.major === null
-                ? 'Unavailable'
-                : `v${tctbp.contract.major}.${tctbp.contract.minor ?? 0}`,
-            },
-            { label: 'Advertised workflows', value: String(tctbp.workflows.length) },
-            { label: 'Managed surface', value: `${tctbp.scaffold.managedSurface.length} patterns` },
-            { label: 'Source version', value: tctbp.scaffold.sourceVersion ?? 'Unknown' },
-            { label: 'Evidence basis', value: 'Local working copy + local tracking refs' },
-          ]}
-        />
-      </Panel>
-
-      <Panel eyebrow="Quality policy" title="Configured gates">
-        {configuredGates.length > 0 ? (
-          <ul className="space-y-2">
-            {configuredGates.map((gate) => (
-              <li key={gate.id} className="flex items-center gap-3 p-3 bg-surface-soft rounded-lg">
-                <span className="grid w-6 h-6 place-items-center rounded-full bg-teal-100 text-teal-700 text-xs font-bold" aria-hidden="true">✓</span>
-                <div className="flex-1">
-                  <strong className="block text-sm text-text-primary">{gateLabel(gate.id)}</strong>
-                  <small className="text-xs text-text-muted">
-                    {gate.requiredBeforeShip
-                      ? 'Required before ship'
-                      : 'Configured, not a ship requirement'}
-                  </small>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-text-secondary">No quality-gate commands are configured.</p>
-        )}
-      </Panel>
-    </div>
+    <CollapsiblePanel
+      eyebrow="TCTBP profile"
+      title={tctbp.compatible ? 'Compatible' : 'Needs attention'}
+    >
+      <KeyValue
+        items={[
+          { label: 'Schema', value: tctbp.schemaVersion?.toString() ?? 'Unknown' },
+          {
+            label: 'Adviser contract',
+            value: tctbp.contract.major === null
+              ? 'Unavailable'
+              : `v${tctbp.contract.major}.${tctbp.contract.minor ?? 0}`,
+          },
+          { label: 'Advertised workflows', value: String(tctbp.workflows.length) },
+          { label: 'Managed surface', value: `${tctbp.scaffold.managedSurface.length} patterns` },
+          { label: 'Source version', value: tctbp.scaffold.sourceVersion ?? 'Unknown' },
+          { label: 'Evidence basis', value: 'Local working copy + local tracking refs' },
+        ]}
+      />
+      <div className="mt-4 pt-4 border-t border-border">
+        <h3 className="text-sm font-semibold text-text-primary mb-1">Quality gates</h3>
+        <p className="text-xs text-text-secondary leading-relaxed">{gatesLine}</p>
+      </div>
+    </CollapsiblePanel>
   )
 }
 

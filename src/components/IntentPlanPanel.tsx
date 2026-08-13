@@ -1,7 +1,12 @@
 import type { ActionerJob, ActionerWorkflowId } from '../../shared/actioner'
 import type { IntentPlan } from '../../shared/intent'
-import { blockerHint } from '../presentation'
+import type {
+  RecommendationAction,
+  RecommendationReasonCode,
+} from '../../shared/recommendation'
+import { blockerHint, reasonLabel } from '../presentation'
 import { Button, Panel } from './primitives'
+import { Callout } from './Callout'
 
 interface IntentPlanPanelProps {
   plan: IntentPlan | null
@@ -9,6 +14,17 @@ interface IntentPlanPanelProps {
   actionBusy: boolean
   inspectionBusy: boolean
   actionFeedback: string | null
+  /**
+   * The recommended action surfaced by the sticky Take action bar. When a
+   * plan step resolves to the same workflow, the step button is omitted so
+   * there is only ever one enabled button per action (owned by the bar).
+   */
+  primaryAction?: RecommendationAction | null
+  /**
+   * Reason codes behind the state-driven recommendation, shown inside each
+   * step's explanation callout ("why this is recommended").
+   */
+  reasonCodes?: RecommendationReasonCode[]
   onRunAction: (workflowId: ActionerWorkflowId) => void
 }
 
@@ -18,17 +34,14 @@ export function IntentPlanPanel({
   actionBusy,
   inspectionBusy,
   actionFeedback,
+  primaryAction = null,
+  reasonCodes = [],
   onRunAction,
 }: IntentPlanPanelProps) {
+  // No intent selected: hide the pane entirely instead of showing an empty
+  // placeholder, so the page only displays relevant detail.
   if (!plan) {
-    return (
-      <Panel eyebrow="Intent-driven plan" title="No additional intent selected">
-        <p className="text-text-secondary leading-relaxed">
-          The state-driven recommendation above is based only on repository
-          evidence. Select an outcome to see a conditional workflow sequence.
-        </p>
-      </Panel>
-    )
+    return null
   }
 
   return (
@@ -69,39 +82,60 @@ export function IntentPlanPanel({
 
       {plan.steps.length > 0 && (
         <ol className="mt-4 space-y-3">
-          {plan.steps.map((step) => (
-            <li
-              key={step.id}
-              className="flex items-start gap-4 p-4 bg-surface-soft border border-border rounded-lg"
-            >
-              <StepIndicator condition={step.condition} />
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 justify-between">
-                  <strong className="text-text-primary">{step.label}</strong>
-                  <ConditionBadge condition={step.condition} />
+          {plan.steps.map((step) => {
+            // The Take action bar is the single action surface for the
+            // recommended workflow; this step's button stands down when the
+            // bar already owns the same action.
+            const ownedByBar = primaryAction === actionWorkflowForStep(step)
+            return (
+              <li
+                key={step.id}
+                className="flex items-start gap-4 p-4 bg-surface-soft border border-border rounded-lg"
+              >
+                <StepIndicator condition={step.condition} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 justify-between">
+                    <strong className="text-text-primary">{step.label}</strong>
+                    <span className="flex items-center gap-2">
+                      <ConditionBadge condition={step.condition} />
+                      {isActionableStep(step) && (
+                        <Callout label={`Why ${step.label}`}>
+                          <ExplanationCallout
+                            plan={plan}
+                            reasonCodes={reasonCodes}
+                          />
+                        </Callout>
+                      )}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-text-secondary">{step.explanation}</p>
+                  {step.trigger && (
+                    <code className="mt-2 inline-block px-2 py-1 text-xs bg-surface-inset rounded text-text-primary">
+                      {step.trigger}
+                    </code>
+                  )}
+                  {isActionableStep(step)
+                    && step.condition === 'required'
+                    && plan.fingerprint
+                    && !ownedByBar
+                    && !(actionJob?.workflowId === 'handover' && actionJob.status === 'completed') && (
+                    <Button
+                      className="mt-3"
+                      size="sm"
+                      disabled={
+                        inspectionBusy
+                        || actionBusy
+                        || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))
+                      }
+                      onClick={() => onRunAction(actionWorkflowForStep(step))}
+                    >
+                      {actionBusy ? 'Starting…' : actionLabelForStep(step)}
+                    </Button>
+                  )}
                 </div>
-                <p className="mt-1 text-sm text-text-secondary">{step.explanation}</p>
-                {step.trigger && (
-                  <code className="mt-2 inline-block px-2 py-1 text-xs bg-surface-inset rounded text-text-primary">
-                    {step.trigger}
-                  </code>
-                )}
-                {isActionableStep(step)
-                  && step.condition === 'required'
-                  && plan.fingerprint
-                  && !(actionJob?.workflowId === 'handover' && actionJob.status === 'completed') && (
-                  <Button
-                    className="mt-3"
-                    size="sm"
-                    disabled={inspectionBusy || actionBusy || Boolean(actionJob && ['queued', 'running'].includes(actionJob.status))}
-                    onClick={() => onRunAction(actionWorkflowForStep(step))}
-                  >
-                    {actionBusy ? 'Starting…' : actionLabelForStep(step)}
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ol>
       )}
 
@@ -213,4 +247,58 @@ function actionLabelForStep(step: IntentPlan['steps'][number]): string {
     'create-origin': 'Create on GitHub',
   }
   return labels[actionWorkflowForStep(step)]
+}
+
+function ExplanationCallout({
+  plan,
+  reasonCodes,
+}: {
+  plan: IntentPlan
+  reasonCodes: RecommendationReasonCode[]
+}) {
+  const hasContent = reasonCodes.length > 0
+    || plan.effects.does.length > 0
+    || plan.effects.doesNot.length > 0
+  if (!hasContent) {
+    return <p className="text-sm text-text-secondary">No additional detail.</p>
+  }
+  return (
+    <div className="space-y-3">
+      {reasonCodes.length > 0 && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-text-muted">Why</p>
+          <ul className="mt-1.5 flex flex-wrap gap-1.5">
+            {reasonCodes.map((reason) => (
+              <li
+                className="px-2 py-1 text-xs rounded-full bg-surface-inset border border-border text-text-secondary"
+                key={reason}
+              >
+                {reasonLabel(reason)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {plan.effects.does.length > 0 && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
+            What this action does
+          </p>
+          <ul className="mt-1 space-y-1 text-sm text-text-secondary list-disc list-inside">
+            {plan.effects.does.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+      {plan.effects.doesNot.length > 0 && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-text-muted">
+            What this action does not do
+          </p>
+          <ul className="mt-1 space-y-1 text-sm text-text-secondary list-disc list-inside">
+            {plan.effects.doesNot.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
 }

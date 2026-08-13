@@ -77,13 +77,18 @@ describe('repository detail view', () => {
     expect(markup).toContain('checkpoint please')
     expect(markup).toContain('1 staged')
     expect(markup).toContain('development')
-    expect(markup).toContain('Required before ship')
     expect(markup).toContain('What this action does')
     expect(markup).toContain('What this action does not do')
-    expect(markup).toContain('No fetch was performed')
-    expect(markup).toContain('Preview upgrade plan')
     expect(markup).toContain('ad-detail-themed')
     expect(markup).toContain('Configured local repository')
+
+    // Minimalist layout: supporting panes are collapsed by default and
+    // irrelevant panes (upgrade planner, known limits) are hidden entirely.
+    expect(markup).toContain('TCTBP profile')
+    expect(markup).not.toContain('Quality gates')
+    expect(markup).not.toContain('Required before ship')
+    expect(markup).not.toContain('No fetch was performed')
+    expect(markup).not.toContain('Preview upgrade plan')
   })
 
   it('renders the explicit machine-transfer intent path', () => {
@@ -153,7 +158,9 @@ describe('repository detail view', () => {
     expect(markup).toContain('Handover')
     expect(markup).toContain('handover please')
     expect(markup).toContain('Continue on another machine')
-    expect(markup).toContain('Why this is recommended')
+    // With an intent plan present, the explanation lives in the step
+    // callouts; the separate "why this is recommended" strip is hidden.
+    expect(markup).not.toContain('Why this is recommended')
     expect(markup).toContain('Intent-driven plan')
   })
 

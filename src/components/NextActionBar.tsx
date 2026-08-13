@@ -17,6 +17,7 @@ import type { UpgradeJourneyStageId } from '../upgrade-journey'
 import type { BatchableJourney } from '../upgrade-batch'
 import { SpinnerIcon } from './icons'
 import { Button } from './primitives'
+import { formatAge } from '../presentation'
 
 const SHORT_LABELS: Record<UpgradeJourneyStageId, string> = {
   prepare: 'Plan',
@@ -222,7 +223,14 @@ export function NextActionBar({
           <strong className={`mt-1 block text-sm ${quiet ? 'text-text-secondary' : 'text-text-primary'}`}>
             {action.label}
           </strong>
-          <p className="text-xs text-text-secondary">{action.reason}</p>
+          <p className="text-xs text-text-secondary">
+            {action.reason}
+            {recommendation && (
+              <span className="text-text-faint">
+                {' · '}{formatAge(recommendation.freshness.ageMs)}
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {renderButton()}

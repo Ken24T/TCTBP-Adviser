@@ -115,6 +115,80 @@ describe('intent and reference views', () => {
     expect(markup).toContain('promote staging please')
   })
 
+  it('omits a step button when the Take action bar owns that workflow', () => {
+    const observation = observationFixture({ clean: false })
+    const state = recommend(
+      observation,
+      'none',
+      new Date(observation.observedAt),
+    )
+    const plan = planIntent(observation, state, 'preserve-locally')
+    if (!plan) throw new Error('expected a preserve-locally plan')
+
+    // Sanity: the preserve-locally plan includes a required checkpoint step.
+    expect(plan.steps.some(
+      (step) => step.workflowId === 'checkpoint' && step.condition === 'required',
+    )).toBe(true)
+
+    // The bar owns checkpoint, so the step renders its sequence info but no
+    // duplicate "Run checkpoint" button at all.
+    const markup = renderToStaticMarkup(<IntentPlanPanel
+      plan={plan}
+      actionJob={null}
+      actionBusy={false}
+      inspectionBusy={false}
+      actionFeedback={null}
+      onRunAction={() => undefined}
+      primaryAction="checkpoint"
+    />)
+    expect(markup).toContain('Preserves tracked and untracked work in a local commit.')
+    expect(markup).toContain('checkpoint please')
+    expect(markup).not.toContain('Run checkpoint')
+    expect(markup).not.toContain('Run from the Take action bar above.')
+
+    // Without the bar owning the action the step button renders enabled.
+    const enabled = renderToStaticMarkup(<IntentPlanPanel
+      plan={plan}
+      actionJob={null}
+      actionBusy={false}
+      inspectionBusy={false}
+      actionFeedback={null}
+      onRunAction={() => undefined}
+      primaryAction={null}
+    />)
+    expect(enabled).toContain('Run checkpoint')
+    expect(enabled).not.toContain('disabled=""')
+  })
+
+  it('adds an explanation callout trigger to actionable steps', () => {
+    const observation = observationFixture({ clean: false })
+    const state = recommend(
+      observation,
+      'none',
+      new Date(observation.observedAt),
+    )
+    const plan = planIntent(observation, state, 'preserve-locally')
+    if (!plan) throw new Error('expected a preserve-locally plan')
+
+    const markup = renderToStaticMarkup(<IntentPlanPanel
+      plan={plan}
+      actionJob={null}
+      actionBusy={false}
+      inspectionBusy={false}
+      actionFeedback={null}
+      onRunAction={() => undefined}
+      primaryAction={null}
+      reasonCodes={['working-tree-dirty']}
+    />)
+
+    // The actionable step gets an info trigger; the callout content itself is
+    // hidden until opened (hover/focus/click), so the reason text stays out of
+    // the static markup.
+    expect(markup).toContain('Why Checkpoint')
+    expect(markup).toContain('aria-expanded="false"')
+    expect(markup).not.toContain('The working tree contains uncommitted work')
+  })
+
   it('offers a how-to-resolve hint for each blocker on a blocked plan', () => {
     const plan = {
       source: 'user-intent',
@@ -175,6 +249,7 @@ describe('intent and reference views', () => {
     const markup = renderToStaticMarkup(
       <RepositoryReferencePanel
         reference={repositoryReference(observation)}
+        defaultOpen
       />,
     )
 
@@ -187,12 +262,27 @@ describe('intent and reference views', () => {
     expect(markup).toContain('Workflows you can run on this branch, based on the advertised policy.')
   })
 
+  it('collapses the workflow reference by default', () => {
+    const observation = observationFixture({
+      clean: false,
+      syncState: 'behind',
+    })
+    const markup = renderToStaticMarkup(
+      <RepositoryReferencePanel reference={repositoryReference(observation)} />,
+    )
+
+    expect(markup).toContain('Configured workflow path')
+    expect(markup).toContain('aria-expanded="false"')
+    expect(markup).not.toContain('Applicable workflows')
+  })
+
   it('shows an empty state when no workflows are applicable', () => {
     const markup = renderToStaticMarkup(
       <RepositoryReferencePanel
         reference={repositoryReference(
           observationFixture({ workflows: [], clean: false, syncState: 'behind' }),
         )}
+        defaultOpen
       />,
     )
 

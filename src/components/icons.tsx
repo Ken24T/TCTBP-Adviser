@@ -102,6 +102,20 @@ export function ChevronDownIcon({ className = '' }: IconProps) {
   )
 }
 
+export function InfoIcon({ className = '' }: IconProps) {
+  return (
+    <svg aria-hidden="true" className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+      <path
+        d="M12 11v5m0-8.5v.01"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </svg>
+  )
+}
+
 export function SpinnerIcon({ className = '' }: IconProps) {
   return (
     <svg aria-hidden="true" className={`animate-spin ${className}`} fill="none" viewBox="0 0 24 24">

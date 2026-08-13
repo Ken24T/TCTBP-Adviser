@@ -10,6 +10,7 @@ describe('GitHub provider evidence panel', () => {
         evidence={githubObservationFixture()}
         localBranch="development"
         localSha="abcdef1234567890"
+        defaultOpen
       />,
     )
 
@@ -22,7 +23,22 @@ describe('GitHub provider evidence panel', () => {
     expect(markup).toContain('do not alter the deterministic recommendation')
   })
 
-  it('states that local advice survives provider failure', () => {
+  it('collapses the provider state by default', () => {
+    const markup = renderToStaticMarkup(
+      <GitHubPanel
+        evidence={githubObservationFixture()}
+        localBranch="development"
+        localSha="abcdef1234567890"
+      />,
+    )
+
+    // Header stays visible; the evidence body is hidden until expanded.
+    expect(markup).toContain('GitHub-visible state')
+    expect(markup).toContain('aria-expanded="false"')
+    expect(markup).not.toContain('Ken24T/TCTBP-Adviser')
+  })
+
+  it('hides the panel entirely when provider evidence is unavailable', () => {
     const markup = renderToStaticMarkup(
       <GitHubPanel evidence={{
         status: 'unavailable',
@@ -36,7 +52,6 @@ describe('GitHub provider evidence panel', () => {
       }} />,
     )
 
-    expect(markup).toContain('GitHub access was denied')
-    expect(markup).toContain('Local advice is unaffected')
+    expect(markup).toBe('')
   })
 })

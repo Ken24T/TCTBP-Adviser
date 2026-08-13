@@ -10,7 +10,8 @@ import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { PortfolioPreferences } from '../../shared/portfolio-preferences'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
-import { Button, Panel, Section, Select } from './primitives'
+import { Button, Section, Select } from './primitives'
+import { CollapsiblePanel } from './CollapsiblePanel'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
@@ -137,6 +138,14 @@ export function RepositoryDetail({
     primaryAction: recommendation.primaryAction,
     branchModel: observation.tctbp.branchModel,
   })?.current.id ?? null
+  // The upgrade planner is only relevant once a plan has been loaded or a
+  // journey is underway; otherwise it is hidden entirely.
+  const showUpgradePlanner = upgradePlan !== null || journeyStage !== null
+  // Known limits only surface when there is something to report; the fetch
+  // caveat travels with them so it never appears on an otherwise-clean page.
+  const hasUncertainties =
+    recommendation.uncertainties.length > 0 ||
+    observation.tctbp.scaffold.uncertainties.length > 0
   // Whether the remaining journey can be offered as a single batch run is
   // computed once in App and passed down; it drives the bar's "Run all" button.
   // The header mirrors the portfolio card's display name: custom rename when
@@ -368,43 +377,52 @@ export function RepositoryDetail({
               actionBusy={actionBusy}
               inspectionBusy={busy}
               actionFeedback={actionFeedback}
+              primaryAction={recommendation.primaryAction}
+              reasonCodes={recommendation.reasonCodes}
               onRunAction={onRunAction}
             />
-            <RecommendationPanel recommendation={recommendation} />
+            {/* When an intent plan is shown its step callouts carry the
+                explanation, so the separate "why this is recommended" strip is
+                only needed as a fallback for the no-intent state. */}
+            {!detail.intentPlan && (
+              <RecommendationPanel recommendation={recommendation} />
+            )}
           </div>
           <div className="xl:col-span-5 space-y-8">
-            <TctbpUpgradePanel
-              repositoryName={observation.repository.name}
-              plan={upgradePlan}
-              busy={upgradeBusy}
-              applyBusy={applyBusy}
-              upgradeFeedback={upgradeFeedback}
-              aiReview={aiReview}
-              aiBusy={aiBusy}
-              aiAcknowledged={aiAcknowledged}
-              onAiAcknowledgedChange={onAiAcknowledgedChange}
-              bootstrapPlan={bootstrapPlan}
-              bootstrapBusy={bootstrapBusy}
-              bootstrapApplyBusy={bootstrapApplyBusy}
-              bootstrapApplyFeedback={bootstrapApplyFeedback}
-              bootstrapJob={bootstrapJob}
-              contractIncompatible={recommendation.reasonCodes.includes(
-                'tctbp-contract-incompatible',
-              )}
-              onPrepareBootstrap={onPrepareBootstrap}
-              onApplyBootstrap={onApplyBootstrap}
-              onLoad={onLoadUpgradePlan}
-              onReviewAi={onReviewAi}
-              onApplyAdditions={onApplyAdditions}
-              onApplyPolicy={onApplyPolicy}
-              onApplyDrifted={onApplyDrifted}
-              onApplyAlignment={onApplyAlignment}
-              onDeleteObsolete={onDeleteObsolete}
-              onApplyInOrder={onApplyInOrder}
-              onCleanupUpgradeBranch={onCleanupUpgradeBranch}
-              onMergeUpgradeBranch={onMergeUpgradeBranch}
-              journeyStage={journeyStage}
-            />
+            {showUpgradePlanner && (
+              <TctbpUpgradePanel
+                repositoryName={observation.repository.name}
+                plan={upgradePlan}
+                busy={upgradeBusy}
+                applyBusy={applyBusy}
+                upgradeFeedback={upgradeFeedback}
+                aiReview={aiReview}
+                aiBusy={aiBusy}
+                aiAcknowledged={aiAcknowledged}
+                onAiAcknowledgedChange={onAiAcknowledgedChange}
+                bootstrapPlan={bootstrapPlan}
+                bootstrapBusy={bootstrapBusy}
+                bootstrapApplyBusy={bootstrapApplyBusy}
+                bootstrapApplyFeedback={bootstrapApplyFeedback}
+                bootstrapJob={bootstrapJob}
+                contractIncompatible={recommendation.reasonCodes.includes(
+                  'tctbp-contract-incompatible',
+                )}
+                onPrepareBootstrap={onPrepareBootstrap}
+                onApplyBootstrap={onApplyBootstrap}
+                onLoad={onLoadUpgradePlan}
+                onReviewAi={onReviewAi}
+                onApplyAdditions={onApplyAdditions}
+                onApplyPolicy={onApplyPolicy}
+                onApplyDrifted={onApplyDrifted}
+                onApplyAlignment={onApplyAlignment}
+                onDeleteObsolete={onDeleteObsolete}
+                onApplyInOrder={onApplyInOrder}
+                onCleanupUpgradeBranch={onCleanupUpgradeBranch}
+                onMergeUpgradeBranch={onMergeUpgradeBranch}
+                journeyStage={journeyStage}
+              />
+            )}
           </div>
         </div>
       </Section>
@@ -412,11 +430,11 @@ export function RepositoryDetail({
       <Section eyebrow="Repository details">
         <RepositoryState observation={observation} />
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          <div className="xl:col-span-7 space-y-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          <div className="xl:col-span-7 space-y-4">
             <TctbpPanel observation={observation} />
           </div>
-          <div className="xl:col-span-5 space-y-8">
+          <div className="xl:col-span-5 space-y-4">
             <RepositoryReferencePanel reference={detail.reference} />
             <GitHubPanel
               evidence={detail.github}
@@ -426,20 +444,25 @@ export function RepositoryDetail({
           </div>
         </div>
 
-        <Panel eyebrow="Known limits" title="What this inspection cannot prove" id="uncertainty-title">
-          <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
-            {recommendation.uncertainties.map((issue) => (
-              <li key={`${issue.code}-${issue.message}`}>{issue.message}</li>
-            ))}
-            {observation.tctbp.scaffold.uncertainties.map((message) => (
-              <li key={message}>{message}</li>
-            ))}
-            <li>
-              No fetch was performed. Remote comparisons use locally cached
-              tracking refs and may not reflect current GitHub state.
-            </li>
-          </ul>
-        </Panel>
+        {hasUncertainties && (
+          <CollapsiblePanel
+            eyebrow="Known limits"
+            title="What this inspection cannot prove"
+          >
+            <ul className="space-y-2 text-sm text-text-secondary list-disc list-inside">
+              {recommendation.uncertainties.map((issue) => (
+                <li key={`${issue.code}-${issue.message}`}>{issue.message}</li>
+              ))}
+              {observation.tctbp.scaffold.uncertainties.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+              <li>
+                No fetch was performed. Remote comparisons use locally cached
+                tracking refs and may not reflect current GitHub state.
+              </li>
+            </ul>
+          </CollapsiblePanel>
+        )}
       </Section>
     </div>
   )

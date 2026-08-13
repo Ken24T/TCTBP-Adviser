@@ -3,43 +3,32 @@ import type {
   RepositoryGitHubEvidence,
 } from '../../shared/github'
 import { formatAge } from '../presentation'
-import { Panel, Badge } from './primitives'
+import { Badge } from './primitives'
+import { CollapsiblePanel } from './CollapsiblePanel'
 
 export function GitHubPanel({
   evidence,
   localBranch,
   localSha,
+  defaultOpen = false,
 }: {
   evidence: RepositoryGitHubEvidence
   localBranch?: string | null
   localSha?: string | null
+  defaultOpen?: boolean
 }) {
-  if (evidence.status === 'disabled') {
-    return (
-      <p className="text-xs text-text-muted">
-        GitHub enrichment is disabled. Local advice is unaffected.
-      </p>
-    )
-  }
-  if (evidence.status === 'not-mapped') {
-    return (
-      <p className="text-xs text-text-muted">
-        No GitHub repository mapping was found for this local repository.
-      </p>
-    )
-  }
-  if (evidence.status === 'unavailable') {
-    return (
-      <p className="text-xs text-text-muted">
-        {evidence.error.message} Local advice is unaffected.
-      </p>
-    )
-  }
+  // No evidence to show: the "GitHub enrichment disabled / not mapped /
+  // unavailable" one-liners are supporting detail, and hiding them entirely
+  // keeps the page minimal. The absence itself is implied by the layout.
   if (evidence.status !== 'available') return null
 
   const repository = evidence.repository
   return (
-    <Panel eyebrow="Separate provider evidence" title="GitHub-visible state">
+    <CollapsiblePanel
+      eyebrow="Separate provider evidence"
+      title="GitHub-visible state"
+      defaultOpen={defaultOpen}
+    >
       <div className="flex flex-col md:flex-row md:items-center gap-2 justify-between mb-4">
         <div>
           <p className="text-sm">
@@ -98,7 +87,7 @@ export function GitHubPanel({
         GitHub observations do not replace working-tree or local tracking-ref
         evidence and do not alter the deterministic recommendation.
       </p>
-    </Panel>
+    </CollapsiblePanel>
   )
 }
 
