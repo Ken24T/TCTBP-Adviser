@@ -103,9 +103,11 @@ function App() {
     // The batch is a server-journaled run; once it settles, refresh the detail
     // and plan so the journey re-resolves to the real post-batch state instead
     // of freezing on the pre-batch journey (which would otherwise keep showing
-    // a stale "Run all").
+    // a stale "Run all"). Also mark the portfolio mutated so returning to the
+    // dashboard re-fetches the updated card instead of showing a stale one.
     () => {
       if (!selectedId) return
+      mutatedRef.current = true
       void (async () => {
         await refreshDetail(selectedId, intent)
         if (upgradePlan) await refreshUpgradePlan(selectedId)
