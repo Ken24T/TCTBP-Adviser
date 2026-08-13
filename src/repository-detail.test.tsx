@@ -64,6 +64,9 @@ describe('repository detail view', () => {
         onApplyInOrder={() => undefined}
         onCleanupUpgradeBranch={() => undefined}
         onMergeUpgradeBranch={() => undefined}
+        batchRun={null}
+        batchBusy={false}
+        onRunBatch={() => undefined}
       />,
     )
 
@@ -141,6 +144,9 @@ describe('repository detail view', () => {
         onApplyInOrder={() => undefined}
         onCleanupUpgradeBranch={() => undefined}
         onMergeUpgradeBranch={() => undefined}
+        batchRun={null}
+        batchBusy={false}
+        onRunBatch={() => undefined}
       />,
     )
 
@@ -240,6 +246,9 @@ function renderDetail(
       onApplyInOrder={() => undefined}
       onCleanupUpgradeBranch={() => undefined}
       onMergeUpgradeBranch={() => undefined}
+      batchRun={null}
+      batchBusy={false}
+      onRunBatch={() => undefined}
     />,
   )
 }

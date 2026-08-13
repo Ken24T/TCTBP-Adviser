@@ -269,6 +269,48 @@ describe('same-origin inspection API', () => {
     expect(portfolio.cache.status).toBe('fresh')
   })
 
+  it('starts an upgrade batch run and reports the missing review', async () => {
+    const running = await startApi()
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${list.repositories[0].id}/upgrade-batch`,
+      running,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirm: true,
+          aiReviewId: 'missing-review',
+          aiReviewAcknowledged: true,
+          planFingerprint: 'a'.repeat(64),
+        }),
+      },
+    )
+
+    expect(response.status).toBe(202)
+    const started = await response.json() as { runId: string }
+    const deadline = Date.now() + 5_000
+    let run: { status: string; error?: string | null } | null = null
+    while (Date.now() < deadline) {
+      const runResponse = await authorisedFetch(
+        `${running.url}/api/repositories/${list.repositories[0].id}/upgrade-batch/${started.runId}`,
+        running,
+      )
+      run = await runResponse.json() as { status: string; error?: string | null }
+      if (run.status === 'completed' || run.status === 'failed') break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    expect(run?.status).toBe('failed')
+    expect(run?.error).toContain('Jasper review')
+  })
+
   it('rejects an invalid add-origin URL without starting a job', async () => {
     const running = await startApi(true)
     const listResponse = await authorisedFetch(

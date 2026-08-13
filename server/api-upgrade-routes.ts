@@ -11,6 +11,8 @@ import { readBootstrapApplyRequest } from './tctbp-bootstrap-apply-input'
 import { readBootstrapRequest } from './tctbp-bootstrap-input'
 import { readTctbpApplyRequest } from './tctbp-apply-input'
 import { requireEmptyBody } from './request-input'
+import { readUpgradeBatchRequest } from './upgrade-batch-input'
+import { UpgradeBatchRunner } from './upgrade-batch-runner'
 
 /**
  * Handles the TCTBP bootstrap and upgrade routes (plan preview, Jasper
@@ -211,6 +213,62 @@ export async function handleUpgradeRoutes(
     )
     await runtime.portfolio.refreshAfterMutation(repository.id)
     sendJson(response, 200, result)
+    return true
+  }
+
+  const batchStartMatch =
+    /^\/api\/repositories\/([^/]+)\/upgrade-batch$/.exec(url.pathname)
+  if (request.method === 'POST' && batchStartMatch) {
+    const batchRequest = await readUpgradeBatchRequest(request)
+    const repository = await runtime.registry.require(
+      decodeURIComponent(batchStartMatch[1]),
+    )
+    const run = runtime.upgradeBatchRuns.create(repository.id)
+    void (async () => {
+      try {
+        runtime.upgradeBatchRuns.start(run.runId)
+        const runner = new UpgradeBatchRunner({
+          inspections: runtime.inspections,
+          tctbpSource: runtime.tctbpSource,
+          aiReviewStore: runtime.aiReviewStore,
+        })
+        await runner.run(
+          repository,
+          batchRequest,
+          (stageId, status, detail) => runtime.upgradeBatchRuns.stage(
+            run.runId,
+            stageId,
+            status,
+            detail,
+          ),
+        )
+        runtime.upgradeBatchRuns.complete(run.runId)
+        await runtime.portfolio.refreshAfterMutation(repository.id)
+      } catch (error) {
+        runtime.upgradeBatchRuns.fail(run.runId, safeBootstrapJobError(error))
+      }
+    })()
+    sendJson(response, 202, { runId: run.runId, status: 'started' })
+    return true
+  }
+
+  const batchPollMatch =
+    /^\/api\/repositories\/([^/]+)\/upgrade-batch\/([^/]+)$/.exec(url.pathname)
+  if (request.method === 'GET' && batchPollMatch) {
+    const repository = await runtime.registry.require(
+      decodeURIComponent(batchPollMatch[1]),
+    )
+    const run = runtime.upgradeBatchRuns.get(
+      decodeURIComponent(batchPollMatch[2]),
+      repository.id,
+    )
+    if (!run) {
+      throw new AdviserError(
+        'upgrade-batch-not-found',
+        'Upgrade batch run was not found.',
+      )
+    }
+    sendJson(response, 200, run)
     return true
   }
 

@@ -29,6 +29,10 @@ export {
   mergeTctbpUpgradeBranch,
 } from './upgrade'
 export {
+  loadUpgradeBatch,
+  startUpgradeBatch,
+} from './upgrade-batch'
+export {
   loadPortfolio,
   loadRepositoryDetail,
   loadServerPortfolioPreferences,

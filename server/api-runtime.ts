@@ -4,6 +4,7 @@ import { createAiReviewer, type AiReviewer } from './ai-reviewer'
 import { AiReviewStore } from './ai-review-store'
 import { TctbpBootstrapJobStore } from './tctbp-bootstrap-jobs'
 import { ActionerJobStore } from './actioner-jobs'
+import { UpgradeBatchStore } from './upgrade-batch-store'
 import { DeploymentEvidenceStore } from './deployment-evidence'
 import { HandoverEvidenceStore } from './handover-evidence'
 import { BoundedGitExecutor } from './git-command'
@@ -32,6 +33,7 @@ export interface ApiRuntime {
   readonly aiReviewStore: AiReviewStore
   readonly bootstrapJobs: TctbpBootstrapJobStore
   readonly actionerJobs: ActionerJobStore
+  readonly upgradeBatchRuns: UpgradeBatchStore
   readonly deployments: DeploymentEvidenceStore
   readonly handovers: HandoverEvidenceStore
   readonly portfolio: PortfolioService
@@ -85,6 +87,7 @@ export function createApiRuntime(
   const aiReviewStore = new AiReviewStore()
   const bootstrapJobs = new TctbpBootstrapJobStore()
   const actionerJobs = new ActionerJobStore()
+  const upgradeBatchRuns = new UpgradeBatchStore()
   const deployments = new DeploymentEvidenceStore()
   const handovers = new HandoverEvidenceStore()
   return {
@@ -98,6 +101,7 @@ export function createApiRuntime(
     aiReviewStore,
     bootstrapJobs,
     actionerJobs,
+    upgradeBatchRuns,
     deployments,
     handovers,
     audit,

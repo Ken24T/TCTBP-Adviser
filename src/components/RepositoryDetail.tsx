@@ -24,6 +24,7 @@ import { INTENT_OPTIONS } from '../intent-options'
 import { RepositoryReferencePanel } from './RepositoryReferencePanel'
 import { TctbpUpgradePanel } from './TctbpUpgradePanel'
 import { NextActionBar } from './NextActionBar'
+import { UpgradeBatchProgress } from './UpgradeBatchProgress'
 import { resolveUpgradeJourney } from '../upgrade-journey'
 
 interface RepositoryDetailProps {
@@ -67,6 +68,10 @@ interface RepositoryDetailProps {
   onApplyInOrder: () => void
   onCleanupUpgradeBranch: () => void
   onMergeUpgradeBranch: () => void
+  batchRun: import('../../shared/upgrade-batch').UpgradeBatchRun | null
+  batchBusy: boolean
+  onRunBatch: () => void
+  batch?: import('../upgrade-batch').BatchableJourney | null
 }
 
 export function RepositoryDetail({
@@ -110,6 +115,10 @@ export function RepositoryDetail({
   onApplyInOrder,
   onCleanupUpgradeBranch,
   onMergeUpgradeBranch,
+  batchRun,
+  batchBusy,
+  onRunBatch,
+  batch = null,
 }: RepositoryDetailProps) {
   const [originUrl, setOriginUrl] = useState('')
   const [originInputOpen, setOriginInputOpen] = useState(false)
@@ -128,6 +137,8 @@ export function RepositoryDetail({
     primaryAction: recommendation.primaryAction,
     branchModel: observation.tctbp.branchModel,
   })?.current.id ?? null
+  // Whether the remaining journey can be offered as a single batch run is
+  // computed once in App and passed down; it drives the bar's "Run all" button.
   // The header mirrors the portfolio card's display name: custom rename when
   // set, otherwise the repository's display name (TCTBP project name), with
   // the on-disk directory name only as a last resort — never the raw path
@@ -173,7 +184,14 @@ export function RepositoryDetail({
           onCleanupUpgradeBranch={onCleanupUpgradeBranch}
           onMergeUpgradeBranch={onMergeUpgradeBranch}
           onRefresh={onRefresh}
+          batch={batch}
+          batchBusy={batchBusy}
+          onRunBatch={onRunBatch}
         />
+
+        {batchRun && (
+          <UpgradeBatchProgress run={batchRun} />
+        )}
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <label className="flex items-center gap-3 text-sm text-text-secondary">

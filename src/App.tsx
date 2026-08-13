@@ -15,6 +15,7 @@ import type { RecommendationIntent } from '../shared/recommendation'
 import type { RepositoryDetailResult } from '../shared/repository-detail'
 import type { ReferenceCatalogue } from '../shared/reference'
 import type { TctbpUpgradePlan } from '../shared/tctbp-upgrade'
+import type { UpgradeBatchStageId } from '../shared/upgrade-batch'
 import {
   loadPortfolio,
   loadReferenceCatalogue,
@@ -37,6 +38,8 @@ import { PortfolioDashboardSkeleton } from './components/PortfolioDashboardSkele
 import { usePortfolioPreferences } from './use-portfolio-preferences'
 import { useWorkflowActions } from './use-workflow-actions'
 import { useUpgradeApply } from './use-upgrade-apply'
+import { useUpgradeBatch } from './use-upgrade-batch'
+import { batchableJourney } from './upgrade-batch'
 
 // File-size note: under 600 lines — above the 400-line warning threshold but below the 600-line hard split.
 // App.tsx is the application shell: it owns the shared state machine (~25 useState/useRef) and the
@@ -94,6 +97,29 @@ function App() {
     setError,
     setIntent,
   })
+  const upgradeBatch = useUpgradeBatch(
+    selectedId,
+    (cause) => captureError(cause, requestId.current),
+  )
+  const batchable = batchableJourney({
+    plan: upgradePlan,
+    aiReview,
+    aiAcknowledged,
+    primaryAction: detail?.recommendation.primaryAction ?? null,
+    branchModel: detail?.observation.tctbp.branchModel,
+  })
+
+  async function runUpgradeBatch(): Promise<void> {
+    if (!selectedId || !batchable.safe) return
+    if (aiReview?.status !== 'available' || !upgradePlan?.fingerprint) return
+    const stages = batchable.stages
+      .filter((stage) => stage.action !== 'none')
+      .map((stage) => ({
+        id: stage.action as UpgradeBatchStageId,
+        label: stage.label,
+      }))
+    await upgradeBatch.start(aiReview.reviewId, upgradePlan.fingerprint, stages)
+  }
 
   useEffect(() => {
     if (
@@ -533,6 +559,10 @@ function App() {
             onApplyInOrder={() => void applyInOrder()}
             onCleanupUpgradeBranch={() => void cleanupUpgradeBranch()}
             onMergeUpgradeBranch={() => void mergeUpgradeBranch()}
+            batchRun={upgradeBatch.run}
+            batchBusy={upgradeBatch.busy}
+            onRunBatch={() => void runUpgradeBatch()}
+            batch={batchable}
           />
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard

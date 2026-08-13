@@ -130,6 +130,48 @@ describe('next action bar', () => {
     expect(markup).toMatch(/type="button">Apply in order/)
   })
 
+  it('offers a run-all batch button only when the batch is safe', () => {
+    const shared = {
+      plan: plan(),
+      aiReview: review(),
+      aiAcknowledged: true,
+      primaryAction: 'update-tctbp' as const,
+      recommendation: null,
+      onAiAcknowledgedChange: () => undefined,
+      busy: false,
+      aiBusy: false,
+      applyBusy: false,
+      actionBusy: false,
+      onLoad: () => undefined,
+      onReviewAi: () => undefined,
+      onApplyInOrder: () => undefined,
+      onRunRecommended: () => undefined,
+      onCleanupUpgradeBranch: () => undefined,
+      onMergeUpgradeBranch: () => undefined,
+      onRefresh: () => undefined,
+      onRunBatch: () => undefined,
+    }
+    const safeMarkup = renderToStaticMarkup(
+      <NextActionBar
+        {...shared}
+        batch={{
+          safe: true,
+          reason: null,
+          stages: [{ id: 'apply', label: 'Apply the upgrade', reason: 'r', action: 'apply' }],
+        }}
+      />,
+    )
+    expect(safeMarkup).toContain('Run all (1)')
+
+    const unsafeMarkup = renderToStaticMarkup(
+      <NextActionBar
+        {...shared}
+        batch={{ safe: false, reason: 'Not yet.', stages: [] }}
+      />,
+    )
+    expect(unsafeMarkup).not.toContain('Run all')
+  })
+
   it('runs the merge from the journey step instead of refresh guidance', () => {
     const mergePlan = plan({
       disposition: 'current',

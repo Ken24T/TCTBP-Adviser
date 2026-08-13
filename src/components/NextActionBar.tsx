@@ -14,6 +14,7 @@ import {
   resolveNextAction,
 } from '../next-action'
 import type { UpgradeJourneyStageId } from '../upgrade-journey'
+import type { BatchableJourney } from '../upgrade-batch'
 import { SpinnerIcon } from './icons'
 import { Button } from './primitives'
 
@@ -51,6 +52,10 @@ interface NextActionBarProps {
   onCleanupUpgradeBranch: () => void
   onMergeUpgradeBranch: () => void
   onRefresh: () => void
+  /** Safe-to-offer batch of the remaining journey stages. */
+  batch?: BatchableJourney | null
+  batchBusy?: boolean
+  onRunBatch?: () => void
 }
 
 export function NextActionBar({
@@ -72,6 +77,9 @@ export function NextActionBar({
   onCleanupUpgradeBranch,
   onMergeUpgradeBranch,
   onRefresh,
+  batch = null,
+  batchBusy = false,
+  onRunBatch,
 }: NextActionBarProps) {
   const action = resolveNextAction({
     plan,
@@ -161,7 +169,7 @@ export function NextActionBar({
         </Button>
       )
     }
-    const journeyBusy = anyBusy && current?.action !== 'acknowledge'
+    const journeyBusy = (anyBusy && current?.action !== 'acknowledge') || batchBusy
     return (
       <Button
         className={journeyBusy ? 'disabled:!cursor-wait' : undefined}
@@ -216,7 +224,21 @@ export function NextActionBar({
           </strong>
           <p className="text-xs text-text-secondary">{action.reason}</p>
         </div>
-        <div className="shrink-0">{renderButton()}</div>
+        <div className="flex items-center gap-2 shrink-0">
+          {renderButton()}
+          {batch?.safe && (
+            <Button
+              className={batchBusy ? 'disabled:!cursor-wait' : undefined}
+              disabled={batchBusy || anyBusy}
+              size="sm"
+              variant="secondary"
+              onClick={onRunBatch}
+            >
+              {batchBusy && <SpinnerIcon className="w-4 h-4 mr-2" />}
+              {batchBusy ? 'Running…' : `Run all (${batch.stages.length})`}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )
