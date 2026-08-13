@@ -76,12 +76,13 @@ function App() {
     (cause) => captureError(cause, requestId.current),
   )
   const [busy, setBusy] = useState(true)
+  const [refreshingRepositoryId, setRefreshingRepositoryId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
   const started = useRef(false)
   const mutatedRef = useRef(false)
   const returningIdRef = useRef<string | null>(null)
-  const { runAction, runRecommendedAction } = useWorkflowActions({
+  const { runAction, runRecommendedAction, addOrigin, createOrigin } = useWorkflowActions({
     detail,
     intent,
     refreshDetail,
@@ -182,6 +183,7 @@ function App() {
   async function refreshRepositoryCard(repositoryId: string): Promise<void> {
     const currentRequest = ++requestId.current
     setBusy(true)
+    setRefreshingRepositoryId(repositoryId)
     setError(null)
     try {
       const nextPortfolio = await refreshRepositoryOnServer(repositoryId)
@@ -189,7 +191,10 @@ function App() {
     } catch (cause) {
       captureError(cause, currentRequest)
     } finally {
-      if (currentRequest === requestId.current) setBusy(false)
+      if (currentRequest === requestId.current) {
+        setBusy(false)
+        setRefreshingRepositoryId(null)
+      }
     }
   }
 
@@ -494,6 +499,8 @@ function App() {
             actionBusy={actionBusy}
             actionFeedback={actionFeedback}
             onRunAction={(workflowId) => void runAction(workflowId)}
+            onAddOrigin={(url) => void addOrigin(url)}
+            onCreateOrigin={(name, visibility) => void createOrigin(name, visibility)}
             onRunRecommended={() => void runRecommendedAction()}
             onRepairCompatibility={() => void runAction('repair-tctbp-script-compatibility')}
             intent={intent}
@@ -530,6 +537,7 @@ function App() {
         ) : !referenceOpen && !selectedId && portfolio ? (
           <PortfolioDashboard
             busy={busy}
+            refreshingRepositoryId={refreshingRepositoryId}
             returningId={returningIdRef.current}
             snapshot={portfolio}
             preferences={preferences}

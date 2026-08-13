@@ -1,12 +1,21 @@
+import { rm } from 'node:fs/promises'
+import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   authorisedFetch,
   cleanupApis,
   startApi,
 } from '../test/api-harness'
+import { createTemporaryDirectory } from '../test/helpers'
+import type { GitHubRestClient } from './github-client'
+
+const temporaryDirectories: string[] = []
 
 afterEach(async () => {
   await cleanupApis()
+  await Promise.all(temporaryDirectories.splice(0).map(
+    (directory) => rm(directory, { recursive: true, force: true }),
+  ))
 })
 
 describe('same-origin inspection API', () => {
@@ -112,6 +121,231 @@ describe('same-origin inspection API', () => {
     expect(await response.json()).toMatchObject({
       error: { code: 'repository-not-found' },
     })
+  })
+
+  it('surfaces GitHub access status and new-repo visibility in settings', async () => {
+    const settingsDirectory = await createTemporaryDirectory()
+    temporaryDirectories.push(settingsDirectory)
+    const running = await startApi(false, {
+      TCTBP_ADVISER_SETTINGS_FILE: path.join(settingsDirectory, 'app-settings.json'),
+    })
+    const response = await authorisedFetch(
+      `${running.url}/api/settings`,
+      running,
+    )
+    const body = await response.json() as {
+      githubNewRepositoryVisibility: { effective: string; persisted: unknown }
+      githubAccess: { configured: boolean; authenticated: boolean }
+    }
+
+    expect(response.status).toBe(200)
+    expect(body.githubNewRepositoryVisibility).toMatchObject({
+      effective: 'private',
+      persisted: null,
+    })
+    expect(body.githubAccess).toMatchObject({
+      configured: false,
+      authenticated: false,
+    })
+
+    const testResponse = await authorisedFetch(
+      `${running.url}/api/settings/github/test`,
+      running,
+      { method: 'POST' },
+    )
+    expect(testResponse.status).toBe(200)
+    expect(await testResponse.json()).toMatchObject({
+      configured: false,
+      authenticated: false,
+    })
+  })
+
+  it('adds an origin remote to a remote-less repository', async () => {
+    const running = await startApi(true)
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string; name: string }>
+    }
+    const plain = list.repositories.find(
+      (repository) => repository.name === 'plain-repository',
+    )
+    expect(plain).toBeDefined()
+
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${plain!.id}/actions/add-origin`,
+      running,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId: 'add-origin',
+          confirm: true,
+          url: 'https://github.com/Ken24T/plain.git',
+        }),
+      },
+    )
+
+    expect(response.status).toBe(202)
+    const started = await response.json() as { jobId: string; status: string }
+    expect(started.status).toBe('started')
+
+    const deadline = Date.now() + 5_000
+    let job: { status: string; result?: { remote?: string } } | null = null
+    while (Date.now() < deadline) {
+      const jobResponse = await authorisedFetch(
+        `${running.url}/api/repositories/${plain!.id}/action-jobs/${started.jobId}`,
+        running,
+      )
+      job = await jobResponse.json() as { status: string; result?: { remote?: string } }
+      if (job.status === 'completed' || job.status === 'failed') break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    expect(job?.status).toBe('completed')
+    expect(job?.result?.remote).toBe('https://github.com/Ken24T/plain.git')
+  })
+
+  it('rejects an invalid add-origin URL without starting a job', async () => {
+    const running = await startApi(true)
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string; name: string }>
+    }
+    const plain = list.repositories.find(
+      (repository) => repository.name === 'plain-repository',
+    )
+    expect(plain).toBeDefined()
+
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${plain!.id}/actions/add-origin`,
+      running,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId: 'add-origin',
+          confirm: true,
+          url: 'file:///etc/passwd',
+        }),
+      },
+    )
+
+    expect(response.status).toBe(202)
+    const started = await response.json() as { jobId: string }
+    const deadline = Date.now() + 5_000
+    let job: { status: string; error?: string } | null = null
+    while (Date.now() < deadline) {
+      const jobResponse = await authorisedFetch(
+        `${running.url}/api/repositories/${plain!.id}/action-jobs/${started.jobId}`,
+        running,
+      )
+      job = await jobResponse.json() as { status: string; error?: string }
+      if (job.status === 'completed' || job.status === 'failed') break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    expect(job?.status).toBe('failed')
+    expect(job?.error).toContain('http, https, ssh, or git')
+  })
+
+  it('creates a GitHub repository and connects origin on a remote-less repository', async () => {
+    const client = {
+      readUser: async () => ({
+        user: { login: 'Ken24T', name: 'Ken' },
+        scopes: ['repo'],
+      }),
+      repositoryExists: async () => false,
+      createRepository: async () => undefined,
+    } as unknown as GitHubRestClient
+    const running = await startApi(true, undefined, client)
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string; name: string }>
+    }
+    const plain = list.repositories.find(
+      (repository) => repository.name === 'plain-repository',
+    )
+    expect(plain).toBeDefined()
+
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${plain!.id}/actions/create-origin`,
+      running,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId: 'create-origin',
+          confirm: true,
+          name: 'adviser-route-test',
+          visibility: 'private',
+        }),
+      },
+    )
+
+    expect(response.status).toBe(202)
+    const started = await response.json() as { jobId: string; status: string }
+    expect(started.status).toBe('started')
+
+    const deadline = Date.now() + 5_000
+    let job: { status: string; result?: { remote?: string } } | null = null
+    while (Date.now() < deadline) {
+      const jobResponse = await authorisedFetch(
+        `${running.url}/api/repositories/${plain!.id}/action-jobs/${started.jobId}`,
+        running,
+      )
+      job = await jobResponse.json() as { status: string; result?: { remote?: string } }
+      if (job.status === 'completed' || job.status === 'failed') break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+
+    expect(job?.status).toBe('completed')
+    expect(job?.result?.remote).toBe('https://github.com/Ken24T/adviser-route-test.git')
+  })
+
+  it('rejects an invalid create-origin request without starting a job', async () => {
+    const client = {
+      readUser: async () => ({
+        user: { login: 'Ken24T', name: 'Ken' },
+        scopes: ['repo'],
+      }),
+      repositoryExists: async () => false,
+      createRepository: async () => undefined,
+    } as unknown as GitHubRestClient
+    const running = await startApi(true, undefined, client)
+    const listResponse = await authorisedFetch(
+      `${running.url}/api/repositories`,
+      running,
+    )
+    const list = await listResponse.json() as {
+      repositories: Array<{ id: string }>
+    }
+    const plain = list.repositories[0]
+
+    const response = await authorisedFetch(
+      `${running.url}/api/repositories/${plain.id}/actions/create-origin`,
+      running,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workflowId: 'create-origin',
+          confirm: true,
+          name: '',
+          visibility: 'private',
+        }),
+      },
+    )
+
+    expect(response.status).toBe(400)
   })
 
   it('returns a read-only upgrade plan without configured canonical source', async () => {

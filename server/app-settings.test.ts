@@ -40,6 +40,7 @@ describe('app settings store', () => {
       canonicalTctbpWebRoot: '/one/tctbp-web',
       githubEnabled: true,
       githubRepositories: ['owner/repo-a'],
+      githubNewRepositoryVisibility: 'private',
     }, environment)
     const loaded = await loadPersistedAppSettings(environment)
     expect(loaded).toEqual({
@@ -49,6 +50,7 @@ describe('app settings store', () => {
       canonicalTctbpWebRoot: '/one/tctbp-web',
       githubEnabled: true,
       githubRepositories: ['owner/repo-a'],
+      githubNewRepositoryVisibility: 'private',
     })
   })
 
@@ -62,6 +64,7 @@ describe('app settings store', () => {
       canonicalTctbpWebRoot: null,
       githubEnabled: null,
       githubRepositories: [],
+      githubNewRepositoryVisibility: null,
     })
   })
 
@@ -99,6 +102,7 @@ describe('app settings store', () => {
       canonicalTctbpWebRoot: null,
       githubEnabled: null,
       githubRepositories: [],
+      githubNewRepositoryVisibility: null,
     }, environment)
     const info = await stat(environment.TCTBP_ADVISER_SETTINGS_FILE)
     expect(info.mode & 0o777).toBe(0o600)

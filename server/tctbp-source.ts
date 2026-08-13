@@ -38,6 +38,7 @@ import {
   type GitExecutor,
 } from './git-command'
 import {
+  MANAGED_SURFACE_PATH,
   parseCanonicalManagedSurface,
   SCAFFOLD_RUNNER_PATH,
 } from './tctbp-manifest'
@@ -205,10 +206,15 @@ export class CanonicalTctbpSourceService {
     }
     progress?.('write-policy', 'Writing generated .github/TCTBP.json.')
     await writeManagedFile(targetRoot, '.github/TCTBP.json', policy)
+    // scripts/package.json is a canonical managed file (CommonJS pin). Install
+    // it verbatim from the canonical surface so a fresh bootstrap lands
+    // drift-free; canonical surfaces that predate the managed file fall back
+    // to the minimal CommonJS pin.
+    const compatibility = sourceFiles.get(SCRIPT_COMPATIBILITY_PATH)
     await writeManagedFile(
       targetRoot,
       SCRIPT_COMPATIBILITY_PATH,
-      '{\n  "type": "commonjs"\n}\n',
+      compatibility ?? '{\n  "type": "commonjs"\n}\n',
     )
     appliedPaths.push(SCRIPT_COMPATIBILITY_PATH)
     progress?.('write-source-metadata', 'Writing .tctbp/source.json.')
@@ -587,17 +593,27 @@ export class CanonicalTctbpSourceService {
     }
 
     try {
-      const [head, runner, version, policyContent] = await Promise.all([
+      const [head, runner, surface, version, policyContent] = await Promise.all([
         this.executor.run(sourceRoot, GIT_COMMANDS.head),
         readBoundedRepositoryFile(sourceRoot, SCAFFOLD_RUNNER_PATH),
+        readBoundedRepositoryFile(sourceRoot, MANAGED_SURFACE_PATH),
         readBoundedRepositoryFile(sourceRoot, VERSION_PATH),
         readBoundedRepositoryFile(sourceRoot, '.github/TCTBP.json'),
       ])
-      if (runner === null || policyContent === null) {
+      if (policyContent === null) {
         return unavailableSource('The canonical TCTBP-Web policy surface is unavailable.')
       }
 
-      const managedPaths = parseCanonicalManagedSurface(runner)
+      // Newer TCTBP-Web releases define the managed surface in
+      // scripts/tctbp-managed-surface.js (required by the scaffold runner);
+      // older releases inlined it in the runner itself. Parse whichever
+      // source defines it, managed-surface module first.
+      const managedSources = [surface, runner]
+        .filter((content): content is string => content !== null)
+      if (managedSources.length === 0) {
+        return unavailableSource('The canonical TCTBP-Web policy surface is unavailable.')
+      }
+      const managedPaths = parseCanonicalManagedSurface(...managedSources)
       const policy = parseTctbpPolicy(policyContent)
       if (!policy) {
         return unavailableSource('The canonical TCTBP-Web policy is invalid.')

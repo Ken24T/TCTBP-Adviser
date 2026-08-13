@@ -1,11 +1,17 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { readActionerRequest } from './actioner-input'
+import {
+  readActionerRequest,
+  readAddOriginRequest,
+  readCreateOriginRequest,
+} from './actioner-input'
 import type { ApiRuntime } from './api-runtime'
 import {
   completeActionJob,
   safeActionerJobError,
 } from './api-route-helpers'
 import { BranchActioner } from './branch-actioner'
+import { CreateGithubOriginActioner } from './create-origin-actioner'
+import { OriginActioner } from './origin-actioner'
 import { CheckpointActioner } from './checkpoint-actioner'
 import { DeployActioner } from './deploy-actioner'
 import { AdviserError } from './errors'
@@ -49,6 +55,61 @@ export async function handleActionRoutes(
     )
     if (!job) throw new AdviserError('actioner-job-not-found', 'Actioner job was not found.')
     sendJson(response, 200, job)
+    return true
+  }
+
+  const addOriginActionMatch =
+    /^\/api\/repositories\/([^/]+)\/actions\/add-origin$/.exec(url.pathname)
+  if (request.method === 'POST' && addOriginActionMatch) {
+    const actionRequest = await readAddOriginRequest(request)
+    const repository = await runtime.registry.require(
+      decodeURIComponent(addOriginActionMatch[1]),
+    )
+    const job = runtime.actionerJobs.create(repository.id, 'add-origin')
+    void (async () => {
+      try {
+        runtime.actionerJobs.start(job.jobId)
+        const result = await new OriginActioner().run(
+          repository.path,
+          actionRequest.url,
+          (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+        )
+        completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
+      } catch (error) {
+        runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+      }
+    })()
+    sendJson(response, 202, { jobId: job.jobId, status: 'started' })
+    return true
+  }
+
+  const createOriginActionMatch =
+    /^\/api\/repositories\/([^/]+)\/actions\/create-origin$/.exec(url.pathname)
+  if (request.method === 'POST' && createOriginActionMatch) {
+    const actionRequest = await readCreateOriginRequest(request)
+    const repository = await runtime.registry.require(
+      decodeURIComponent(createOriginActionMatch[1]),
+    )
+    const job = runtime.actionerJobs.create(repository.id, 'create-origin')
+    void (async () => {
+      try {
+        runtime.actionerJobs.start(job.jobId)
+        const result = await new CreateGithubOriginActioner(
+          runtime.githubAccess.client,
+        ).run(
+          repository.path,
+          {
+            name: actionRequest.name,
+            visibility: actionRequest.visibility,
+          },
+          (step, detail) => runtime.actionerJobs.progress(job.jobId, step, detail),
+        )
+        completeActionJob(runtime.actionerJobs, runtime.portfolio, job.jobId, result)
+      } catch (error) {
+        runtime.actionerJobs.fail(job.jobId, safeActionerJobError(error))
+      }
+    })()
+    sendJson(response, 202, { jobId: job.jobId, status: 'started' })
     return true
   }
 

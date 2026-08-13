@@ -4,13 +4,15 @@
 // load/save lifecycle across components. Revisit if a section grows independently.
 import { useEffect, useState } from 'react'
 import type {
+  AppSettingsField,
   AppSettingsResponse,
   AppSettingsSource,
 } from '../../shared/app-settings'
 import { loadAppSettings, saveAppSettings } from '../api'
 import { Button, Card, PageHeader } from './primitives'
-import { CloseIcon } from './icons'
+import { ChevronDownIcon, CloseIcon } from './icons'
 import { CardVisibilitySettings } from './CardVisibilitySettings'
+import { GitHubAccessSettings } from './GitHubAccessSettings'
 import type { PortfolioPreferences } from '../portfolio-preferences'
 
 interface SettingsPanelProps {
@@ -42,6 +44,9 @@ export function SettingsPanel({
   const [canonicalRoot, setCanonicalRoot] = useState('')
   const [githubEnabled, setGithubEnabled] = useState(false)
   const [githubRepos, setGithubRepos] = useState<string[]>([])
+  const [githubVisibility, setGithubVisibility] = useState<'private' | 'public' | null>(null)
+  const [discoveryOpen, setDiscoveryOpen] = useState(false)
+  const [cardsOpen, setCardsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -69,8 +74,8 @@ export function SettingsPanel({
 
   function applyLoadedSettings(loaded: AppSettingsResponse): void {
     setSettings(loaded)
-    setRoots(loaded.repositoryRoots.persisted)
-    setExcludes(loaded.excludeDirectories.persisted)
+    setRoots(editableSettingsList(loaded.repositoryRoots))
+    setExcludes(editableSettingsList(loaded.excludeDirectories))
     setMaxDepth(
       loaded.maximumDepth.persisted === null
         ? ''
@@ -80,7 +85,8 @@ export function SettingsPanel({
     setGithubEnabled(
       loaded.githubEnabled.persisted ?? loaded.githubEnabled.effective,
     )
-    setGithubRepos(loaded.githubRepositories.persisted)
+    setGithubRepos(editableSettingsList(loaded.githubRepositories))
+    setGithubVisibility(loaded.githubNewRepositoryVisibility.persisted)
   }
 
   const save = async () => {
@@ -96,6 +102,7 @@ export function SettingsPanel({
         canonicalTctbpWebRoot: canonicalRoot.trim() === '' ? null : canonicalRoot.trim(),
         githubEnabled,
         githubRepositories: githubRepos,
+        githubNewRepositoryVisibility: githubVisibility,
       })
       applyLoadedSettings(updated)
       setSaved(true)
@@ -168,57 +175,72 @@ export function SettingsPanel({
         />
       </Card>
 
-      <Card className="p-5 space-y-4">
-        <SettingsHeading
-          title="Discovery"
-          description="Directories skipped while scanning and the maximum scan depth."
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <FieldLabel
-              label="Excluded directories"
-              source={settings.excludeDirectories.source}
-            />
-            <EffectiveNote
-              label="Currently excluded"
-              source={settings.excludeDirectories.source}
-              values={settings.excludeDirectories.effective}
-            />
-            <ListField
-              ariaLabel="Excluded directory"
-              onChange={(values) => {
-                setExcludes(values)
-                markDirty()
-              }}
-              placeholder="build"
-              values={excludes}
-            />
+      <Card className="p-5">
+        <button
+          aria-expanded={discoveryOpen}
+          className="w-full flex items-center justify-between gap-4 text-left"
+          type="button"
+          onClick={() => setDiscoveryOpen((open) => !open)}
+        >
+          <SettingsHeading
+            title="Discovery"
+            description="Directories skipped while scanning and the maximum scan depth."
+          />
+          <ChevronDownIcon
+            className={[
+              'w-5 h-5 text-text-muted transition-transform duration-200 shrink-0',
+              discoveryOpen ? 'rotate-180' : '',
+            ].join(' ')}
+          />
+        </button>
+        {discoveryOpen && (
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <FieldLabel
+                label="Excluded directories"
+                source={settings.excludeDirectories.source}
+              />
+              <EffectiveNote
+                label="Currently excluded"
+                source={settings.excludeDirectories.source}
+                values={settings.excludeDirectories.effective}
+              />
+              <ListField
+                ariaLabel="Excluded directory"
+                onChange={(values) => {
+                  setExcludes(values)
+                  markDirty()
+                }}
+                placeholder="build"
+                values={excludes}
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel
+                label="Maximum depth"
+                source={settings.maximumDepth.source}
+              />
+              <EffectiveNote
+                label="Currently using depth"
+                source={settings.maximumDepth.source}
+                values={[String(settings.maximumDepth.effective)]}
+              />
+              <input
+                aria-label="Maximum depth"
+                className="w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
+                min={0}
+                max={10}
+                onChange={(event) => {
+                  setMaxDepth(event.currentTarget.value)
+                  markDirty()
+                }}
+                placeholder="Leave blank for default"
+                type="number"
+                value={maxDepth}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <FieldLabel
-              label="Maximum depth"
-              source={settings.maximumDepth.source}
-            />
-            <EffectiveNote
-              label="Currently using depth"
-              source={settings.maximumDepth.source}
-              values={[String(settings.maximumDepth.effective)]}
-            />
-            <input
-              aria-label="Maximum depth"
-              className="w-full px-3 py-2 text-sm text-text-primary bg-surface-soft border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint"
-              min={0}
-              max={10}
-              onChange={(event) => {
-                setMaxDepth(event.currentTarget.value)
-                markDirty()
-              }}
-              placeholder="Leave blank for default"
-              type="number"
-              value={maxDepth}
-            />
-          </div>
-        </div>
+        )}
       </Card>
 
       <Card className="p-5 space-y-4">
@@ -290,16 +312,42 @@ export function SettingsPanel({
         </div>
       </Card>
 
-      <Card className="p-5 space-y-4">
-        <SettingsHeading
-          title="Cards"
-          description="Show or hide repositories on the portfolio dashboard. Applies immediately."
-        />
-        <CardVisibilitySettings
-          onPreferenceChange={onPreferenceChange}
-          preferences={preferences}
-          repositories={repositories}
-        />
+      <GitHubAccessSettings
+        access={settings.githubAccess}
+        onVisibilityChange={(value) => {
+          setGithubVisibility(value)
+          markDirty()
+        }}
+        visibility={githubVisibility}
+      />
+
+      <Card className="p-5">
+        <button
+          aria-expanded={cardsOpen}
+          className="w-full flex items-center justify-between gap-4 text-left"
+          type="button"
+          onClick={() => setCardsOpen((open) => !open)}
+        >
+          <SettingsHeading
+            title="Cards"
+            description="Show or hide repositories on the portfolio dashboard. Applies immediately."
+          />
+          <ChevronDownIcon
+            className={[
+              'w-5 h-5 text-text-muted transition-transform duration-200 shrink-0',
+              cardsOpen ? 'rotate-180' : '',
+            ].join(' ')}
+          />
+        </button>
+        {cardsOpen && (
+          <div className="mt-4">
+            <CardVisibilitySettings
+              onPreferenceChange={onPreferenceChange}
+              preferences={preferences}
+              repositories={repositories}
+            />
+          </div>
+        )}
       </Card>
 
       <div className="flex items-center gap-4">
@@ -314,6 +362,18 @@ export function SettingsPanel({
       </div>
     </div>
   )
+}
+
+/**
+ * The editable list values shown in the settings panel. Saved values take
+ * precedence; when nothing is persisted yet, the effective (environment or
+ * default) values are shown instead so that a first save does not fail root
+ * validation or silently drop the running excludes.
+ */
+export function editableSettingsList(
+  field: AppSettingsField<string[], string[]>,
+): string[] {
+  return field.persisted.length > 0 ? field.persisted : field.effective
 }
 
 function SettingsHeading({

@@ -8,6 +8,7 @@ interface PortfolioCardMenuProps {
   hidden: boolean
   canOpen: boolean
   canRefresh: boolean
+  refreshing?: boolean
   githubUrl: string | null
   repositoryName: string
   /** Card surface CSS variables, re-applied when the menu is portaled. */
@@ -45,6 +46,7 @@ export function PortfolioCardMenu({
   hidden,
   canOpen,
   canRefresh,
+  refreshing = false,
   githubUrl,
   repositoryName,
   surface,
@@ -134,7 +136,11 @@ export function PortfolioCardMenu({
       <MenuItem label={hidden ? 'Show repository' : 'Hide repository'} onClick={runAndClose(onToggleHide)} />
       <MenuItem disabled={!canOpen} label="View repository" onClick={runAndClose(onOpen)} />
       {githubUrl && <MenuItem href={githubUrl} label="View on GitHub" />}
-      <MenuItem disabled={!canRefresh} label="Refresh" onClick={runAndClose(onRefresh)} />
+      <MenuItem
+        disabled={!canRefresh || refreshing}
+        label={refreshing ? 'Refreshing…' : 'Refresh'}
+        onClick={runAndClose(onRefresh)}
+      />
       <MenuItem label="Rename…" onClick={runAndClose(onRename)} />
       <div className="my-1.5 h-px bg-[var(--card-btn-border)]" role="separator" />
       <InfoRow label="TCTBP" tone={null} value={tctbpStatus} />

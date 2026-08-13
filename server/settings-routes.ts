@@ -12,6 +12,7 @@ import {
   validateBooleanSetting,
   validateCanonicalRoot,
   validateDirectoryNames,
+  validateGithubNewRepositoryVisibility,
   validateGithubRepositories,
   validateMaximumDepth,
   validateRepositoryRoots,
@@ -103,6 +104,16 @@ async function readSettingsResponse(
         persisted.githubRepositories.length > 0,
       ),
     },
+    githubNewRepositoryVisibility: {
+      effective: persisted.githubNewRepositoryVisibility ?? 'private',
+      persisted: persisted.githubNewRepositoryVisibility,
+      source: settingsFieldSource(
+        environment,
+        'TCTBP_ADVISER_GITHUB_NEW_REPOSITORY_VISIBILITY',
+        persisted.githubNewRepositoryVisibility !== null,
+      ),
+    },
+    githubAccess: await runtime.githubAccess.status(),
   }
 }
 
@@ -133,6 +144,11 @@ async function applyPersistedSettings(
   }
   if ('githubRepositories' in update) {
     next.githubRepositories = validateGithubRepositories(update.githubRepositories)
+  }
+  if ('githubNewRepositoryVisibility' in update) {
+    next.githubNewRepositoryVisibility = validateGithubNewRepositoryVisibility(
+      update.githubNewRepositoryVisibility,
+    )
   }
 
   return next

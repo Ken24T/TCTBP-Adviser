@@ -163,12 +163,26 @@ function validateGithubRepositories(candidate: unknown): string[] {
   return Array.from(names)
 }
 
+function validateGithubNewRepositoryVisibility(
+  candidate: unknown,
+): 'private' | 'public' | null {
+  if (candidate === null) return null
+  if (candidate === 'private' || candidate === 'public') return candidate
+  throw new AdviserError(
+    'settings-request-invalid',
+    'githubNewRepositoryVisibility must be "private", "public", or null.',
+  )
+}
+
 export { settingsObject }
 export {
   validateBooleanSetting,
   validateCanonicalRoot,
   validateDirectoryNames,
+  validateGithubNewRepositoryVisibility,
   validateGithubRepositories,
   validateMaximumDepth,
   validateRepositoryRoots,
 }
+
+

@@ -16,6 +16,7 @@ import { InspectionAuditLog } from './audit'
 import { LocalGitInspector } from './local-git'
 import { GitHubRestClient } from './github-client'
 import { GitHubProvider } from './github-provider'
+import { GitHubAccessService } from './github-access'
 import { GitHubEnrichmentService } from './github-enrichment'
 import { PortfolioService } from './portfolio'
 import { RepositoryRegistry } from './registry'
@@ -25,6 +26,7 @@ export interface ApiRuntime {
   readonly registry: RepositoryRegistry
   readonly inspections: RepositoryInspectionService
   readonly github: GitHubEnrichmentService
+  readonly githubAccess: GitHubAccessService
   readonly tctbpSource: CanonicalTctbpSourceService
   readonly aiReviewer: AiReviewer
   readonly aiReviewStore: AiReviewStore
@@ -42,6 +44,7 @@ export function createApiRuntime(
   config: ServiceConfig,
   sessionToken = randomBytes(32).toString('base64url'),
   environment: NodeJS.ProcessEnv = process.env,
+  githubClient: GitHubRestClient = new GitHubRestClient(config.github),
 ): ApiRuntime {
   const executor = new BoundedGitExecutor(
     config.commandTimeoutMs,
@@ -59,8 +62,12 @@ export function createApiRuntime(
     gitInspector,
     new GitHubProvider(
       config.github,
-      new GitHubRestClient(config.github),
+      githubClient,
     ),
+  )
+  const githubAccess = new GitHubAccessService(
+    config.github,
+    githubClient,
   )
   const tctbpSource = new CanonicalTctbpSourceService(
     config.canonicalTctbpWebRoot ?? null,
@@ -85,6 +92,7 @@ export function createApiRuntime(
     registry,
     inspections,
     github,
+    githubAccess,
     tctbpSource,
     aiReviewer,
     aiReviewStore,

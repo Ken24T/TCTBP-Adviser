@@ -1,4 +1,4 @@
-import { lstat, realpath } from 'node:fs/promises'
+import { lstat, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import type { GitOperation } from '../shared/inspection'
 import type { GitHubRepositoryIdentity } from '../shared/github'
@@ -39,7 +39,10 @@ export class LocalGitInspector {
       ? rawGitDir
       : path.resolve(repositoryPath, rawGitDir)
     const gitDir = await realpath(unresolvedGitDir)
-    if (!isPathContained(repositoryPath, gitDir)) {
+    if (
+      !(await isLinkedWorktreeGitDir(repositoryPath, gitDir))
+      && !isPathContained(repositoryPath, gitDir)
+    ) {
       throw new AdviserError(
         'git-dir-outside-repository',
         'Repository Git directory resolves outside the configured root.',
@@ -61,6 +64,48 @@ export class LocalGitInspector {
       GIT_COMMANDS.originUrl,
     )
     return parseGitHubRemote(result.stdout.trim())
+  }
+}
+
+/**
+ * True when the repository is a linked git worktree: its `.git` entry is a
+ * file (written by `git worktree add`) declaring a `gitdir:` target, and that
+ * target resolves to exactly the git directory git reported. Worktree git
+ * directories live inside the main repository's `.git/worktrees/<name>/`
+ * directory — intentionally outside the worktree's own directory — so the
+ * containment check must not reject that case. Any other `.git` layout (a
+ * directory, a symlink, a malformed marker, or a marker whose declared target
+ * does not match git's own resolution) still falls through to containment.
+ */
+async function isLinkedWorktreeGitDir(
+  repositoryPath: string,
+  gitDir: string,
+): Promise<boolean> {
+  const marker = path.join(repositoryPath, '.git')
+  let metadata
+  try {
+    metadata = await lstat(marker)
+  } catch (error) {
+    if (isMissingFileError(error)) return false
+    throw error
+  }
+  if (!metadata.isFile()) return false
+  let contents: string
+  try {
+    contents = await readFile(marker, 'utf8')
+  } catch {
+    return false
+  }
+  const match = /^gitdir:\s*(.+)$/m.exec(contents)
+  if (!match) return false
+  const declared = match[1].trim()
+  const unresolved = path.isAbsolute(declared)
+    ? declared
+    : path.resolve(repositoryPath, declared)
+  try {
+    return await realpath(unresolved) === gitDir
+  } catch {
+    return false
   }
 }
 

@@ -2,6 +2,7 @@ import path from 'node:path'
 import { AdviserError } from './errors'
 
 export const SCAFFOLD_RUNNER_PATH = 'scripts/tctbp-run-scaffold.js'
+export const MANAGED_SURFACE_PATH = 'scripts/tctbp-managed-surface.js'
 
 const MANAGED_ARRAYS = [
   ['RUNNER_FILES', 'scripts'],
@@ -10,27 +11,35 @@ const MANAGED_ARRAYS = [
   ['CONTRACT_FILES', ''],
 ] as const
 
+/**
+ * Parses the canonical managed surface from the TCTBP-Web checkout. Newer
+ * releases define the arrays in scripts/tctbp-managed-surface.js (the single
+ * source of truth, required by the scaffold runner); older releases inlined
+ * them in the scaffold runner itself. Each array is read from the first
+ * source that defines it, so pass the managed-surface module before the
+ * scaffold runner.
+ */
 export function parseCanonicalManagedSurface(
-  scaffoldRunner: string,
+  ...sources: readonly string[]
 ): string[] {
   return Array.from(new Set(MANAGED_ARRAYS.flatMap(([name, prefix]) => (
-    parseArray(scaffoldRunner, name).map((file) => (
+    parseArray(sources, name).map((file) => (
       prefix ? path.posix.join(prefix, file) : file
     ))
   )))).sort()
 }
 
-function parseArray(source: string, name: string): string[] {
-  const match = new RegExp(
-    `const\\s+${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*;`,
-  ).exec(source)
-  if (!match) {
-    throw new AdviserError(
-      'canonical-manifest-invalid',
-      `Canonical scaffold runner is missing ${name}.`,
-    )
+function parseArray(sources: readonly string[], name: string): string[] {
+  for (const source of sources) {
+    const match = new RegExp(
+      `const\\s+${name}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*;`,
+    ).exec(source)
+    if (!match) continue
+    const literals = match[1].match(/"[^"]*"/g) ?? []
+    return literals.map((literal) => JSON.parse(literal) as string)
   }
-
-  const literals = match[1].match(/"[^"]*"/g) ?? []
-  return literals.map((literal) => JSON.parse(literal) as string)
+  throw new AdviserError(
+    'canonical-manifest-invalid',
+    `Canonical TCTBP-Web manifest is missing ${name}.`,
+  )
 }

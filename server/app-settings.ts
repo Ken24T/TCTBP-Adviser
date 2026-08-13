@@ -32,6 +32,10 @@ export async function loadPersistedAppSettings(
         ? parsed.githubEnabled
         : null,
       githubRepositories: stringList(parsed.githubRepositories),
+      githubNewRepositoryVisibility: (
+        parsed.githubNewRepositoryVisibility === 'private'
+        || parsed.githubNewRepositoryVisibility === 'public'
+      ) ? parsed.githubNewRepositoryVisibility : null,
     }
   } catch {
     return { ...DEFAULT_PERSISTED_APP_SETTINGS }

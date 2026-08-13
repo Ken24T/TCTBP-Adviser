@@ -11,6 +11,8 @@ export type ActionerWorkflowId =
   | 'promote-review'
   | 'promote-production'
   | 'ship'
+  | 'add-origin'
+  | 'create-origin'
 
 export type ActionerIntent = Exclude<RecommendationIntent, 'none'>
 
@@ -31,6 +33,25 @@ export interface ActionerRequest {
   intent: ActionerIntent
   planFingerprint: string
   confirm: true
+}
+
+/** Add-origin request: no plan fingerprint — the URL is user-supplied. */
+export interface AddOriginRequest {
+  workflowId: 'add-origin'
+  confirm: true
+  url: string
+}
+
+/**
+ * Create-origin request: creates a GitHub repository under the authenticated
+ * account and connects it as origin. No plan fingerprint — the name and
+ * visibility are user-supplied.
+ */
+export interface CreateOriginRequest {
+  workflowId: 'create-origin'
+  confirm: true
+  name: string
+  visibility: 'private' | 'public'
 }
 
 export interface ActionerStep {

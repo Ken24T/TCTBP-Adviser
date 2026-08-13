@@ -8,6 +8,7 @@ import path from 'node:path'
 import { createApiHandler } from '../server/api'
 import { createApiRuntime } from '../server/api-runtime'
 import type { ServiceConfig } from '../server/config'
+import type { GitHubRestClient } from '../server/github-client'
 import {
   createGitRepository,
   createTemporaryDirectory,
@@ -36,6 +37,7 @@ export async function cleanupApis(): Promise<void> {
 export async function startApi(
   includePlainRepository = false,
   environment: NodeJS.ProcessEnv = process.env,
+  githubClient?: GitHubRestClient,
 ): Promise<RunningApi> {
   const root = await createTemporaryDirectory()
   temporaryDirectories.push(root)
@@ -56,6 +58,7 @@ export async function startApi(
       ...environment,
       TCTBP_ADVISER_ALLOWED_ROOT: environment.TCTBP_ADVISER_ALLOWED_ROOT ?? root,
     },
+    githubClient,
   )
   const server = createServer(createApiHandler(runtime))
   servers.push(server)

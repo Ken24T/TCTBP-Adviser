@@ -23,6 +23,8 @@ describe('repository detail view', () => {
 
         actionFeedback={null}
         onRunAction={() => undefined}
+        onAddOrigin={() => undefined}
+        onCreateOrigin={() => undefined}
         onRepairCompatibility={() => undefined}
         detail={{
           observation,
@@ -100,6 +102,8 @@ describe('repository detail view', () => {
 
         actionFeedback={null}
         onRunAction={() => undefined}
+        onAddOrigin={() => undefined}
+        onCreateOrigin={() => undefined}
         onRepairCompatibility={() => undefined}
         detail={{
           observation,
@@ -203,6 +207,8 @@ function renderDetail(
       actionBusy={false}
       actionFeedback={null}
       onRunAction={() => undefined}
+      onAddOrigin={() => undefined}
+      onCreateOrigin={() => undefined}
       onRepairCompatibility={() => undefined}
       intent="none"
       busy={false}

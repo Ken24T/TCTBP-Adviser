@@ -30,6 +30,8 @@ export const ACTION_CONFIRMATIONS: Record<ActionerWorkflowId, string> = {
   'promote-production': 'Promote the current review branch into main? This will merge, verify, and prepare main for ship. No deploy or push will occur.',
   ship: 'Ship a release from main? This will bump the version, create a tag, and push to origin.',
   'deploy-development': 'Deploy the development branch to the configured development environment? No merge or production action will occur.',
+  'add-origin': 'Add the given URL as the origin remote? No commit, push, or GitHub change will occur.',
+  'create-origin': 'Create the repository on GitHub and connect it as origin? Nothing will be committed or pushed.',
 }
 
 /**
@@ -98,5 +100,13 @@ export async function startWorkflowAction(
       return startShipAction(repositoryId, fingerprint)
     case 'deploy-development':
       return startDeployDevelopmentAction(repositoryId, fingerprint)
+    case 'add-origin':
+      // Add-origin carries a user-supplied URL and no plan fingerprint; it is
+      // started directly rather than through the generic workflow starter.
+      throw new Error('Add origin is started directly with a URL.')
+    case 'create-origin':
+      // Create-origin carries a name/visibility and no plan fingerprint; it is
+      // started directly rather than through the generic workflow starter.
+      throw new Error('Create origin is started directly with a name and visibility.')
   }
 }

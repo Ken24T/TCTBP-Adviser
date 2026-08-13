@@ -3,6 +3,7 @@ import {
   lstat,
   mkdir,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
@@ -124,6 +125,50 @@ describe('local Git inspector', () => {
       code: 'configured-path-not-repository-root',
     })
   })
+
+  it.runIf(process.platform !== 'win32')(
+    'accepts a linked git worktree whose git directory lives outside the worktree directory',
+    async () => {
+      const main = await temporaryRepository()
+      git(main, ['remote', 'add', 'origin', 'https://github.com/example/kindling.git'])
+      const worktreesRoot = path.join(path.dirname(main), 'worktrees')
+      await mkdir(worktreesRoot, { recursive: true })
+      temporaryDirectories.push(worktreesRoot)
+      const worktree = path.join(worktreesRoot, 'feature-worktree')
+      git(main, ['worktree', 'add', '-b', 'feature', worktree])
+      const inspector = new LocalGitInspector(
+        new BoundedGitExecutor(3_000, 1024 * 1024),
+      )
+
+      const observation = await inspector.inspect(worktree)
+
+      expect(observation).toMatchObject({
+        branch: 'feature',
+        detached: false,
+        remoteOrigin: 'https://github.com/example/kindling.git',
+        operations: [],
+      })
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'still rejects a git directory that escapes the repository via a symlinked .git',
+    async () => {
+      const real = await temporaryRepository()
+      const parent = await createTemporaryDirectory()
+      temporaryDirectories.push(parent)
+      const repository = path.join(parent, 'repo')
+      await mkdir(repository, { recursive: true })
+      await symlink(path.join(real, '.git'), path.join(repository, '.git'))
+      const inspector = new LocalGitInspector(
+        new BoundedGitExecutor(3_000, 1024 * 1024),
+      )
+
+      await expect(inspector.inspect(repository)).rejects.toMatchObject({
+        code: 'git-dir-outside-repository',
+      })
+    },
+  )
 })
 
 describe('GitHub origin parser', () => {

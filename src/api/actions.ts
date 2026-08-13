@@ -100,6 +100,42 @@ export function startCheckpointAction(
   return startAction(repositoryId, 'checkpoint', intent, planFingerprint)
 }
 
+/** Starts the add-origin action with a user-supplied remote URL. */
+export function startAddOriginAction(
+  repositoryId: string,
+  url: string,
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/add-origin`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workflowId: 'add-origin', confirm: true, url }),
+    },
+  )
+}
+
+/** Starts the create-origin action (GitHub repo creation + origin connect). */
+export function startCreateOriginAction(
+  repositoryId: string,
+  name: string,
+  visibility: 'private' | 'public',
+): Promise<ActionerJobStart> {
+  return requestJson<ActionerJobStart>(
+    `/api/repositories/${encodeURIComponent(repositoryId)}/actions/create-origin`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workflowId: 'create-origin',
+        confirm: true,
+        name,
+        visibility,
+      }),
+    },
+  )
+}
+
 export async function loadActionerJob(
   repositoryId: string,
   jobId: string,

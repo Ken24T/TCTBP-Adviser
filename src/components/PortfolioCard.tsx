@@ -12,6 +12,7 @@ import { useTheme } from '../theme'
 import { Button, Card } from './primitives'
 import { CardCallout, type CardCalloutPlacement } from './CardCallout'
 import { PortfolioCardMenu } from './PortfolioCardMenu'
+import { RefreshIcon } from './icons'
 
 /** Matches the Intranet FunctionCard's FLIP_ANIMATION_DURATION (650 ms). */
 const FLIP_DURATION_MS = 650
@@ -41,6 +42,7 @@ interface PortfolioCardProps {
   onPreferenceChange: (patch: Partial<PortfolioPreference>) => void
   onRefresh: () => void
   busy?: boolean
+  refreshing?: boolean
   startFlipped?: boolean
 }
 
@@ -51,6 +53,7 @@ export function PortfolioCard({
   onPreferenceChange,
   onRefresh,
   busy = false,
+  refreshing = false,
   startFlipped = false,
 }: PortfolioCardProps) {
   const displayName = preference.name.trim() || repository.name
@@ -287,6 +290,7 @@ export function PortfolioCard({
             onOpenChange={(open) => { if (open) closeCallout() }}
             onRefresh={onRefresh}
             onRename={() => setRenaming(true)}
+            refreshing={refreshing}
             onToggleHide={() => onPreferenceChange({ hidden: !preference.hidden })}
             onTogglePin={() => onPreferenceChange({ pinned: !preference.pinned })}
             pinned={preference.pinned}
@@ -311,10 +315,17 @@ export function PortfolioCard({
       </div>
 
       <div className="mt-auto bg-[var(--card-text-block-bg)] p-4 rounded-lg text-sm">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-text-muted">Recommended</span>
-          <strong className="text-text-primary text-right">{recommendationTitle(repository)}</strong>
-        </div>
+        {refreshing ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-text-secondary">Refreshing…</span>
+            <RefreshIcon className="w-4 h-4 animate-spin text-text-secondary" />
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-text-secondary">Recommended</span>
+            <strong className="text-text-primary text-right">{recommendationTitle(repository)}</strong>
+          </div>
+        )}
       </div>
 
       {renaming && (

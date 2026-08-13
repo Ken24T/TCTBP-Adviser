@@ -11,7 +11,7 @@ import {
   savePersistedPortfolioPreferences,
 } from './portfolio-preferences'
 import { referenceCatalogue } from './reference/catalogue'
-import { readJsonBody } from './request-input'
+import { readJsonBody, requireEmptyBody } from './request-input'
 import {
   applyEffectiveSettingsToRuntime,
   applyPersistedSettings,
@@ -46,6 +46,14 @@ export async function handleSystemRoutes(
     await savePersistedAppSettings(next, runtime.environment)
     await applyEffectiveSettingsToRuntime(runtime)
     sendJson(response, 200, await readSettingsResponse(runtime))
+    return true
+  }
+  if (
+    request.method === 'POST'
+    && url.pathname === '/api/settings/github/test'
+  ) {
+    await requireEmptyBody(request)
+    sendJson(response, 200, await runtime.githubAccess.status())
     return true
   }
   if (request.method === 'GET' && url.pathname === '/api/preferences') {

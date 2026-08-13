@@ -11,6 +11,7 @@ import {
   workflowForRecommendation,
 } from './action-workflows'
 import { intentForRecommendation } from './recommended-intent'
+import { startAddOriginAction, startCreateOriginAction } from './api'
 
 export interface WorkflowActionsDependencies {
   selectedId: string | null
@@ -31,6 +32,10 @@ export interface WorkflowActionsDependencies {
 export interface WorkflowActions {
   runAction: (workflowId: ActionerWorkflowId) => Promise<void>
   runRecommendedAction: () => Promise<void>
+  /** Adds a user-supplied URL as the origin remote (remote-less repos). */
+  addOrigin: (url: string) => Promise<void>
+  /** Creates a GitHub repository and connects it as origin (remote-less repos). */
+  createOrigin: (name: string, visibility: 'private' | 'public') => Promise<void>
 }
 
 /**
@@ -102,6 +107,37 @@ export function useWorkflowActions(
     )
   }
 
+  /** Adds a user-supplied origin URL; no plan fingerprint is involved. */
+  async function addOrigin(url: string): Promise<void> {
+    if (!selectedId) return
+    if (!window.confirm(actionConfirmation('add-origin', null))) return
+    setActionBusy(true)
+    setActionFeedback(null)
+    setError(null)
+    try {
+      const startedJob = await startAddOriginAction(selectedId, url)
+      setActionJob({
+        jobId: startedJob.jobId,
+        repositoryId: selectedId,
+        workflowId: 'add-origin',
+        status: 'queued',
+        steps: [],
+        result: null,
+        error: null,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        completedAt: null,
+      })
+    } catch (cause) {
+      setActionBusy(false)
+      const message = cause instanceof Error
+        ? cause.message
+        : 'Add origin could not start.'
+      setActionFeedback(message)
+      reportError(cause)
+    }
+  }
+
   /** Runs the state-driven recommendation as a workflow action. */
   async function runRecommendedAction(): Promise<void> {
     if (!selectedId || !detail) return
@@ -134,5 +170,43 @@ export function useWorkflowActions(
     }
   }
 
-  return { runAction, runRecommendedAction }
+  /** Creates a GitHub repository under the account and connects it as origin. */
+  async function createOrigin(
+    name: string,
+    visibility: 'private' | 'public',
+  ): Promise<void> {
+    if (!selectedId) return
+    if (!window.confirm(actionConfirmation('create-origin', null))) return
+    setActionBusy(true)
+    setActionFeedback(null)
+    setError(null)
+    try {
+      const startedJob = await startCreateOriginAction(
+        selectedId,
+        name,
+        visibility,
+      )
+      setActionJob({
+        jobId: startedJob.jobId,
+        repositoryId: selectedId,
+        workflowId: 'create-origin',
+        status: 'queued',
+        steps: [],
+        result: null,
+        error: null,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        completedAt: null,
+      })
+    } catch (cause) {
+      setActionBusy(false)
+      const message = cause instanceof Error
+        ? cause.message
+        : 'Create origin could not start.'
+      setActionFeedback(message)
+      reportError(cause)
+    }
+  }
+
+  return { runAction, runRecommendedAction, addOrigin, createOrigin }
 }

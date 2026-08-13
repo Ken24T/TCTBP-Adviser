@@ -19,6 +19,7 @@ describe('canonical TCTBP-Web source planning', () => {
   it('bootstraps a temporary target on a dedicated branch without committing', async () => {
     const root = await createTemporaryDirectory()
     temporaryDirectories.push(root)
+    const canonicalPackageJson = '{\n  "type": "commonjs",\n  "description": "Canonical CommonJS pin for TCTBP runner scripts."\n}\n'
     const source = path.join(root, 'TCTBP-Web')
     const target = await createGitRepository(root, 'target')
     await mkdir(path.join(source, 'scripts'), { recursive: true })
@@ -27,13 +28,17 @@ describe('canonical TCTBP-Web source planning', () => {
     await writeFile(
       path.join(source, 'scripts', 'tctbp-run-scaffold.js'),
       [
-        'const RUNNER_FILES = ["tctbp-core.js"];',
+        'const RUNNER_FILES = ["tctbp-core.js", "package.json"];',
         'const GITHUB_FILES = [];',
         'const PROMPT_FILES = [];',
         'const CONTRACT_FILES = ["schemas/contract.json"];',
-      ].join('\\n'),
+      ].join('\n'),
     )
-    await writeFile(path.join(source, 'VERSION'), '{"version":"0.3.0"}\\n')
+    await writeFile(path.join(source, 'VERSION'), '{"version":"0.3.0"}\n')
+    await writeFile(
+      path.join(source, 'scripts', 'package.json'),
+      canonicalPackageJson,
+    )
     await writeFile(
       path.join(source, '.github', 'TCTBP.json'),
       JSON.stringify({
@@ -81,7 +86,7 @@ describe('canonical TCTBP-Web source planning', () => {
     await expect(readFile(path.join(target, '.github', 'TCTBP.json'), 'utf8'))
       .resolves.toContain('"name": "target"')
     await expect(readFile(path.join(target, 'scripts', 'package.json'), 'utf8'))
-      .resolves.toContain('"type": "commonjs"')
+      .resolves.toBe(canonicalPackageJson)
     await expect(readFile(path.join(target, '.tctbp', 'source.json'), 'utf8'))
       .resolves.toContain('Ken24T/TCTBP-Web')
   })
@@ -175,6 +180,78 @@ describe('canonical TCTBP-Web source planning', () => {
       drifted: 1,
       'source-unavailable': 0,
     })
+  })
+
+  it('plans drift when the managed surface lives in the dedicated manifest module', async () => {
+    const root = await createTemporaryDirectory()
+    temporaryDirectories.push(root)
+    const source = path.join(root, 'TCTBP-Web')
+    const target = path.join(root, 'target')
+    await Promise.all([
+      mkdir(path.join(source, 'scripts'), { recursive: true }),
+      mkdir(path.join(source, '.github'), { recursive: true }),
+      mkdir(path.join(source, 'schemas'), { recursive: true }),
+      mkdir(path.join(target, 'scripts'), { recursive: true }),
+      mkdir(path.join(target, '.github'), { recursive: true }),
+    ])
+    // Newer TCTBP-Web layout: the arrays live in the shared manifest module
+    // and the scaffold runner only requires them (no inline arrays).
+    await writeFile(
+      path.join(source, 'scripts', 'tctbp-managed-surface.js'),
+      [
+        'const RUNNER_FILES = ["tctbp-core.js"];',
+        'const GITHUB_FILES = ["TCTBP Agent.md"];',
+        'const PROMPT_FILES = [];',
+        'const CONTRACT_FILES = ["schemas/contract.json"];',
+      ].join('\n'),
+    )
+    await writeFile(
+      path.join(source, 'scripts', 'tctbp-run-scaffold.js'),
+      'const { RUNNER_FILES, GITHUB_FILES } = require("./tctbp-managed-surface");\n',
+    )
+    await writeFile(path.join(source, 'VERSION'), '{"version":"0.3.6"}\n')
+    await writeFile(
+      path.join(source, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
+        adviserVocabulary: { workflowIds: ['status'] },
+      }),
+    )
+    await writeFile(path.join(source, 'scripts', 'tctbp-core.js'), 'same\n')
+    await writeFile(path.join(source, '.github', 'TCTBP Agent.md'), 'source\n')
+    await writeFile(path.join(source, 'schemas', 'contract.json'), '{}\n')
+    await writeFile(path.join(target, 'scripts', 'tctbp-core.js'), 'same\n')
+    await writeFile(path.join(target, '.github', 'TCTBP Agent.md'), 'target\n')
+    await writeFile(
+      path.join(target, '.github', 'TCTBP.json'),
+      JSON.stringify({
+        schemaVersion: 11,
+        adviserContract: { major: 1, minor: 0, capabilities: ['inspection.local-v1'] },
+        adviserVocabulary: { workflowIds: ['status'] },
+      }),
+    )
+
+    const service = new CanonicalTctbpSourceService(source, executor())
+    const observation = targetObservation({
+      sourceRepository: 'Ken24T/TCTBP-Web',
+      sourceRevision: revision,
+      sourceVersion: '0.3.6',
+    })
+    const plan = await service.plan(target, observation)
+
+    expect(plan.disposition).toBe('review-required')
+    expect(plan.source).toMatchObject({
+      state: 'available',
+      version: '0.3.6',
+      managedFileCount: 3,
+    })
+    expect(plan.policy).toEqual({ state: 'aligned', differences: [] })
+    expect(plan.drift.files).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'scripts/tctbp-core.js', state: 'current' }),
+      expect.objectContaining({ path: '.github/TCTBP Agent.md', state: 'drifted' }),
+      expect.objectContaining({ path: 'schemas/contract.json', state: 'missing-target' }),
+    ]))
   })
 
   it('applies approved additions only on a dedicated branch', async () => {

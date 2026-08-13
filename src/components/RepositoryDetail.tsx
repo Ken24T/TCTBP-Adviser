@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ActionerJob } from '../../shared/actioner'
 import type { AiReviewResult } from '../../shared/ai-review'
 import type {
@@ -9,7 +10,7 @@ import type { RecommendationIntent } from '../../shared/recommendation'
 import type { RepositoryDetailResult } from '../../shared/repository-detail'
 import type { PortfolioPreferences } from '../../shared/portfolio-preferences'
 import type { TctbpUpgradePlan } from '../../shared/tctbp-upgrade'
-import { Panel, Section, Select } from './primitives'
+import { Button, Panel, Section, Select } from './primitives'
 import { cardSurfaceVars, severityTone } from '../card-surface'
 import { useTheme } from '../theme'
 import { RepositoryDetailHero } from './RepositoryDetailHero'
@@ -31,6 +32,8 @@ interface RepositoryDetailProps {
   actionBusy: boolean
   actionFeedback: string | null
   onRunAction: (workflowId: import('../../shared/actioner').ActionerWorkflowId) => void
+  onAddOrigin: (url: string) => void
+  onCreateOrigin: (name: string, visibility: 'private' | 'public') => void
   onRepairCompatibility: () => void
   intent: RecommendationIntent
   busy: boolean
@@ -72,6 +75,8 @@ export function RepositoryDetail({
   actionBusy,
   actionFeedback,
   onRunAction,
+  onAddOrigin,
+  onCreateOrigin,
   onRepairCompatibility,
   intent,
   busy,
@@ -105,6 +110,11 @@ export function RepositoryDetail({
   onCleanupUpgradeBranch,
   onMergeUpgradeBranch,
 }: RepositoryDetailProps) {
+  const [originUrl, setOriginUrl] = useState('')
+  const [originInputOpen, setOriginInputOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [createName, setCreateName] = useState('')
+  const [createVisibility, setCreateVisibility] = useState<'private' | 'public'>('private')
   const { observation, recommendation } = detail
   const description = observation.tctbp.projectDescription
     ?? 'No project description is available in the TCTBP profile.'
@@ -178,6 +188,142 @@ export function RepositoryDetail({
               : 'No primary trigger suggested.'}
           </p>
         </div>
+
+        {!observation.remoteOrigin && (
+          <div className="flex flex-wrap items-center gap-3 p-3 bg-surface-soft border border-border rounded-lg text-sm">
+            <span className="text-text-secondary">
+              No git remote &apos;origin&apos; is configured — add one to enable
+              publish and promotion workflows.
+            </span>
+            {createOpen ? (
+              <div className="flex flex-1 min-w-64 items-center gap-2">
+                <input
+                  aria-label="Repository name"
+                  autoFocus
+                  className="flex-1 px-3 py-1.5 text-sm text-text-primary bg-surface-elevated border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint font-mono"
+                  onChange={(event) => setCreateName(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && createName.trim()) {
+                      onCreateOrigin(createName.trim(), createVisibility)
+                      setCreateOpen(false)
+                      setCreateName('')
+                    }
+                    if (event.key === 'Escape') {
+                      setCreateOpen(false)
+                      setCreateName('')
+                    }
+                  }}
+                  placeholder="repository-name"
+                  value={createName}
+                />
+                <select
+                  aria-label="Repository visibility"
+                  className="px-2 py-1.5 text-sm text-text-primary bg-surface-elevated border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  onChange={(event) => (
+                    setCreateVisibility(
+                      event.currentTarget.value as 'private' | 'public',
+                    )
+                  )}
+                  value={createVisibility}
+                >
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+                <Button
+                  disabled={busy || actionBusy || !createName.trim()}
+                  onClick={() => {
+                    onCreateOrigin(createName.trim(), createVisibility)
+                    setCreateOpen(false)
+                    setCreateName('')
+                  }}
+                  size="sm"
+                >
+                  Create
+                </Button>
+                <Button
+                  disabled={busy || actionBusy}
+                  onClick={() => {
+                    setCreateOpen(false)
+                    setCreateName('')
+                  }}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : originInputOpen ? (
+              <div className="flex flex-1 min-w-64 items-center gap-2">
+                <input
+                  aria-label="Origin URL"
+                  autoFocus
+                  className="flex-1 px-3 py-1.5 text-sm text-text-primary bg-surface-elevated border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 placeholder-text-faint font-mono"
+                  onChange={(event) => setOriginUrl(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && originUrl.trim()) {
+                      onAddOrigin(originUrl.trim())
+                      setOriginInputOpen(false)
+                      setOriginUrl('')
+                    }
+                    if (event.key === 'Escape') {
+                      setOriginInputOpen(false)
+                      setOriginUrl('')
+                    }
+                  }}
+                  placeholder="https://github.com/owner/repo.git"
+                  value={originUrl}
+                />
+                <Button
+                  disabled={busy || actionBusy || !originUrl.trim()}
+                  onClick={() => {
+                    onAddOrigin(originUrl.trim())
+                    setOriginInputOpen(false)
+                    setOriginUrl('')
+                  }}
+                  size="sm"
+                >
+                  Add
+                </Button>
+                <Button
+                  disabled={busy || actionBusy}
+                  onClick={() => {
+                    setOriginInputOpen(false)
+                    setOriginUrl('')
+                  }}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  disabled={busy || actionBusy}
+                  onClick={() => {
+                    setCreateName(
+                      detail.directoryName || observation.repository.name || '',
+                    )
+                    setCreateVisibility('private')
+                    setCreateOpen(true)
+                    setOriginInputOpen(false)
+                  }}
+                  size="sm"
+                >
+                  Create on GitHub…
+                </Button>
+                <Button
+                  disabled={busy || actionBusy}
+                  onClick={() => setOriginInputOpen(true)}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Add origin…
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {actionJob && (
           <ActionerProgress

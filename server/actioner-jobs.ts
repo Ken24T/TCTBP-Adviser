@@ -18,6 +18,8 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
     'promote-review': 'Promote development to review',
     'promote-production': 'Promote review to main',
     'ship': 'Run ship release workflow',
+    'add-origin': 'Add origin remote',
+    'create-origin': 'Create GitHub repository and connect origin',
   }
   const completeLabels: Record<ActionerWorkflowId, string> = {
     'checkpoint': 'Complete without push',
@@ -30,6 +32,8 @@ function stepDefinitions(workflowId: ActionerWorkflowId): Array<Pick<ActionerSte
     'promote-review': 'Complete with promote review result',
     'promote-production': 'Complete with promote production result',
     'ship': 'Complete with ship result',
+    'add-origin': 'Complete with origin remote result',
+    'create-origin': 'Complete with created-origin result',
   }
   return [
     { id: 'validate', label: `Validate ${workflowId} plan and target state` },

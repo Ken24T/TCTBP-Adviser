@@ -33,6 +33,7 @@ interface PortfolioDashboardProps {
     patch: Partial<PortfolioPreference>,
   ) => void
   onRefreshRepository: (repositoryId: string) => void
+  refreshingRepositoryId?: string | null
 }
 
 export function PortfolioDashboard({
@@ -41,6 +42,7 @@ export function PortfolioDashboard({
   query,
   busy = false,
   returningId = null,
+  refreshingRepositoryId = null,
   onOpen,
   onPreferenceChange,
   onRefreshRepository,
@@ -164,6 +166,7 @@ export function PortfolioDashboard({
             {repositories.map((repository) => (
               <PortfolioCard
                 busy={busy}
+                refreshing={refreshingRepositoryId === repository.id}
                 key={repository.id}
                 repository={repository}
                 preference={preferences[repository.id] ?? emptyPreference()}

@@ -13,6 +13,8 @@ function actionerLabel(workflowId: ActionerJob['workflowId']): string {
     'handover': 'Handover',
     'resume': 'Resume',
     'repair-tctbp-script-compatibility': 'Repair TCTBP scripts',
+    'add-origin': 'Add origin',
+    'create-origin': 'Create on GitHub',
   }
   return labels[workflowId]
 }

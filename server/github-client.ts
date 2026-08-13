@@ -6,6 +6,11 @@ const API_VERSION = '2026-03-10'
 
 export type GitHubFetch = typeof fetch
 
+export interface GitHubUserIdentity {
+  login: string | null
+  name: string | null
+}
+
 export class GitHubRestClient {
   constructor(
     readonly config: GitHubConfig,
@@ -13,6 +18,68 @@ export class GitHubRestClient {
   ) {}
 
   async get(path: string): Promise<unknown> {
+    return (await this.requestJson(path)).body
+  }
+
+  /** Creates a repository under the authenticated account. */
+  async createRepository(options: {
+    name: string
+    private: boolean
+  }): Promise<void> {
+    await this.requestJson('/user/repos', 'POST', {
+      name: options.name,
+      private: options.private,
+      auto_init: false,
+    })
+  }
+
+  /** True when the repository already exists (404-tolerant). */
+  async repositoryExists(owner: string, name: string): Promise<boolean> {
+    try {
+      await this.requestJson(
+        `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`,
+      )
+      return true
+    } catch (error) {
+      if (
+        error instanceof AdviserError
+        && error.code === 'github-repository-not-found'
+      ) {
+        return false
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Authenticated user plus classic-PAT scopes from the x-oauth-scopes header.
+   * Scopes are empty for fine-grained tokens (which do not advertise scopes).
+   */
+  async readUser(): Promise<{
+    user: GitHubUserIdentity
+    scopes: string[]
+  }> {
+    const { body, scopes } = await this.requestJson('/user')
+    const user = (
+      typeof body === 'object' && body !== null ? body : {}
+    ) as Record<string, unknown>
+    return {
+      user: {
+        login: typeof user.login === 'string' ? user.login : null,
+        name: typeof user.name === 'string' ? user.name : null,
+      },
+      scopes,
+    }
+  }
+
+  private async requestJson(
+    path: string,
+    method: 'GET' | 'POST' = 'GET',
+    payload?: unknown,
+  ): Promise<{
+    body: unknown
+    scopes: string[]
+  }> {
     if (!path.startsWith('/') || path.startsWith('//')) {
       throw new AdviserError(
         'github-path-rejected',
@@ -23,10 +90,16 @@ export class GitHubRestClient {
     const timeout = setTimeout(() => controller.abort(), this.config.timeoutMs)
     try {
       const response = await this.request(`${API_ROOT}${path}`, {
-        method: 'GET',
+        method,
         redirect: 'error',
         signal: controller.signal,
-        headers: this.headers(),
+        headers: {
+          ...this.headers(),
+          ...(payload !== undefined
+            ? { 'Content-Type': 'application/json' }
+            : {}),
+        },
+        ...(payload !== undefined ? { body: JSON.stringify(payload) } : {}),
       })
       if (!response.ok) throw githubHttpError(response.status)
       const advertised = Number(response.headers.get('content-length'))
@@ -40,14 +113,20 @@ export class GitHubRestClient {
         response,
         this.config.maxResponseBytes,
       )
+      let parsed: unknown
       try {
-        return JSON.parse(new TextDecoder().decode(body)) as unknown
+        parsed = JSON.parse(new TextDecoder().decode(body)) as unknown
       } catch {
         throw new AdviserError(
           'github-response-invalid',
           'GitHub returned an invalid JSON response.',
         )
       }
+      const scopes = (response.headers.get('x-oauth-scopes') ?? '')
+        .split(',')
+        .map((scope) => scope.trim())
+        .filter(Boolean)
+      return { body: parsed, scopes }
     } catch (error) {
       if (error instanceof AdviserError) throw error
       const timedOut = (

@@ -1,6 +1,7 @@
 import type {
   AppSettingsResponse,
   AppSettingsUpdate,
+  GithubAccessStatus,
 } from '../../shared/app-settings'
 import { requestJson } from './client'
 
@@ -15,5 +16,12 @@ export async function saveAppSettings(
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(update),
+  })
+}
+
+/** Re-checks the configured GitHub access (token status + account). */
+export async function testGithubAccess(): Promise<GithubAccessStatus> {
+  return requestJson<GithubAccessStatus>('/api/settings/github/test', {
+    method: 'POST',
   })
 }

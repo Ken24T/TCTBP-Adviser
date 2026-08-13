@@ -1,8 +1,10 @@
 // Barrel: re-exports the public Adviser API surface grouped by domain.
 export {
   loadActionerJob,
+  startAddOriginAction,
   startBranchDevelopmentAction,
   startCheckpointAction,
+  startCreateOriginAction,
   startDeployDevelopmentAction,
   startHandoverAction,
   startPromoteProductionAction,
@@ -36,5 +38,6 @@ export {
 export {
   loadAppSettings,
   saveAppSettings,
+  testGithubAccess,
 } from './settings'
 export { loadReferenceCatalogue } from './reference'

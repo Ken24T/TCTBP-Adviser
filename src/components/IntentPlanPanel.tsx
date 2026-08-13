@@ -209,6 +209,8 @@ function actionLabelForStep(step: IntentPlan['steps'][number]): string {
     'promote-review': 'Promote review',
     'promote-production': 'Promote production',
     ship: 'Ship release',
+    'add-origin': 'Add origin',
+    'create-origin': 'Create on GitHub',
   }
   return labels[actionWorkflowForStep(step)]
 }
