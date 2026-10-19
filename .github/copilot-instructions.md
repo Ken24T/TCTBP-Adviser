@@ -1,25 +1,18 @@
 # tctbp-adviser – Copilot Instructions
 
+## Shared code and documentation policy
+
+This repository adopts shared-development-policy 1.0.0. Read
+`.github/DEVELOPMENT_POLICY.md` and its machine-readable companion
+`.github/development-policy.json` for code, configuration and documentation work.
+Use `node scripts/check-modularity.cjs --changed` for advisory size signals.
+Record design reviews for new or materially changed large files in change notes.
+File size alone never requires a split or grants approval to commit or publish.
+Existing correctness, security, Git and approval protections remain in force.
+
 ## What This Repo Is
 
 This is an **application repository**, not a template repo. You are editing a real project built with the TCTBP-Web workflow. The TCTBP runner surface in `scripts/` and `.github/` manages branch safety, versioning, and deployment — do not modify those files unless explicitly asked. Your job is to build the application code that lives alongside them.
-
-## Modularity Rules — Read First
-
-These are hard constraints. AI agents tend to accrete code into existing files. Resist that.
-
-### File Size Limits
-
-- **250 lines:** Soft ceiling. When a file approaches this, ask yourself whether the new function belongs in a new module.
-- **400 lines:** Warning threshold. Files above this line count require a comment at the top justifying why they haven't been split.
-- **600 lines:** Hard split. Files at or above 600 lines MUST be split before the next checkpoint. No exceptions.
-
-### When To Create A New File
-
-- A new function doesn't share mutable state with the file's other functions → new file.
-- A group of 3+ related functions has emerged → extract into a dedicated module.
-- You're importing more than 8 symbols from a single module → consider splitting that module.
-- A file's purpose requires "and also" to describe → split it.
 
 ### File Naming
 
@@ -27,9 +20,6 @@ These are hard constraints. AI agents tend to accrete code into existing files. 
 - Group related files in directories: `utils/`, `hooks/`, `components/`, `services/`.
 - Index files (`index.ts`) should only re-export — no implementation.
 
-### Single Responsibility
-
-Every file should have one clear purpose expressible in a single sentence. If you can't describe what a file does without a list, it should be multiple files.
 
 ## Language & Framework Rules
 
@@ -48,7 +38,7 @@ General rules that apply regardless of framework:
 
 - Prefer `const` over `let`. Never use `var`.
 - Use explicit return types on exported functions (TypeScript).
-- Keep functions under 40 lines. Extract helpers rather than nesting deeply.
+- Review long or deeply nested functions for cohesion; extract useful boundaries.
 - No `any` types in exported signatures. Use `unknown` if truly dynamic.
 - Prefer pure functions where possible. Side effects should be explicit and documented.
 - Handle errors at the boundary. Don't let exceptions propagate through layers silently.
