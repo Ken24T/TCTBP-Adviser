@@ -75,7 +75,7 @@ describe('kindling reconcile plan (read-only)', () => {
     )
     const existingRunners = fs
       .readdirSync(path.join(TARGET_ROOT, 'scripts'))
-      .filter((file) => file.startsWith('tctbp-run-') && file.endsWith('.js'))
+      .filter((file) => file.startsWith('tctbp-run-') && /\.(?:c|m)?js$/.test(file))
     const violations = auditCatalogue(merged, {
       scaffoldRunnerFiles: RUNNER_FILES,
       agentFrontmatter,

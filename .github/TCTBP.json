@@ -366,5 +366,11 @@
     "requireServiceHooks": true,
     "preserveFailedCandidate": true,
     "comment": "Runtime publication is an injectable atomic bundle transaction. Service lifecycle and health verification belong to the consuming project."
+  },
+  "begin": {
+    "contract": "tctbp-begin/1",
+    "executionCommand": "node scripts/tctbp-run-begin.cjs",
+    "profile": ".github/TCTBP_BEGIN.json",
+    "owner": "TCTBP common core; project-owned capabilities"
   }
 }

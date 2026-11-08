@@ -109,7 +109,7 @@ describe('Phase 7 ecosystem proving exercise', () => {
         ),
         existingRunners: fs
           .readdirSync(path.join(project, 'scripts'))
-          .filter((file) => file.startsWith('tctbp-run-') && file.endsWith('.js')),
+          .filter((file) => file.startsWith('tctbp-run-') && /\.(?:c|m)?js$/.test(file)),
       }) as Array<{ code: string; workflowId: string | null }>
       const nonFactoryViolations = violations.filter(
         (violation) => violation.workflowId !== 'scaffold',
